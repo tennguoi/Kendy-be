@@ -2,6 +2,8 @@ package com.example.KendyDigital.service;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
@@ -9,8 +11,8 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import org.springframework.data.domain.PageRequest;
-
 import org.springframework.http.HttpStatus;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
@@ -31,6 +33,7 @@ import com.example.KendyDigital.dto.IgnoreBankTransactionRequest;
 import com.example.KendyDigital.dto.ManualCreditBankTransactionRequest;
 import com.example.KendyDigital.dto.ManualCreditDepositRequest;
 import com.example.KendyDigital.dto.MatchBankTransactionRequest;
+import com.example.KendyDigital.dto.OrderResponse;
 import com.example.KendyDigital.dto.ReprocessBankTransactionRequest;
 import com.example.KendyDigital.dto.RevenueReportResponse;
 import com.example.KendyDigital.dto.WalletTransactionResponse;
@@ -38,6 +41,7 @@ import com.example.KendyDigital.model.BankTransaction;
 import com.example.KendyDigital.model.BankTransactionStatus;
 import com.example.KendyDigital.model.DepositRequest;
 import com.example.KendyDigital.model.DepositStatus;
+import com.example.KendyDigital.model.OrderRecord;
 import com.example.KendyDigital.model.OrderStatus;
 import com.example.KendyDigital.model.TicketStatus;
 import com.example.KendyDigital.model.UserAccount;
@@ -63,7 +67,10 @@ public class AdminFinanceService {
     private final DepositRequestRepository depositRequestRepository;
     private final WalletTransactionRepository walletTransactionRepository;
     private final WalletLedgerService walletLedgerService;
+    private static final BigDecimal LARGE_TRANSACTION_THRESHOLD = new BigDecimal("1000");
+
     private final AuditService auditService;
+    private final PasswordEncoder passwordEncoder;
     private final Pattern depositCodePattern;
 
     public AdminFinanceService(UserAccountRepository userAccountRepository,
@@ -74,6 +81,7 @@ public class AdminFinanceService {
             WalletTransactionRepository walletTransactionRepository,
             WalletLedgerService walletLedgerService,
             AuditService auditService,
+            PasswordEncoder passwordEncoder,
             BankProperties bankProperties) {
         this.userAccountRepository = userAccountRepository;
         this.orderRepository = orderRepository;
@@ -83,12 +91,14 @@ public class AdminFinanceService {
         this.walletTransactionRepository = walletTransactionRepository;
         this.walletLedgerService = walletLedgerService;
         this.auditService = auditService;
+        this.passwordEncoder = passwordEncoder;
         this.depositCodePattern = Pattern.compile("\\b" + Pattern.quote(bankProperties.getTransferPrefix())
                 + "[A-Z0-9]{8,}\\b", Pattern.CASE_INSENSITIVE);
     }
 
     @Transactional(readOnly = true)
     public AdminDashboardResponse dashboard() {
+        Instant todayStart = LocalDate.now(ZoneOffset.UTC).atStartOfDay().toInstant(ZoneOffset.UTC);
         return new AdminDashboardResponse(
                 userAccountRepository.count(),
                 userAccountRepository.countByStatus(UserStatus.ACTIVE),
@@ -108,18 +118,32 @@ public class AdminFinanceService {
                 ticketRepository.countByStatus(TicketStatus.PENDING_ADMIN),
                 ticketRepository.countByStatus(TicketStatus.PENDING_USER),
                 ticketRepository.countByStatus(TicketStatus.RESOLVED),
-                ticketRepository.countByStatus(TicketStatus.CLOSED));
+                ticketRepository.countByStatus(TicketStatus.CLOSED),
+                depositRequestRepository.countByCreatedAtGreaterThanEqual(todayStart),
+                orderRepository.sumAmountByStatusBetween(OrderStatus.COMPLETED, todayStart, Instant.now()),
+                bankTransactionRepository.countByStatus(BankTransactionStatus.NEW)
+                        + bankTransactionRepository.countByStatus(BankTransactionStatus.MANUAL_REVIEW));
+    }
+
+    @Transactional(readOnly = true)
+    public RevenueReportResponse getRevenueReport(Instant fromDate, Instant toDate) {
+        Instant from = fromDate != null ? fromDate : Instant.EPOCH;
+        Instant to = toDate != null ? toDate : Instant.now();
+        BigDecimal depositVolume = walletTransactionRepository.sumAmountByTypeAndDirectionBetween(
+                WalletTransactionType.DEPOSIT, WalletTransactionDirection.CREDIT, from, to);
+        BigDecimal grossRevenue = orderRepository.sumAmountByStatusBetween(OrderStatus.COMPLETED, from, to);
+        BigDecimal totalRefunds = orderRepository.sumAmountByStatusBetween(OrderStatus.REFUNDED, from, to);
+        BigDecimal totalCost = orderRepository.sumCostPriceByStatusBetween(OrderStatus.COMPLETED, from, to);
+        BigDecimal netRevenue = grossRevenue.subtract(totalRefunds);
+        BigDecimal profit = grossRevenue.subtract(totalCost);
+        BigDecimal walletLiability = userAccountRepository.sumAllBalances();
+
+        return new RevenueReportResponse(depositVolume, grossRevenue, totalRefunds, netRevenue, walletLiability, totalCost, profit);
     }
 
     @Transactional(readOnly = true)
     public RevenueReportResponse getRevenueReport() {
-        BigDecimal depositVolume = walletTransactionRepository.sumAmountByTypeAndDirection(WalletTransactionType.DEPOSIT, WalletTransactionDirection.CREDIT);
-        BigDecimal grossRevenue = orderRepository.sumAmountByStatus(OrderStatus.COMPLETED);
-        BigDecimal totalRefunds = orderRepository.sumAmountByStatus(OrderStatus.REFUNDED);
-        BigDecimal netRevenue = grossRevenue.subtract(totalRefunds);
-        BigDecimal walletLiability = userAccountRepository.sumAllBalances();
-
-        return new RevenueReportResponse(depositVolume, grossRevenue, totalRefunds, netRevenue, walletLiability);
+        return getRevenueReport(null, null);
     }
 
     @Transactional(readOnly = true)
@@ -128,22 +152,32 @@ public class AdminFinanceService {
     }
 
     @Transactional(readOnly = true)
-    public List<AdminUserResponse> listUsers(UserStatus status, Integer limit) {
+    public List<AdminUserResponse> listUsers(UserStatus status, int page, int size) {
         List<UserAccount> users = status == null
-                ? userAccountRepository.findAllByOrderByCreatedAtDesc(page(limit))
-                : userAccountRepository.findAllByStatusOrderByCreatedAtDesc(status, page(limit));
+                ? userAccountRepository.findAllByOrderByCreatedAtDesc(paged(page, size))
+                : userAccountRepository.findAllByStatusOrderByCreatedAtDesc(status, paged(page, size));
         return users.stream().map(AdminUserResponse::from).toList();
     }
 
     @Transactional(readOnly = true)
-    public List<AdminUserResponse> searchUsers(String query, UserStatus status, Integer limit) {
+    public List<AdminUserResponse> listUsers(UserStatus status, Integer limit) {
+        return listUsers(status, 0, limit == null ? 100 : limit);
+    }
+
+    @Transactional(readOnly = true)
+    public List<AdminUserResponse> searchUsers(String query, UserStatus status, int page, int size) {
         String normalizedQuery = normalizeQuery(query);
         List<UserAccount> users = userAccountRepository.searchAdmin(
                 normalizedQuery,
                 parseLongOrNull(normalizedQuery),
                 status,
-                page(limit));
+                paged(page, size));
         return users.stream().map(AdminUserResponse::from).toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<AdminUserResponse> searchUsers(String query, UserStatus status, Integer limit) {
+        return searchUsers(query, status, 0, limit == null ? 100 : limit);
     }
 
     @Transactional(readOnly = true)
@@ -198,25 +232,36 @@ public class AdminFinanceService {
     }
 
     @Transactional(readOnly = true)
-    public List<DepositResponse> listDeposits(DepositStatus status, Long userId, Integer limit) {
+    public List<DepositResponse> listDeposits(DepositStatus status, Long userId, Instant fromDate, Instant toDate, int page, int size) {
         List<DepositRequest> deposits = userId != null
-                ? depositRequestRepository.findAllByUser_IdOrderByCreatedAtDesc(userId, page(limit))
+                ? depositRequestRepository.findAllByUser_IdOrderByCreatedAtDesc(userId, paged(page, size))
                 : status == null
-                        ? depositRequestRepository.findAllByOrderByCreatedAtDesc(page(limit))
-                        : depositRequestRepository.findAllByStatusOrderByCreatedAtDesc(status, page(limit));
+                        ? depositRequestRepository.findAllByOrderByCreatedAtDesc(paged(page, size))
+                        : depositRequestRepository.findAllByStatusOrderByCreatedAtDesc(status, paged(page, size));
         return deposits.stream().map(DepositResponse::from).toList();
     }
 
     @Transactional(readOnly = true)
-    public List<DepositResponse> searchDeposits(String query, DepositStatus status, Long userId, Integer limit) {
+    public List<DepositResponse> listDeposits(DepositStatus status, Long userId, Integer limit) {
+        return listDeposits(status, userId, null, null, 0, limit == null ? 100 : limit);
+    }
+
+    @Transactional(readOnly = true)
+    public List<DepositResponse> searchDeposits(String query, DepositStatus status, Long userId,
+            Instant fromDate, Instant toDate, int page, int size) {
         String normalizedQuery = normalizeQuery(query);
         List<DepositRequest> deposits = depositRequestRepository.searchAdmin(
                 normalizedQuery,
                 parseLongOrNull(normalizedQuery),
                 status,
                 userId,
-                page(limit));
+                paged(page, size));
         return deposits.stream().map(DepositResponse::from).toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<DepositResponse> searchDeposits(String query, DepositStatus status, Long userId, Integer limit) {
+        return searchDeposits(query, status, userId, null, null, 0, limit == null ? 100 : limit);
     }
 
     @Transactional(readOnly = true)
@@ -232,16 +277,22 @@ public class AdminFinanceService {
     }
 
     @Transactional(readOnly = true)
-    public List<AdminBankTransactionResponse> listBankTransactions(BankTransactionStatus status, Integer limit) {
+    public List<AdminBankTransactionResponse> listBankTransactions(BankTransactionStatus status,
+            Instant fromDate, Instant toDate, int page, int size) {
         List<BankTransaction> transactions = status == null
-                ? bankTransactionRepository.findAllByOrderByReceivedAtDesc(page(limit))
-                : bankTransactionRepository.findAllByStatusOrderByReceivedAtDesc(status, page(limit));
+                ? bankTransactionRepository.findAllByOrderByReceivedAtDesc(paged(page, size))
+                : bankTransactionRepository.findAllByStatusOrderByReceivedAtDesc(status, paged(page, size));
         return transactions.stream().map(AdminBankTransactionResponse::from).toList();
     }
 
     @Transactional(readOnly = true)
+    public List<AdminBankTransactionResponse> listBankTransactions(BankTransactionStatus status, Integer limit) {
+        return listBankTransactions(status, null, null, 0, limit == null ? 100 : limit);
+    }
+
+    @Transactional(readOnly = true)
     public List<AdminBankTransactionResponse> searchBankTransactions(String query, BankTransactionStatus status,
-            Integer limit) {
+            Instant fromDate, Instant toDate, int page, int size) {
         String normalizedQuery = normalizeQuery(query);
         Long parsedId = parseLongOrNull(normalizedQuery);
         List<BankTransaction> transactions = bankTransactionRepository.searchAdmin(
@@ -249,8 +300,14 @@ public class AdminFinanceService {
                 parsedId,
                 parsedId,
                 status,
-                page(limit));
+                paged(page, size));
         return transactions.stream().map(AdminBankTransactionResponse::from).toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<AdminBankTransactionResponse> searchBankTransactions(String query, BankTransactionStatus status,
+            Integer limit) {
+        return searchBankTransactions(query, status, null, null, 0, limit == null ? 100 : limit);
     }
 
     @Transactional(readOnly = true)
@@ -261,21 +318,51 @@ public class AdminFinanceService {
     }
 
     @Transactional(readOnly = true)
+    public List<OrderResponse> listOrders(OrderStatus status, Long userId, Instant fromDate, Instant toDate, int page, int size) {
+        List<OrderRecord> orders = userId != null
+                ? orderRepository.findAllByUser_IdOrderByCreatedAtDesc(userId, paged(page, size))
+                : status == null
+                        ? orderRepository.findAllByOrderByCreatedAtDesc(paged(page, size))
+                        : orderRepository.findAllByStatusOrderByCreatedAtDesc(status, paged(page, size));
+        return orders.stream().map(OrderResponse::from).toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<OrderResponse> searchOrders(String query, OrderStatus status, Long userId,
+            Instant fromDate, Instant toDate, int page, int size) {
+        String normalizedQuery = normalizeQuery(query);
+        List<OrderRecord> orders = orderRepository.searchAdmin(
+                normalizedQuery,
+                parseLongOrNull(normalizedQuery),
+                status,
+                userId,
+                paged(page, size));
+        return orders.stream().map(OrderResponse::from).toList();
+    }
+
+    @Transactional(readOnly = true)
     public List<WalletTransactionResponse> listWalletTransactions(Long userId) {
         return listWalletTransactions(userId, null);
     }
 
     @Transactional(readOnly = true)
-    public List<WalletTransactionResponse> listWalletTransactions(Long userId, Integer limit) {
+    public List<WalletTransactionResponse> listWalletTransactions(Long userId,
+            Instant fromDate, Instant toDate, int page, int size) {
         List<WalletTransaction> transactions = userId == null
-                ? walletTransactionRepository.findAllByOrderByCreatedAtDesc(page(limit))
-                : walletTransactionRepository.findAllByUser_IdOrderByCreatedAtDesc(userId, page(limit));
+                ? walletTransactionRepository.findAllByOrderByCreatedAtDesc(paged(page, size))
+                : walletTransactionRepository.findAllByUser_IdOrderByCreatedAtDesc(userId, paged(page, size));
         return transactions.stream().map(WalletTransactionResponse::from).toList();
     }
 
     @Transactional(readOnly = true)
+    public List<WalletTransactionResponse> listWalletTransactions(Long userId, Integer limit) {
+        return listWalletTransactions(userId, null, null, 0, limit == null ? 100 : limit);
+    }
+
+    @Transactional(readOnly = true)
     public List<WalletTransactionResponse> searchWalletTransactions(String query, Long userId,
-            WalletTransactionType type, WalletTransactionDirection direction, Integer limit) {
+            WalletTransactionType type, WalletTransactionDirection direction,
+            Instant fromDate, Instant toDate, int page, int size) {
         String normalizedQuery = normalizeQuery(query);
         List<WalletTransaction> transactions = walletTransactionRepository.searchAdmin(
                 normalizedQuery,
@@ -283,8 +370,14 @@ public class AdminFinanceService {
                 userId,
                 type,
                 direction,
-                page(limit));
+                paged(page, size));
         return transactions.stream().map(WalletTransactionResponse::from).toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<WalletTransactionResponse> searchWalletTransactions(String query, Long userId,
+            WalletTransactionType type, WalletTransactionDirection direction, Integer limit) {
+        return searchWalletTransactions(query, userId, type, direction, null, null, 0, limit == null ? 100 : limit);
     }
 
     @Transactional(readOnly = true)
@@ -299,6 +392,15 @@ public class AdminFinanceService {
             AdminWalletAdjustmentRequest request) {
         UserAccount user = userAccountRepository.findByIdForUpdate(targetUserId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+
+        if (request.amount().compareTo(LARGE_TRANSACTION_THRESHOLD) >= 0) {
+            UserAccount admin = userAccountRepository.findById(adminUserId)
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Admin not found"));
+            if (request.confirmationPassword() == null || request.confirmationPassword().isBlank()
+                    || !passwordEncoder.matches(request.confirmationPassword(), admin.getPasswordHash())) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Confirmation password required for transactions of this size");
+            }
+        }
 
         WalletTransaction transaction;
         if (request.direction() == WalletTransactionDirection.CREDIT) {
@@ -718,6 +820,10 @@ public class AdminFinanceService {
     private PageRequest page(Integer limit) {
         int normalizedLimit = limit == null ? 100 : Math.max(1, Math.min(limit, 200));
         return PageRequest.of(0, normalizedLimit);
+    }
+
+    private PageRequest paged(int page, int size) {
+        return PageRequest.of(Math.max(0, page), Math.max(1, Math.min(size, 200)));
     }
 
     private String normalizeQuery(String query) {

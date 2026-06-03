@@ -17,6 +17,8 @@ import com.example.KendyDigital.config.BankProperties;
 import com.example.KendyDigital.dto.CancelDepositRequest;
 import com.example.KendyDigital.dto.CreateDepositRequest;
 import com.example.KendyDigital.dto.DepositResponse;
+import com.example.KendyDigital.dto.DepositQrResponse;
+import com.example.KendyDigital.dto.DepositStatusResponse;
 import com.example.KendyDigital.model.DepositRequest;
 import com.example.KendyDigital.model.DepositStatus;
 import com.example.KendyDigital.model.UserAccount;
@@ -82,13 +84,39 @@ public class DepositService {
 
     @Transactional(readOnly = true)
     public List<DepositResponse> listByUser(Long userId, DepositStatus status) {
+        return listByUser(userId, status, 0, 50);
+    }
+
+    @Transactional(readOnly = true)
+    public List<DepositResponse> listByUser(Long userId, DepositStatus status, int page, int size) {
         List<DepositRequest> deposits = status == null
-                ? depositRequestRepository.findAllByUser_IdOrderByCreatedAtDesc(userId, PageRequest.of(0, 50))
-                : depositRequestRepository.findAllByUser_IdAndStatusOrderByCreatedAtDesc(userId, status, PageRequest.of(0, 50));
+                ? depositRequestRepository.findAllByUser_IdOrderByCreatedAtDesc(userId, paged(page, size))
+                : depositRequestRepository.findAllByUser_IdAndStatusOrderByCreatedAtDesc(userId, status, paged(page, size));
         return deposits
                 .stream()
                 .map(DepositResponse::from)
                 .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public DepositStatusResponse statusForUser(Long userId, String depositCode) {
+        DepositRequest deposit = requireDepositForUser(userId, depositCode);
+        return new DepositStatusResponse(
+                deposit.getDepositCode(),
+                deposit.getStatus(),
+                deposit.getExpiredAt(),
+                deposit.getCompletedAt(),
+                Instant.now());
+    }
+
+    @Transactional(readOnly = true)
+    public DepositQrResponse qrForUser(Long userId, String depositCode) {
+        DepositResponse deposit = DepositResponse.from(requireDepositForUser(userId, depositCode));
+        return new DepositQrResponse(
+                deposit.depositCode(),
+                deposit.transferContent(),
+                deposit.qrPayload(),
+                deposit.qrImageUrl());
     }
 
     @Transactional
@@ -125,5 +153,18 @@ public class DepositService {
 
     private String blankToNull(String value) {
         return value == null || value.isBlank() ? null : value.trim();
+    }
+
+    private DepositRequest requireDepositForUser(Long userId, String depositCode) {
+        DepositRequest deposit = depositRequestRepository.findByDepositCode(depositCode)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Deposit not found"));
+        if (!deposit.getUser().getId().equals(userId)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Deposit not found");
+        }
+        return deposit;
+    }
+
+    private PageRequest paged(int page, int size) {
+        return PageRequest.of(Math.max(0, page), Math.max(1, Math.min(size, 200)));
     }
 }

@@ -6,6 +6,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
 import com.example.KendyDigital.common.CodeGenerator;
@@ -23,6 +24,9 @@ public class TicketService {
     private final DepositRequestRepository depositRequestRepository;
     private final CodeGenerator codeGenerator;
     private final AuditService auditService;
+    private final AdminNotificationRepository adminNotificationRepository;
+    private final FileStorageService fileStorageService;
+    private final UserNotificationService userNotificationService;
 
     public TicketService(TicketRepository ticketRepository,
             TicketMessageRepository ticketMessageRepository,
@@ -31,7 +35,10 @@ public class TicketService {
             OrderRepository orderRepository,
             DepositRequestRepository depositRequestRepository,
             CodeGenerator codeGenerator,
-            AuditService auditService) {
+            AuditService auditService,
+            AdminNotificationRepository adminNotificationRepository,
+            FileStorageService fileStorageService,
+            UserNotificationService userNotificationService) {
         this.ticketRepository = ticketRepository;
         this.ticketMessageRepository = ticketMessageRepository;
         this.ticketAttachmentRepository = ticketAttachmentRepository;
@@ -40,6 +47,9 @@ public class TicketService {
         this.depositRequestRepository = depositRequestRepository;
         this.codeGenerator = codeGenerator;
         this.auditService = auditService;
+        this.adminNotificationRepository = adminNotificationRepository;
+        this.fileStorageService = fileStorageService;
+        this.userNotificationService = userNotificationService;
     }
 
     @Transactional
@@ -64,15 +74,40 @@ public class TicketService {
                 request.message().trim()));
 
         auditService.recordSystem("TICKET_CREATED", "TICKET", ticket.getId(), "userId=" + userId);
+        adminNotificationRepository.save(new AdminNotification(null,
+                "New ticket: " + ticket.getSubject(),
+                "Ticket " + ticket.getTicketCode() + " created by " + user.getEmail()));
         return getForUser(userId, ticket.getTicketCode());
     }
 
     @Transactional(readOnly = true)
     public List<TicketResponse> listForUser(Long userId, TicketStatus status) {
+        return listForUser(userId, status, 0, 50);
+    }
+
+    @Transactional(readOnly = true)
+    public List<TicketResponse> listForUser(Long userId, TicketStatus status, int page, int size) {
         List<Ticket> tickets = status == null
-                ? ticketRepository.findAllByUser_IdOrderByCreatedAtDesc(userId, PageRequest.of(0, 50))
-                : ticketRepository.findAllByUser_IdAndStatusOrderByCreatedAtDesc(userId, status, PageRequest.of(0, 50));
+                ? ticketRepository.findAllByUser_IdOrderByCreatedAtDesc(userId, paged(page, size))
+                : ticketRepository.findAllByUser_IdAndStatusOrderByCreatedAtDesc(userId, status, paged(page, size));
         return tickets
+                .stream()
+                .map(this::toResponse)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<TicketResponse> searchForUser(Long userId, String query, TicketStatus status, TicketCategory category,
+            TicketPriority priority, int page, int size) {
+        String normalizedQuery = normalizeQuery(query);
+        return ticketRepository.searchUser(
+                        userId,
+                        normalizedQuery,
+                        parseLongOrNull(normalizedQuery),
+                        status,
+                        category,
+                        priority,
+                        paged(page, size))
                 .stream()
                 .map(this::toResponse)
                 .toList();
@@ -107,6 +142,22 @@ public class TicketService {
         ensureOwner(ticket, userId);
         ticket.close();
         auditService.recordSystem("TICKET_CLOSED_BY_USER", "TICKET", ticket.getId(), "userId=" + userId);
+        return toResponse(ticket);
+    }
+
+    @Transactional
+    public TicketResponse reopenForUser(Long userId, String ticketCode) {
+        Ticket ticket = ticketRepository.findByTicketCodeForUpdate(ticketCode)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Ticket not found"));
+        ensureOwner(ticket, userId);
+        if (ticket.getStatus() != TicketStatus.CLOSED && ticket.getStatus() != TicketStatus.RESOLVED) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Only closed or resolved tickets can be reopened");
+        }
+        ticket.reopen();
+        adminNotificationRepository.save(new AdminNotification(null,
+                "Ticket reopened: " + ticket.getSubject(),
+                "Ticket " + ticket.getTicketCode() + " reopened by user"));
+        auditService.recordSystem("TICKET_REOPENED_BY_USER", "TICKET", ticket.getId(), "userId=" + userId);
         return toResponse(ticket);
     }
 
@@ -160,6 +211,11 @@ public class TicketService {
         ticket.adminReplied(admin);
         ticketMessageRepository.save(new TicketMessage(ticket, admin, TicketSenderRole.ADMIN, request.message().trim()));
         auditService.recordAdmin(adminUserId, "TICKET_REPLIED", "TICKET", ticket.getId(), null);
+        userNotificationService.create(ticket.getUser().getId(),
+                "Ticket replied: " + ticket.getSubject(),
+                "Admin replied to ticket " + ticket.getTicketCode(),
+                "TICKET",
+                "/tickets/" + ticket.getTicketCode());
         return toResponse(ticket);
     }
 
@@ -179,6 +235,11 @@ public class TicketService {
         ticket.updateAdminFields(request.status(), request.priority(), assignedAdmin);
         auditService.recordAdmin(adminUserId, "TICKET_UPDATED", "TICKET", ticket.getId(),
                 "status=" + request.status() + ",priority=" + request.priority());
+        userNotificationService.create(ticket.getUser().getId(),
+                "Ticket updated: " + ticket.getSubject(),
+                "Ticket " + ticket.getTicketCode() + " status is " + ticket.getStatus(),
+                "TICKET",
+                "/tickets/" + ticket.getTicketCode());
         return toResponse(ticket);
     }
 
@@ -191,6 +252,41 @@ public class TicketService {
                 .toList();
     }
 
+    @Transactional(readOnly = true)
+    public List<TicketAttachmentResponse> listAttachmentsForUser(Long userId, String ticketCode) {
+        Ticket ticket = ensureTicketExists(ticketCode);
+        ensureOwner(ticket, userId);
+        return ticketAttachmentRepository.findAllByTicket_TicketCodeOrderByCreatedAtDesc(ticketCode)
+                .stream()
+                .map(TicketAttachmentResponse::from)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public StoredFile getAttachmentFileForUser(Long userId, String ticketCode, Long attachmentId) {
+        Ticket ticket = ensureTicketExists(ticketCode);
+        ensureOwner(ticket, userId);
+        TicketAttachment attachment = requireAttachment(ticket, attachmentId);
+        if (attachment.getStoredFile() == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Attachment file not found");
+        }
+        return fileStorageService.getById(attachment.getStoredFile().getId());
+    }
+
+    @Transactional
+    public void deleteAttachmentForUser(Long userId, String ticketCode, Long attachmentId) {
+        Ticket ticket = ensureTicketExists(ticketCode);
+        ensureOwner(ticket, userId);
+        TicketAttachment attachment = requireAttachment(ticket, attachmentId);
+        if (attachment.getStoredFile() == null || !userId.equals(attachment.getStoredFile().getUploadedBy())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only your own attachments can be deleted");
+        }
+        fileStorageService.delete(attachment.getStoredFile().getId());
+        ticketAttachmentRepository.delete(attachment);
+        auditService.recordSystem("TICKET_ATTACHMENT_DELETED_BY_USER", "TICKET", ticket.getId(),
+                "userId=" + userId + ",attachmentId=" + attachmentId);
+    }
+
     @Transactional
     public void deleteAttachment(Long adminUserId, String ticketCode, Long attachmentId) {
         Ticket ticket = ensureTicketExists(ticketCode);
@@ -198,6 +294,9 @@ public class TicketService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Attachment not found"));
         if (!attachment.getTicket().getId().equals(ticket.getId())) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Attachment not found");
+        }
+        if (attachment.getStoredFile() != null) {
+            fileStorageService.delete(attachment.getStoredFile().getId());
         }
         ticketAttachmentRepository.delete(attachment);
         auditService.recordAdmin(adminUserId, "TICKET_ATTACHMENT_DELETED", "TICKET", ticket.getId(),
@@ -240,6 +339,33 @@ public class TicketService {
                 .toList();
     }
 
+    @Transactional
+    public TicketAttachmentResponse uploadAttachment(Long userId, String ticketCode, MultipartFile file) {
+        Ticket ticket = ticketRepository.findByTicketCode(ticketCode)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Ticket not found"));
+        ensureOwner(ticket, userId);
+        ensureOpenForMessage(ticket);
+
+        StoredFile storedFile = fileStorageService.store(file, userId);
+        TicketAttachment attachment = ticketAttachmentRepository.save(
+                new TicketAttachment(ticket, storedFile));
+        return TicketAttachmentResponse.from(attachment);
+    }
+
+    @Transactional
+    public TicketAttachmentResponse uploadAttachmentAdmin(Long adminUserId, String ticketCode, MultipartFile file) {
+        Ticket ticket = ticketRepository.findByTicketCode(ticketCode)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Ticket not found"));
+        ensureOpenForMessage(ticket);
+
+        StoredFile storedFile = fileStorageService.store(file, adminUserId);
+        TicketAttachment attachment = ticketAttachmentRepository.save(
+                new TicketAttachment(ticket, storedFile));
+        auditService.recordAdmin(adminUserId, "TICKET_ATTACHMENT_UPLOADED", "TICKET", ticket.getId(),
+                "attachmentId=" + attachment.getId());
+        return TicketAttachmentResponse.from(attachment);
+    }
+
     @Transactional(readOnly = true)
     public java.util.Map<String, Object> resolutionTime() {
         List<Ticket> tickets = ticketRepository.findAllByOrderByCreatedAtDesc(PageRequest.of(0, 1000));
@@ -256,6 +382,10 @@ public class TicketService {
                 "averageResolutionMinutes", averageMinutes);
     }
 
+    public byte[] previewBytes(StoredFile file) {
+        return fileStorageService.previewBytes(file);
+    }
+
     private TicketResponse toResponse(Ticket ticket) {
         List<TicketMessageResponse> messages = ticketMessageRepository
                 .findByTicket_TicketCodeOrderByCreatedAtAsc(ticket.getTicketCode())
@@ -268,6 +398,15 @@ public class TicketService {
     private Ticket ensureTicketExists(String ticketCode) {
         return ticketRepository.findByTicketCode(ticketCode)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Ticket not found"));
+    }
+
+    private TicketAttachment requireAttachment(Ticket ticket, Long attachmentId) {
+        TicketAttachment attachment = ticketAttachmentRepository.findById(attachmentId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Attachment not found"));
+        if (!attachment.getTicket().getId().equals(ticket.getId())) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Attachment not found");
+        }
+        return attachment;
     }
 
     private OrderRecord resolveOrder(Long userId, String orderCode) {
@@ -332,5 +471,9 @@ public class TicketService {
     private PageRequest page(Integer limit) {
         int normalizedLimit = limit == null ? 100 : Math.max(1, Math.min(limit, 200));
         return PageRequest.of(0, normalizedLimit);
+    }
+
+    private PageRequest paged(int page, int size) {
+        return PageRequest.of(Math.max(0, page), Math.max(1, Math.min(size, 200)));
     }
 }

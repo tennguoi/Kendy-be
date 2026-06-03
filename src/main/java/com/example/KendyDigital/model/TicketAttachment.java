@@ -35,6 +35,10 @@ public class TicketAttachment extends TimestampedEntity {
     @JoinColumn(name = "ticket_id", nullable = false)
     private Ticket ticket;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "stored_file_id")
+    private StoredFile storedFile;
+
     @Column(name = "file_name", nullable = false)
     private String fileName;
 
@@ -49,5 +53,13 @@ public class TicketAttachment extends TimestampedEntity {
         this.fileName = fileName;
         this.contentType = contentType;
         this.sizeBytes = sizeBytes;
+    }
+
+    public TicketAttachment(Ticket ticket, StoredFile storedFile) {
+        this.ticket = ticket;
+        this.storedFile = storedFile;
+        this.fileName = storedFile.getFileName();
+        this.contentType = storedFile.getContentType();
+        this.sizeBytes = storedFile.getSizeBytes();
     }
 }

@@ -1,5 +1,9 @@
 package com.example.KendyDigital.controller;
 
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 import org.springframework.security.core.Authentication;
@@ -27,6 +31,7 @@ import com.example.KendyDigital.dto.IgnoreBankTransactionRequest;
 import com.example.KendyDigital.dto.ManualCreditBankTransactionRequest;
 import com.example.KendyDigital.dto.ManualCreditDepositRequest;
 import com.example.KendyDigital.dto.MatchBankTransactionRequest;
+import com.example.KendyDigital.dto.OrderResponse;
 import com.example.KendyDigital.dto.ReprocessBankTransactionRequest;
 import com.example.KendyDigital.dto.WalletTransactionResponse;
 import com.example.KendyDigital.model.BankTransactionStatus;
@@ -58,15 +63,17 @@ public class AdminFinanceController {
 
     @GetMapping("/api/admin/users")
     public List<AdminUserResponse> listUsers(@RequestParam(required = false) UserStatus status,
-            @RequestParam(required = false) Integer limit) {
-        return adminFinanceService.listUsers(status, limit);
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return adminFinanceService.listUsers(status, page, size);
     }
 
     @GetMapping("/api/admin/users/search")
     public List<AdminUserResponse> searchUsers(@RequestParam(required = false) String query,
             @RequestParam(required = false) UserStatus status,
-            @RequestParam(required = false) Integer limit) {
-        return adminFinanceService.searchUsers(query, status, limit);
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return adminFinanceService.searchUsers(query, status, page, size);
     }
 
     @GetMapping("/api/admin/users/{userId}")
@@ -96,16 +103,22 @@ public class AdminFinanceController {
     @GetMapping("/api/admin/deposit-requests")
     public List<DepositResponse> listDeposits(@RequestParam(required = false) DepositStatus status,
             @RequestParam(required = false) Long userId,
-            @RequestParam(required = false) Integer limit) {
-        return adminFinanceService.listDeposits(status, userId, limit);
+            @RequestParam(required = false) String fromDate,
+            @RequestParam(required = false) String toDate,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return adminFinanceService.listDeposits(status, userId, parseInstant(fromDate), parseInstant(toDate), page, size);
     }
 
     @GetMapping("/api/admin/deposit-requests/search")
     public List<DepositResponse> searchDeposits(@RequestParam(required = false) String query,
             @RequestParam(required = false) DepositStatus status,
             @RequestParam(required = false) Long userId,
-            @RequestParam(required = false) Integer limit) {
-        return adminFinanceService.searchDeposits(query, status, userId, limit);
+            @RequestParam(required = false) String fromDate,
+            @RequestParam(required = false) String toDate,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return adminFinanceService.searchDeposits(query, status, userId, parseInstant(fromDate), parseInstant(toDate), page, size);
     }
 
     @GetMapping("/api/admin/deposit-requests/{depositCode}")
@@ -144,16 +157,22 @@ public class AdminFinanceController {
     @GetMapping("/api/admin/bank-transactions")
     public List<AdminBankTransactionResponse> listBankTransactions(
             @RequestParam(required = false) BankTransactionStatus status,
-            @RequestParam(required = false) Integer limit) {
-        return adminFinanceService.listBankTransactions(status, limit);
+            @RequestParam(required = false) String fromDate,
+            @RequestParam(required = false) String toDate,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return adminFinanceService.listBankTransactions(status, parseInstant(fromDate), parseInstant(toDate), page, size);
     }
 
     @GetMapping("/api/admin/bank-transactions/search")
     public List<AdminBankTransactionResponse> searchBankTransactions(
             @RequestParam(required = false) String query,
             @RequestParam(required = false) BankTransactionStatus status,
-            @RequestParam(required = false) Integer limit) {
-        return adminFinanceService.searchBankTransactions(query, status, limit);
+            @RequestParam(required = false) String fromDate,
+            @RequestParam(required = false) String toDate,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return adminFinanceService.searchBankTransactions(query, status, parseInstant(fromDate), parseInstant(toDate), page, size);
     }
 
     @GetMapping("/api/admin/bank-transactions/{id}")
@@ -215,8 +234,11 @@ public class AdminFinanceController {
 
     @GetMapping("/api/admin/wallet-transactions")
     public List<WalletTransactionResponse> listWalletTransactions(@RequestParam(required = false) Long userId,
-            @RequestParam(required = false) Integer limit) {
-        return adminFinanceService.listWalletTransactions(userId, limit);
+            @RequestParam(required = false) String fromDate,
+            @RequestParam(required = false) String toDate,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return adminFinanceService.listWalletTransactions(userId, parseInstant(fromDate), parseInstant(toDate), page, size);
     }
 
     @GetMapping("/api/admin/wallet-transactions/search")
@@ -224,8 +246,11 @@ public class AdminFinanceController {
             @RequestParam(required = false) Long userId,
             @RequestParam(required = false) WalletTransactionType type,
             @RequestParam(required = false) WalletTransactionDirection direction,
-            @RequestParam(required = false) Integer limit) {
-        return adminFinanceService.searchWalletTransactions(query, userId, type, direction, limit);
+            @RequestParam(required = false) String fromDate,
+            @RequestParam(required = false) String toDate,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return adminFinanceService.searchWalletTransactions(query, userId, type, direction, parseInstant(fromDate), parseInstant(toDate), page, size);
     }
 
     @GetMapping("/api/admin/wallet-transactions/{id}/details")
@@ -248,8 +273,39 @@ public class AdminFinanceController {
         return balanceIntegrityService.findIssues();
     }
 
+    @GetMapping("/api/admin/orders")
+    public List<OrderResponse> listOrders(@RequestParam(required = false) com.example.KendyDigital.model.OrderStatus status,
+            @RequestParam(required = false) Long userId,
+            @RequestParam(required = false) String fromDate,
+            @RequestParam(required = false) String toDate,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return adminFinanceService.listOrders(status, userId, parseInstant(fromDate), parseInstant(toDate), page, size);
+    }
+
+    @GetMapping("/api/admin/orders/search")
+    public List<OrderResponse> searchOrders(@RequestParam(required = false) String query,
+            @RequestParam(required = false) com.example.KendyDigital.model.OrderStatus status,
+            @RequestParam(required = false) Long userId,
+            @RequestParam(required = false) String fromDate,
+            @RequestParam(required = false) String toDate,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return adminFinanceService.searchOrders(query, status, userId, parseInstant(fromDate), parseInstant(toDate), page, size);
+    }
+
     @GetMapping("/api/admin/reports/revenue")
-    public com.example.KendyDigital.dto.RevenueReportResponse getRevenueReport() {
-        return adminFinanceService.getRevenueReport();
+    public com.example.KendyDigital.dto.RevenueReportResponse getRevenueReport(
+            @RequestParam(required = false) String fromDate,
+            @RequestParam(required = false) String toDate) {
+        return adminFinanceService.getRevenueReport(parseInstant(fromDate), parseInstant(toDate));
+    }
+
+    private Instant parseInstant(String dateStr) {
+        if (dateStr == null || dateStr.isBlank()) {
+            return null;
+        }
+        return LocalDate.parse(dateStr, DateTimeFormatter.ISO_LOCAL_DATE)
+                .atStartOfDay(ZoneOffset.UTC).toInstant();
     }
 }

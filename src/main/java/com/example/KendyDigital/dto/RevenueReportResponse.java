@@ -7,6 +7,7 @@ public record RevenueReportResponse(
         BigDecimal grossRevenue,
         BigDecimal totalRefunds,
         BigDecimal netRevenue,
-        BigDecimal walletLiability
-) {
+        BigDecimal walletLiability,
+        BigDecimal totalCost,
+        BigDecimal profit) {
 }

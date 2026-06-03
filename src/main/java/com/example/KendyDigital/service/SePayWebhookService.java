@@ -38,6 +38,7 @@ public class SePayWebhookService {
     private final UserAccountRepository userAccountRepository;
     private final WalletLedgerService walletLedgerService;
     private final AuditService auditService;
+    private final UserNotificationService userNotificationService;
     private final Pattern depositCodePattern;
 
     public SePayWebhookService(BankTransactionInserter bankTransactionInserter,
@@ -46,6 +47,7 @@ public class SePayWebhookService {
             UserAccountRepository userAccountRepository,
             WalletLedgerService walletLedgerService,
             AuditService auditService,
+            UserNotificationService userNotificationService,
             BankProperties bankProperties) {
         this.bankTransactionInserter = bankTransactionInserter;
         this.bankTransactionRepository = bankTransactionRepository;
@@ -53,6 +55,7 @@ public class SePayWebhookService {
         this.userAccountRepository = userAccountRepository;
         this.walletLedgerService = walletLedgerService;
         this.auditService = auditService;
+        this.userNotificationService = userNotificationService;
         this.depositCodePattern = Pattern.compile("\\b" + Pattern.quote(bankProperties.getTransferPrefix())
                 + "[A-Z0-9]{8,}\\b", Pattern.CASE_INSENSITIVE);
     }
@@ -129,6 +132,11 @@ public class SePayWebhookService {
                 "DEPOSIT_REQUEST",
                 deposit.getId(),
                 "bankTransactionId=" + bankTransaction.getId() + ",walletTransactionId=" + walletTransaction.getId());
+        userNotificationService.create(user.getId(),
+                "Deposit completed",
+                "Deposit " + deposit.getDepositCode() + " has been credited to your wallet.",
+                "DEPOSIT",
+                "/deposits/" + deposit.getDepositCode());
     }
 
     private void validatePayload(SePayWebhookPayload payload) {

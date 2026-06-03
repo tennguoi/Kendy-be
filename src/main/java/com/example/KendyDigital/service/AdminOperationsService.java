@@ -8,9 +8,11 @@ import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Base64;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.springframework.data.domain.PageRequest;
@@ -34,6 +36,8 @@ import com.example.KendyDigital.dto.SystemSettingHistoryResponse;
 import com.example.KendyDigital.dto.SystemSettingResponse;
 import com.example.KendyDigital.dto.SystemSettingsBulkUpdateRequest;
 import com.example.KendyDigital.dto.TicketResponse;
+import com.example.KendyDigital.dto.TotpSetupResponse;
+import com.example.KendyDigital.dto.TwoFactorVerifyRequest;
 import com.example.KendyDigital.dto.WebhookConfigRequest;
 import com.example.KendyDigital.dto.WebhookRetryRequest;
 import com.example.KendyDigital.dto.WalletTransactionResponse;
@@ -83,6 +87,8 @@ public class AdminOperationsService {
     private final AuditService auditService;
     private final AdminFinanceService adminFinanceService;
     private final SePayWebhookProperties sePayWebhookProperties;
+    private final TwoFactorService twoFactorService;
+    private final AdminRoleService adminRoleService;
 
     public AdminOperationsService(UserAccountRepository userAccountRepository,
             AuthSessionRepository authSessionRepository,
@@ -98,7 +104,9 @@ public class AdminOperationsService {
             JobRecordRepository jobRecordRepository,
             AuditService auditService,
             AdminFinanceService adminFinanceService,
-            SePayWebhookProperties sePayWebhookProperties) {
+            SePayWebhookProperties sePayWebhookProperties,
+            TwoFactorService twoFactorService,
+            AdminRoleService adminRoleService) {
         this.userAccountRepository = userAccountRepository;
         this.authSessionRepository = authSessionRepository;
         this.orderRepository = orderRepository;
@@ -114,14 +122,21 @@ public class AdminOperationsService {
         this.auditService = auditService;
         this.adminFinanceService = adminFinanceService;
         this.sePayWebhookProperties = sePayWebhookProperties;
+        this.twoFactorService = twoFactorService;
+        this.adminRoleService = adminRoleService;
+    }
+
+    @Transactional(readOnly = true)
+    public List<AuthSessionResponse> listSessions(Long userId, int page, int size) {
+        return authSessionRepository.findAllByUser_IdOrderByCreatedAtDesc(userId, paged(page, size))
+                .stream()
+                .map(AuthSessionResponse::from)
+                .toList();
     }
 
     @Transactional(readOnly = true)
     public List<AuthSessionResponse> listSessions(Long userId, Integer limit) {
-        return authSessionRepository.findAllByUser_IdOrderByCreatedAtDesc(userId, page(limit))
-                .stream()
-                .map(AuthSessionResponse::from)
-                .toList();
+        return listSessions(userId, 0, limit == null ? 100 : limit);
     }
 
     @Transactional
@@ -134,27 +149,42 @@ public class AdminOperationsService {
     }
 
     @Transactional(readOnly = true)
-    public List<OrderResponse> listUserOrders(Long userId, Integer limit) {
-        return orderRepository.findAllByUser_IdOrderByCreatedAtDesc(userId, page(limit))
+    public List<OrderResponse> listUserOrders(Long userId, int page, int size) {
+        return orderRepository.findAllByUser_IdOrderByCreatedAtDesc(userId, paged(page, size))
                 .stream()
                 .map(OrderResponse::from)
                 .toList();
     }
 
     @Transactional(readOnly = true)
-    public List<WalletTransactionResponse> listUserWalletTransactions(Long userId, Integer limit) {
-        return walletTransactionRepository.findAllByUser_IdOrderByCreatedAtDesc(userId, page(limit))
+    public List<OrderResponse> listUserOrders(Long userId, Integer limit) {
+        return listUserOrders(userId, 0, limit == null ? 100 : limit);
+    }
+
+    @Transactional(readOnly = true)
+    public List<WalletTransactionResponse> listUserWalletTransactions(Long userId, int page, int size) {
+        return walletTransactionRepository.findAllByUser_IdOrderByCreatedAtDesc(userId, paged(page, size))
                 .stream()
                 .map(WalletTransactionResponse::from)
                 .toList();
     }
 
     @Transactional(readOnly = true)
-    public List<TicketResponse> listUserTickets(Long userId, Integer limit) {
-        return ticketRepository.findAllByUser_IdOrderByCreatedAtDesc(userId, page(limit))
+    public List<WalletTransactionResponse> listUserWalletTransactions(Long userId, Integer limit) {
+        return listUserWalletTransactions(userId, 0, limit == null ? 100 : limit);
+    }
+
+    @Transactional(readOnly = true)
+    public List<TicketResponse> listUserTickets(Long userId, int page, int size) {
+        return ticketRepository.findAllByUser_IdOrderByCreatedAtDesc(userId, paged(page, size))
                 .stream()
                 .map(ticket -> TicketResponse.from(ticket, List.of()))
                 .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<TicketResponse> listUserTickets(Long userId, Integer limit) {
+        return listUserTickets(userId, 0, limit == null ? 100 : limit);
     }
 
     @Transactional
@@ -182,15 +212,53 @@ public class AdminOperationsService {
     }
 
     @Transactional
-    public AdminUserResponse setTwoFactor(Long adminUserId, Long targetAdminId, boolean enabled, String action) {
+    public TotpSetupResponse setupTwoFactor(Long adminUserId, Long targetAdminId) {
         UserAccount admin = requireAdminForUpdate(targetAdminId);
-        if (enabled) {
-            admin.enableTwoFactor();
-        } else {
-            admin.disableTwoFactor();
+        String secret = twoFactorService.generateSecret();
+        List<String> backupCodes = twoFactorService.generateBackupCodes();
+        String qrBase64 = twoFactorService.qrCodeBase64(secret, admin.getEmail(), "KendyDigital");
+        admin.setTwoFactorSecret(secret);
+        admin.setBackupCodes(twoFactorService.hashStoredBackupCodes(backupCodes));
+        auditService.recordAdmin(adminUserId, "ADMIN_2FA_SETUP", "USER", admin.getId(), null);
+        return new TotpSetupResponse(secret, qrBase64, backupCodes);
+    }
+
+    @Transactional
+    public AdminUserResponse verifyAndEnableTwoFactor(Long adminUserId, Long targetAdminId,
+            TwoFactorVerifyRequest request) {
+        UserAccount admin = requireAdminForUpdate(targetAdminId);
+        if (admin.getTwoFactorSecret() == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "2FA not initialized. Call setup first.");
         }
-        auditService.recordAdmin(adminUserId, action, "USER", admin.getId(), "enabled=" + enabled);
+        if (twoFactorService.verify(admin.getTwoFactorSecret(), request.code())) {
+            admin.enableTwoFactor(admin.getTwoFactorSecret(), admin.getBackupCodes());
+            auditService.recordAdmin(adminUserId, "ADMIN_2FA_ENABLED", "USER", admin.getId(), null);
+            return AdminUserResponse.from(admin);
+        }
+        if (twoFactorService.verifyBackupCode(admin.getBackupCodes(), request.code())) {
+            admin.setBackupCodes(twoFactorService.removeUsedBackupCode(admin.getBackupCodes(), request.code()));
+            admin.enableTwoFactor(admin.getTwoFactorSecret(), admin.getBackupCodes());
+            auditService.recordAdmin(adminUserId, "ADMIN_2FA_ENABLED_VIA_BACKUP", "USER", admin.getId(), null);
+            return AdminUserResponse.from(admin);
+        }
+        throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid verification code");
+    }
+
+    @Transactional
+    public AdminUserResponse disableTwoFactor(Long adminUserId, Long targetAdminId) {
+        UserAccount admin = requireAdminForUpdate(targetAdminId);
+        admin.disableTwoFactor();
+        auditService.recordAdmin(adminUserId, "ADMIN_2FA_DISABLED", "USER", admin.getId(), null);
         return AdminUserResponse.from(admin);
+    }
+
+    @Transactional
+    public TotpSetupResponse resetTwoFactor(Long adminUserId, Long targetAdminId) {
+        UserAccount admin = requireAdminForUpdate(targetAdminId);
+        admin.resetTwoFactor();
+        auditService.recordAdmin(adminUserId, "ADMIN_2FA_RESET", "USER", admin.getId(), null);
+        return setupTwoFactor(adminUserId, targetAdminId);
     }
 
     @Transactional(readOnly = true)
@@ -484,9 +552,9 @@ public class AdminOperationsService {
     @Transactional(readOnly = true)
     public String exportRevenue() {
         var report = adminFinanceService.getRevenueReport();
-        return csv(List.of("depositVolume,grossRevenue,totalRefunds,netRevenue,walletLiability",
+        return csv(List.of("depositVolume,grossRevenue,totalRefunds,netRevenue,walletLiability,totalCost,profit",
                 csvRow(report.depositVolume(), report.grossRevenue(), report.totalRefunds(), report.netRevenue(),
-                        report.walletLiability())));
+                        report.walletLiability(), report.totalCost(), report.profit())));
     }
 
     @Transactional(readOnly = true)
@@ -615,6 +683,10 @@ public class AdminOperationsService {
     private PageRequest page(Integer limit) {
         int normalizedLimit = limit == null ? 100 : Math.max(1, Math.min(limit, 500));
         return PageRequest.of(0, normalizedLimit);
+    }
+
+    private PageRequest paged(int page, int size) {
+        return PageRequest.of(Math.max(0, page), Math.max(1, Math.min(size, 500)));
     }
 
     private String normalizeQuery(String value) {

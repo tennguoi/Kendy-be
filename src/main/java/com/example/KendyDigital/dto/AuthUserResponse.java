@@ -3,6 +3,7 @@ package com.example.KendyDigital.dto;
 
 import com.example.KendyDigital.model.*;
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.UUID;
 
 public record AuthUserResponse(
@@ -13,7 +14,11 @@ public record AuthUserResponse(
         String phone,
         UserRole role,
         UserStatus status,
-        BigDecimal balance) {
+        BigDecimal balance,
+        boolean twoFactorEnabled,
+        Instant emailVerifiedAt,
+        String oauthProvider,
+        String avatarUrl) {
     public static AuthUserResponse from(UserAccount user) {
         return new AuthUserResponse(
                 user.getId(),
@@ -23,6 +28,10 @@ public record AuthUserResponse(
                 user.getPhone(),
                 user.getRole(),
                 user.getStatus(),
-                user.getBalance());
+                user.getBalance(),
+                user.isTwoFactorEnabled(),
+                user.getEmailVerifiedAt(),
+                user.getOauthProvider(),
+                user.getAvatarUrl());
     }
 }

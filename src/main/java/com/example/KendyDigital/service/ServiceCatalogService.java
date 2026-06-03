@@ -17,10 +17,12 @@ import com.example.KendyDigital.dto.OrderResponse;
 import com.example.KendyDigital.dto.ServiceResponse;
 import com.example.KendyDigital.dto.ServiceStatusUpdateRequest;
 import com.example.KendyDigital.dto.UpdateServiceRequest;
+import com.example.KendyDigital.model.ServiceCategory;
 import com.example.KendyDigital.model.ServiceItem;
 import com.example.KendyDigital.model.ServiceStatus;
 import com.example.KendyDigital.model.ServiceType;
 import com.example.KendyDigital.repository.OrderRepository;
+import com.example.KendyDigital.repository.ServiceCategoryRepository;
 import com.example.KendyDigital.repository.ServiceItemRepository;
 
 @Service
@@ -28,12 +30,14 @@ public class ServiceCatalogService {
     private final ServiceItemRepository serviceItemRepository;
     private final OrderRepository orderRepository;
     private final AuditService auditService;
+    private final ServiceCategoryRepository serviceCategoryRepository;
 
     public ServiceCatalogService(ServiceItemRepository serviceItemRepository, OrderRepository orderRepository,
-            AuditService auditService) {
+            AuditService auditService, ServiceCategoryRepository serviceCategoryRepository) {
         this.serviceItemRepository = serviceItemRepository;
         this.orderRepository = orderRepository;
         this.auditService = auditService;
+        this.serviceCategoryRepository = serviceCategoryRepository;
     }
 
     @Transactional
@@ -66,6 +70,12 @@ public class ServiceCatalogService {
         if (request.sortOrder() != null) {
             service.updateSortOrder(request.sortOrder());
         }
+        if (request.categoryId() != null) {
+            ServiceCategory category = serviceCategoryRepository.findById(request.categoryId())
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Category not found"));
+            service.updateCategory(category);
+        }
+        service.updateSeo(request.metaTitle(), request.metaDescription(), request.iconUrl());
 
         ServiceItem saved = serviceItemRepository.save(service);
         auditService.recordAdmin(adminUserId, "SERVICE_CREATED", "SERVICE", saved.getId(), "slug=" + saved.getSlug());
@@ -74,7 +84,17 @@ public class ServiceCatalogService {
 
     @Transactional(readOnly = true)
     public List<ServiceResponse> listActive() {
-        return serviceItemRepository.findByStatusOrderBySortOrderAscNameAsc(ServiceStatus.ACTIVE)
+        return searchActive(null, null, 100);
+    }
+
+    @Transactional(readOnly = true)
+    public List<ServiceResponse> searchActive(String query, Long categoryId, Integer limit) {
+        String normalizedQuery = query == null || query.isBlank() ? null : query.trim();
+        return serviceItemRepository.searchPublic(
+                        normalizedQuery,
+                        parseLongOrNull(normalizedQuery),
+                        categoryId,
+                        page(limit))
                 .stream()
                 .map(ServiceResponse::from)
                 .toList();
@@ -155,6 +175,19 @@ public class ServiceCatalogService {
         if (request.sortOrder() != null) {
             service.updateSortOrder(request.sortOrder());
         }
+        if (request.categoryId() != null) {
+            ServiceCategory category = serviceCategoryRepository.findById(request.categoryId())
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Category not found"));
+            service.updateCategory(category);
+        } else if (service.getCategory() != null) {
+            service.updateCategory(null);
+        }
+        if (request.metaTitle() != null || request.metaDescription() != null || request.iconUrl() != null) {
+            service.updateSeo(
+                    request.metaTitle() != null ? request.metaTitle() : service.getMetaTitle(),
+                    request.metaDescription() != null ? request.metaDescription() : service.getMetaDescription(),
+                    request.iconUrl() != null ? request.iconUrl() : service.getIconUrl());
+        }
 
         auditService.recordAdmin(adminUserId, "SERVICE_UPDATED", "SERVICE", service.getId(), "slug=" + service.getSlug());
         return ServiceResponse.from(service);
@@ -184,13 +217,13 @@ public class ServiceCatalogService {
     }
 
     @Transactional(readOnly = true)
-    public List<Map<String, Object>> getCategories(Long id) {
+    public List<com.example.KendyDigital.dto.ServiceCategoryResponse> getCategories(Long id) {
         ServiceItem service = serviceItemRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Service not found"));
-        return List.of(Map.of(
-                "id", service.getType().name(),
-                "name", service.getType().name(),
-                "source", "service.type"));
+        if (service.getCategory() == null) {
+            return List.of();
+        }
+        return List.of(com.example.KendyDigital.dto.ServiceCategoryResponse.from(service.getCategory()));
     }
 
     @Transactional(readOnly = true)

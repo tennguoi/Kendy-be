@@ -22,5 +22,9 @@ public record CreateServiceRequest(
         String inputSchema,
         String processingTime,
         String warrantyPolicy,
-        @Min(0) Integer sortOrder) {
+        @Min(0) Integer sortOrder,
+        Long categoryId,
+        String metaTitle,
+        String metaDescription,
+        String iconUrl) {
 }

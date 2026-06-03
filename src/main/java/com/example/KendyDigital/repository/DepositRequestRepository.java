@@ -1,6 +1,7 @@
 package com.example.KendyDigital.repository;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
@@ -52,6 +53,8 @@ public interface DepositRequestRepository extends JpaRepository<DepositRequest, 
     long countByUser_Id(Long userId);
 
     long countByUser_IdAndStatus(Long userId, DepositStatus status);
+
+    long countByCreatedAtGreaterThanEqual(Instant from);
 
     @Query("select coalesce(sum(d.amount), 0) from DepositRequest d where d.status = :status")
     BigDecimal sumAmountByStatus(@Param("status") DepositStatus status);

@@ -41,20 +41,68 @@ public class WalletService {
     @Transactional(readOnly = true)
     public List<WalletTransactionResponse> listTransactions(Long userId, WalletTransactionType type,
             WalletTransactionDirection direction) {
+        return listTransactions(userId, type, direction, 0, 50);
+    }
+
+    @Transactional(readOnly = true)
+    public List<WalletTransactionResponse> listTransactions(Long userId, WalletTransactionType type,
+            WalletTransactionDirection direction, int page, int size) {
         List<WalletTransaction> transactions;
         if (type != null && direction != null) {
             transactions = walletTransactionRepository
-                    .findAllByUser_IdAndTypeAndDirectionOrderByCreatedAtDesc(userId, type, direction, PageRequest.of(0, 50));
+                    .findAllByUser_IdAndTypeAndDirectionOrderByCreatedAtDesc(userId, type, direction, paged(page, size));
         } else if (type != null) {
-            transactions = walletTransactionRepository.findAllByUser_IdAndTypeOrderByCreatedAtDesc(userId, type, PageRequest.of(0, 50));
+            transactions = walletTransactionRepository.findAllByUser_IdAndTypeOrderByCreatedAtDesc(userId, type, paged(page, size));
         } else if (direction != null) {
             transactions = walletTransactionRepository
-                    .findAllByUser_IdAndDirectionOrderByCreatedAtDesc(userId, direction, PageRequest.of(0, 50));
+                    .findAllByUser_IdAndDirectionOrderByCreatedAtDesc(userId, direction, paged(page, size));
         } else {
-            transactions = walletTransactionRepository.findAllByUser_IdOrderByCreatedAtDesc(userId, PageRequest.of(0, 50));
+            transactions = walletTransactionRepository.findAllByUser_IdOrderByCreatedAtDesc(userId, paged(page, size));
         }
         return transactions.stream()
                 .map(WalletTransactionResponse::from)
                 .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<WalletTransactionResponse> searchTransactions(Long userId, String query, WalletTransactionType type,
+            WalletTransactionDirection direction, int page, int size) {
+        String normalizedQuery = normalizeQuery(query);
+        return walletTransactionRepository.searchUser(
+                        userId,
+                        normalizedQuery,
+                        parseLongOrNull(normalizedQuery),
+                        type,
+                        direction,
+                        paged(page, size))
+                .stream()
+                .map(WalletTransactionResponse::from)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public WalletTransactionResponse getTransaction(Long userId, Long id) {
+        return walletTransactionRepository.findByIdAndUser_Id(id, userId)
+                .map(WalletTransactionResponse::from)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Wallet transaction not found"));
+    }
+
+    private PageRequest paged(int page, int size) {
+        return PageRequest.of(Math.max(0, page), Math.max(1, Math.min(size, 200)));
+    }
+
+    private String normalizeQuery(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
+    }
+
+    private Long parseLongOrNull(String value) {
+        if (value == null) {
+            return null;
+        }
+        try {
+            return Long.parseLong(value);
+        } catch (NumberFormatException exception) {
+            return null;
+        }
     }
 }

@@ -20,6 +20,8 @@ import com.example.KendyDigital.model.UserStatus;
 public interface UserAccountRepository extends JpaRepository<UserAccount, Long> {
     Optional<UserAccount> findByEmailIgnoreCase(String email);
 
+    Optional<UserAccount> findByOauthProviderAndOauthProviderId(String oauthProvider, String oauthProviderId);
+
     boolean existsByEmailIgnoreCase(String email);
 
     List<UserAccount> findAllByOrderByCreatedAtDesc(Pageable pageable);

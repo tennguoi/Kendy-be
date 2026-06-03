@@ -34,6 +34,24 @@ public interface OrderRepository extends JpaRepository<OrderRecord, Long> {
 
     @Query("""
             select o from OrderRecord o
+            join o.service s
+            where o.user.id = :userId
+              and (:status is null or o.status = :status)
+              and (
+                :query is null
+                or lower(o.orderCode) like lower(concat('%', :query, '%'))
+                or lower(s.name) like lower(concat('%', :query, '%'))
+                or lower(s.slug) like lower(concat('%', :query, '%'))
+                or lower(coalesce(o.inputData, '')) like lower(concat('%', :query, '%'))
+                or (:exactId is not null and o.id = :exactId)
+              )
+            order by o.createdAt desc
+            """)
+    List<OrderRecord> searchUser(@Param("userId") Long userId, @Param("query") String query,
+            @Param("exactId") Long exactId, @Param("status") OrderStatus status, Pageable pageable);
+
+    @Query("""
+            select o from OrderRecord o
             join o.user u
             join o.service s
             where (:status is null or o.status = :status)
@@ -80,4 +98,11 @@ public interface OrderRepository extends JpaRepository<OrderRecord, Long> {
             order by count(o) desc
             """)
     List<Object[]> servicePerformance(Pageable pageable);
+
+    @Query("select coalesce(sum(o.service.costPrice), 0) from OrderRecord o where o.status = :status")
+    BigDecimal sumCostPriceByStatus(@Param("status") OrderStatus status);
+
+    @Query("select coalesce(sum(o.service.costPrice), 0) from OrderRecord o where o.status = :status and o.createdAt >= :from and o.createdAt < :to")
+    BigDecimal sumCostPriceByStatusBetween(@Param("status") OrderStatus status, @Param("from") java.time.Instant from,
+            @Param("to") java.time.Instant to);
 }

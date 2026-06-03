@@ -1,7 +1,6 @@
 package com.example.KendyDigital.controller;
 
 import java.util.List;
-import java.util.Map;
 
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -17,6 +16,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.example.KendyDigital.dto.CreateServiceRequest;
 import com.example.KendyDigital.dto.IdsRequest;
 import com.example.KendyDigital.dto.OrderResponse;
+import com.example.KendyDigital.dto.ServiceCategoryResponse;
 import com.example.KendyDigital.dto.ServiceResponse;
 import com.example.KendyDigital.dto.ServiceStatusUpdateRequest;
 import com.example.KendyDigital.dto.UpdateServiceRequest;
@@ -35,8 +35,17 @@ public class ServiceCatalogController {
     }
 
     @GetMapping("/api/services")
-    public List<ServiceResponse> listActive() {
-        return serviceCatalogService.listActive();
+    public List<ServiceResponse> listActive(@RequestParam(required = false) String query,
+            @RequestParam(required = false) Long categoryId,
+            @RequestParam(required = false) Integer limit) {
+        return serviceCatalogService.searchActive(query, categoryId, limit);
+    }
+
+    @GetMapping("/api/services/search")
+    public List<ServiceResponse> searchActive(@RequestParam(required = false) String query,
+            @RequestParam(required = false) Long categoryId,
+            @RequestParam(required = false) Integer limit) {
+        return serviceCatalogService.searchActive(query, categoryId, limit);
     }
 
     @GetMapping("/api/services/{slug}")
@@ -57,7 +66,7 @@ public class ServiceCatalogController {
     }
 
     @GetMapping("/api/admin/services/{id}/categories")
-    public List<Map<String, Object>> getCategories(@PathVariable Long id) {
+    public List<ServiceCategoryResponse> getCategories(@PathVariable Long id) {
         return serviceCatalogService.getCategories(id);
     }
 

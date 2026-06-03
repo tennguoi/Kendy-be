@@ -1,10 +1,15 @@
 package com.example.KendyDigital.model;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.UUID;
+
+import java.util.HashSet;
+import java.util.Set;
 
 import com.example.KendyDigital.common.TimestampedEntity;
 
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import lombok.Getter;
@@ -13,10 +18,12 @@ import lombok.NoArgsConstructor;
 import lombok.AccessLevel;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Index;
+import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 
@@ -27,7 +34,8 @@ import jakarta.persistence.UniqueConstraint;
 @Table(
         name = "users",
         indexes = {
-                @Index(name = "idx_users_status", columnList = "status")
+                @Index(name = "idx_users_status", columnList = "status"),
+                @Index(name = "idx_users_oauth_provider", columnList = "oauth_provider, oauth_provider_id")
         },
         uniqueConstraints = {
                 @UniqueConstraint(name = "uk_users_email", columnNames = "email"),
@@ -52,6 +60,21 @@ public class UserAccount extends TimestampedEntity {
     @Column(name = "password_hash", nullable = false)
     private String passwordHash;
 
+    @Column(name = "password_changed_at")
+    private Instant passwordChangedAt;
+
+    @Column(name = "email_verified_at")
+    private Instant emailVerifiedAt;
+
+    @Column(name = "oauth_provider")
+    private String oauthProvider;
+
+    @Column(name = "oauth_provider_id")
+    private String oauthProviderId;
+
+    @Column(name = "avatar_url")
+    private String avatarUrl;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 32)
     private UserRole role = UserRole.USER;
@@ -69,6 +92,15 @@ public class UserAccount extends TimestampedEntity {
     @Column(name = "admin_permissions", columnDefinition = "TEXT")
     private String adminPermissions;
 
+    @Column(name = "two_factor_secret", columnDefinition = "TEXT")
+    private String twoFactorSecret;
+
+    @Column(name = "backup_codes", columnDefinition = "TEXT")
+    private String backupCodes;
+
+    @OneToMany(mappedBy = "user", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
+    private Set<UserAdminRole> adminRoles = new HashSet<>();
+
     public UserAccount(String name, String email, String phone, String passwordHash) {
         this.name = name;
         this.email = email;
@@ -76,12 +108,40 @@ public class UserAccount extends TimestampedEntity {
         this.passwordHash = passwordHash;
     }
 
-    public void enableTwoFactor() {
+    public void enableTwoFactor(String secret, String backupCodes) {
         this.twoFactorEnabled = true;
+        this.twoFactorSecret = secret;
+        this.backupCodes = backupCodes;
     }
 
     public void disableTwoFactor() {
         this.twoFactorEnabled = false;
+        this.twoFactorSecret = null;
+        this.backupCodes = null;
+    }
+
+    public void resetTwoFactor() {
+        disableTwoFactor();
+    }
+
+    public void changePasswordHash(String passwordHash) {
+        this.passwordHash = passwordHash;
+        this.passwordChangedAt = Instant.now();
+    }
+
+    public void verifyEmail() {
+        this.emailVerifiedAt = Instant.now();
+        if (this.status == UserStatus.PENDING_VERIFY) {
+            this.status = UserStatus.ACTIVE;
+        }
+    }
+
+    public void linkOAuth(String provider, String providerId, String avatarUrl) {
+        this.oauthProvider = provider;
+        this.oauthProviderId = providerId;
+        if (avatarUrl != null && !avatarUrl.isBlank()) {
+            this.avatarUrl = avatarUrl;
+        }
     }
 
 }

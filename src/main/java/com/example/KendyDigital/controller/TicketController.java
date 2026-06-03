@@ -3,6 +3,10 @@ package com.example.KendyDigital.controller;
 import java.util.List;
 import java.util.Map;
 
+import org.springframework.http.MediaType;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -11,7 +15,9 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.example.KendyDigital.dto.*;
 import com.example.KendyDigital.model.TicketCategory;
@@ -19,6 +25,7 @@ import com.example.KendyDigital.model.TicketPriority;
 import com.example.KendyDigital.model.TicketStatus;
 import com.example.KendyDigital.security.CurrentUser;
 import com.example.KendyDigital.service.TicketService;
+import com.example.KendyDigital.model.StoredFile;
 
 import jakarta.validation.Valid;
 
@@ -37,8 +44,22 @@ public class TicketController {
 
     @GetMapping("/api/tickets")
     public List<TicketResponse> list(Authentication authentication,
-            @RequestParam(required = false) TicketStatus status) {
-        return ticketService.listForUser(CurrentUser.require(authentication).userId(), status);
+            @RequestParam(required = false) TicketStatus status,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return ticketService.listForUser(CurrentUser.require(authentication).userId(), status, page, size);
+    }
+
+    @GetMapping("/api/tickets/search")
+    public List<TicketResponse> search(Authentication authentication,
+            @RequestParam(required = false) String query,
+            @RequestParam(required = false) TicketStatus status,
+            @RequestParam(required = false) TicketCategory category,
+            @RequestParam(required = false) TicketPriority priority,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return ticketService.searchForUser(CurrentUser.require(authentication).userId(), query, status, category,
+                priority, page, size);
     }
 
     @GetMapping("/api/tickets/{ticketCode}")
@@ -55,6 +76,11 @@ public class TicketController {
     @PostMapping("/api/tickets/{ticketCode}/close")
     public TicketResponse close(Authentication authentication, @PathVariable String ticketCode) {
         return ticketService.closeForUser(CurrentUser.require(authentication).userId(), ticketCode);
+    }
+
+    @PostMapping("/api/tickets/{ticketCode}/reopen")
+    public TicketResponse reopen(Authentication authentication, @PathVariable String ticketCode) {
+        return ticketService.reopenForUser(CurrentUser.require(authentication).userId(), ticketCode);
     }
 
     @GetMapping("/api/admin/tickets")
@@ -79,9 +105,49 @@ public class TicketController {
         return ticketService.getForAdmin(ticketCode);
     }
 
+    @PostMapping(value = "/api/tickets/{ticketCode}/attachments", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public TicketAttachmentResponse uploadAttachment(Authentication authentication, @PathVariable String ticketCode,
+            @RequestPart("file") MultipartFile file) {
+        return ticketService.uploadAttachment(CurrentUser.require(authentication).userId(), ticketCode, file);
+    }
+
+    @GetMapping("/api/tickets/{ticketCode}/attachments")
+    public List<TicketAttachmentResponse> listUserAttachments(Authentication authentication,
+            @PathVariable String ticketCode) {
+        return ticketService.listAttachmentsForUser(CurrentUser.require(authentication).userId(), ticketCode);
+    }
+
+    @GetMapping("/api/tickets/{ticketCode}/attachments/{attachmentId}/download")
+    public ResponseEntity<byte[]> downloadUserAttachment(Authentication authentication, @PathVariable String ticketCode,
+            @PathVariable Long attachmentId) {
+        StoredFile file = ticketService.getAttachmentFileForUser(CurrentUser.require(authentication).userId(),
+                ticketCode, attachmentId);
+        return fileResponse(file, file.getContent());
+    }
+
+    @GetMapping("/api/tickets/{ticketCode}/attachments/{attachmentId}/preview")
+    public ResponseEntity<byte[]> previewUserAttachment(Authentication authentication, @PathVariable String ticketCode,
+            @PathVariable Long attachmentId) {
+        StoredFile file = ticketService.getAttachmentFileForUser(CurrentUser.require(authentication).userId(),
+                ticketCode, attachmentId);
+        return fileResponse(file, ticketService.previewBytes(file));
+    }
+
+    @DeleteMapping("/api/tickets/{ticketCode}/attachments/{attachmentId}")
+    public void deleteUserAttachment(Authentication authentication, @PathVariable String ticketCode,
+            @PathVariable Long attachmentId) {
+        ticketService.deleteAttachmentForUser(CurrentUser.require(authentication).userId(), ticketCode, attachmentId);
+    }
+
     @GetMapping("/api/admin/tickets/{ticketCode}/attachments")
     public List<TicketAttachmentResponse> listAttachments(@PathVariable String ticketCode) {
         return ticketService.listAttachments(ticketCode);
+    }
+
+    @PostMapping(value = "/api/admin/tickets/{ticketCode}/attachments", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public TicketAttachmentResponse uploadAttachmentAdmin(Authentication authentication, @PathVariable String ticketCode,
+            @RequestPart("file") MultipartFile file) {
+        return ticketService.uploadAttachmentAdmin(CurrentUser.require(authentication).userId(), ticketCode, file);
     }
 
     @DeleteMapping("/api/admin/tickets/{ticketCode}/attachments/{attachmentId}")
@@ -130,5 +196,16 @@ public class TicketController {
     public TicketResponse updateAdmin(Authentication authentication, @PathVariable String ticketCode,
             @Valid @RequestBody AdminTicketUpdateRequest request) {
         return ticketService.updateForAdmin(CurrentUser.require(authentication).userId(), ticketCode, request);
+    }
+
+    private ResponseEntity<byte[]> fileResponse(StoredFile file, byte[] content) {
+        MediaType mediaType = file.getContentType() == null
+                ? MediaType.APPLICATION_OCTET_STREAM
+                : MediaType.parseMediaType(file.getContentType());
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION,
+                        ContentDisposition.attachment().filename(file.getFileName()).build().toString())
+                .contentType(mediaType)
+                .body(content);
     }
 }

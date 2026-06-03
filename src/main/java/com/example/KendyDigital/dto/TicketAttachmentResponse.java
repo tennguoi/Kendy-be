@@ -10,6 +10,7 @@ public record TicketAttachmentResponse(
         String fileName,
         String contentType,
         Long sizeBytes,
+        Long storedFileId,
         Instant createdAt) {
     public static TicketAttachmentResponse from(TicketAttachment attachment) {
         return new TicketAttachmentResponse(
@@ -18,6 +19,7 @@ public record TicketAttachmentResponse(
                 attachment.getFileName(),
                 attachment.getContentType(),
                 attachment.getSizeBytes(),
+                attachment.getStoredFile() == null ? null : attachment.getStoredFile().getId(),
                 attachment.getCreatedAt());
     }
 }

@@ -40,8 +40,19 @@ public class OrderController {
 
     @GetMapping("/api/orders")
     public List<OrderResponse> listByUser(Authentication authentication,
-            @RequestParam(required = false) OrderStatus status) {
-        return orderService.listByUser(CurrentUser.require(authentication).userId(), status);
+            @RequestParam(required = false) OrderStatus status,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return orderService.listByUser(CurrentUser.require(authentication).userId(), status, page, size);
+    }
+
+    @GetMapping("/api/orders/search")
+    public List<OrderResponse> searchByUser(Authentication authentication,
+            @RequestParam(required = false) String query,
+            @RequestParam(required = false) OrderStatus status,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return orderService.searchForUser(CurrentUser.require(authentication).userId(), query, status, page, size);
     }
 
     @GetMapping("/api/orders/{orderCode}")
@@ -55,19 +66,9 @@ public class OrderController {
         return orderService.cancelForUser(CurrentUser.require(authentication).userId(), orderCode, request);
     }
 
-    @GetMapping("/api/admin/orders")
-    public List<OrderResponse> listForAdmin(@RequestParam(required = false) OrderStatus status,
-            @RequestParam(required = false) Long userId,
-            @RequestParam(required = false) Integer limit) {
-        return orderService.listForAdmin(status, userId, limit);
-    }
-
-    @GetMapping("/api/admin/orders/search")
-    public List<OrderResponse> searchForAdmin(@RequestParam(required = false) String query,
-            @RequestParam(required = false) OrderStatus status,
-            @RequestParam(required = false) Long userId,
-            @RequestParam(required = false) Integer limit) {
-        return orderService.searchForAdmin(query, status, userId, limit);
+    @PostMapping("/api/orders/{orderCode}/reorder")
+    public OrderResponse reorder(Authentication authentication, @PathVariable String orderCode) {
+        return orderService.reorder(CurrentUser.require(authentication).userId(), orderCode);
     }
 
     @GetMapping("/api/admin/orders/{orderCode}")

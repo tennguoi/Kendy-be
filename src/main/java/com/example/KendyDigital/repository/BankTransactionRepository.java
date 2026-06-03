@@ -40,6 +40,8 @@ public interface BankTransactionRepository extends JpaRepository<BankTransaction
     List<BankTransaction> searchAdmin(@Param("query") String query, @Param("exactId") Long exactId,
             @Param("sepayId") Long sepayId, @Param("status") BankTransactionStatus status, Pageable pageable);
 
+    long countByStatus(BankTransactionStatus status);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select b from BankTransaction b where b.id = :id")
     Optional<BankTransaction> findByIdForUpdate(@Param("id") Long id);

@@ -18,6 +18,9 @@ public interface ServiceItemRepository extends JpaRepository<ServiceItem, Long> 
 
     List<ServiceItem> findByStatusOrderBySortOrderAscNameAsc(ServiceStatus status);
 
+    List<ServiceItem> findByStatusAndCategory_IdOrderBySortOrderAscNameAsc(ServiceStatus status, Long categoryId,
+            Pageable pageable);
+
     List<ServiceItem> findAllByOrderBySortOrderAscNameAsc();
 
     @Query("""
@@ -34,4 +37,21 @@ public interface ServiceItemRepository extends JpaRepository<ServiceItem, Long> 
             """)
     List<ServiceItem> searchAdmin(@Param("query") String query, @Param("exactId") Long exactId,
             @Param("status") ServiceStatus status, Pageable pageable);
+
+    @Query("""
+            select s from ServiceItem s
+            where s.status = com.example.KendyDigital.model.ServiceStatus.ACTIVE
+              and (:categoryId is null or s.category.id = :categoryId)
+              and (
+                :query is null
+                or lower(s.name) like lower(concat('%', :query, '%'))
+                or lower(s.slug) like lower(concat('%', :query, '%'))
+                or lower(coalesce(s.shortDescription, '')) like lower(concat('%', :query, '%'))
+                or lower(coalesce(s.description, '')) like lower(concat('%', :query, '%'))
+                or (:exactId is not null and s.id = :exactId)
+              )
+            order by s.sortOrder asc, s.name asc
+            """)
+    List<ServiceItem> searchPublic(@Param("query") String query, @Param("exactId") Long exactId,
+            @Param("categoryId") Long categoryId, Pageable pageable);
 }

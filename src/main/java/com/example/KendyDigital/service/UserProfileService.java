@@ -70,7 +70,7 @@ public class UserProfileService {
         if (passwordEncoder.matches(request.newPassword(), user.getPasswordHash())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "New password must be different");
         }
-        user.setPasswordHash(passwordEncoder.encode(request.newPassword()));
+        user.changePasswordHash(passwordEncoder.encode(request.newPassword()));
         auditService.recordSystem("USER_PASSWORD_CHANGED", "USER", user.getId(), null);
         return AuthUserResponse.from(user);
     }

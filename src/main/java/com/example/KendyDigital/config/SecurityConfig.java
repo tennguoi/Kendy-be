@@ -16,6 +16,10 @@ import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import com.example.KendyDigital.security.BearerTokenAuthenticationFilter;
+import com.example.KendyDigital.security.ApiKeyAuthenticationFilter;
+import com.example.KendyDigital.security.OAuth2AuthenticationFailureHandler;
+import com.example.KendyDigital.security.OAuth2AuthenticationSuccessHandler;
+import com.example.KendyDigital.security.TwoFactorRequiredFilter;
 import com.example.KendyDigital.common.RateLimitFilter;
 import com.example.KendyDigital.common.RequestIdFilter;
 
@@ -24,17 +28,28 @@ import com.example.KendyDigital.common.RequestIdFilter;
 public class SecurityConfig {
     @Bean
     SecurityFilterChain apiSecurity(HttpSecurity http, BearerTokenAuthenticationFilter bearerTokenAuthenticationFilter,
+            ApiKeyAuthenticationFilter apiKeyAuthenticationFilter,
+            OAuth2AuthenticationSuccessHandler oAuth2AuthenticationSuccessHandler,
+            OAuth2AuthenticationFailureHandler oAuth2AuthenticationFailureHandler,
+            TwoFactorRequiredFilter twoFactorRequiredFilter,
             RequestIdFilter requestIdFilter, RateLimitFilter rateLimitFilter)
             throws Exception {
         http.csrf(csrf -> csrf.disable())
                 .cors(Customizer.withDefaults())
-                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                        .requestMatchers("/api/auth/register", "/api/auth/login").permitAll()
+                        .requestMatchers("/oauth2/**", "/login/oauth2/**").permitAll()
+                        .requestMatchers("/api/auth/register", "/api/auth/login",
+                                "/api/auth/2fa/email-code",
+                                "/api/auth/oauth2/providers",
+                                "/api/auth/forgot-password", "/api/auth/reset-password",
+                                "/api/auth/resend-verification", "/api/auth/verify-email").permitAll()
                         .requestMatchers("/api/webhooks/sepay").permitAll()
-                        .requestMatchers("/api/services", "/api/services/**").permitAll()
-                        .requestMatchers("/api/admin/**").hasAnyRole("ADMIN", "SUPER_ADMIN")
+                .requestMatchers("/api/services", "/api/services/**",
+                        "/api/service-categories", "/api/service-categories/**").permitAll()
+                .requestMatchers("/api/admin/files/**").authenticated()
+                .requestMatchers("/api/admin/**").hasAnyRole("ADMIN", "SUPER_ADMIN")
                         .requestMatchers("/api/**").authenticated()
                         .anyRequest().permitAll())
                 .headers(headers -> headers
@@ -43,7 +58,12 @@ public class SecurityConfig {
                         .httpStrictTransportSecurity(hsts -> hsts.includeSubDomains(true).preload(true)))
                 .addFilterBefore(requestIdFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(rateLimitFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterBefore(apiKeyAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(bearerTokenAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterAfter(twoFactorRequiredFilter, BearerTokenAuthenticationFilter.class)
+                .oauth2Login(oauth2 -> oauth2
+                        .successHandler(oAuth2AuthenticationSuccessHandler)
+                        .failureHandler(oAuth2AuthenticationFailureHandler))
                 .httpBasic(basic -> basic.disable())
                 .formLogin(form -> form.disable());
 

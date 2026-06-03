@@ -14,6 +14,8 @@ import org.springframework.web.bind.annotation.RestController;
 import com.example.KendyDigital.dto.CancelDepositRequest;
 import com.example.KendyDigital.dto.CreateDepositRequest;
 import com.example.KendyDigital.dto.DepositResponse;
+import com.example.KendyDigital.dto.DepositQrResponse;
+import com.example.KendyDigital.dto.DepositStatusResponse;
 import com.example.KendyDigital.model.DepositStatus;
 import com.example.KendyDigital.security.CurrentUser;
 import com.example.KendyDigital.service.DepositService;
@@ -37,13 +39,25 @@ public class DepositController {
 
     @GetMapping
     public List<DepositResponse> listDeposits(Authentication authentication,
-            @RequestParam(required = false) DepositStatus status) {
-        return depositService.listByUser(CurrentUser.require(authentication).userId(), status);
+            @RequestParam(required = false) DepositStatus status,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return depositService.listByUser(CurrentUser.require(authentication).userId(), status, page, size);
     }
 
     @GetMapping("/{depositCode}")
     public DepositResponse getDeposit(Authentication authentication, @PathVariable String depositCode) {
         return depositService.getDepositForUser(CurrentUser.require(authentication).userId(), depositCode);
+    }
+
+    @GetMapping("/{depositCode}/status")
+    public DepositStatusResponse getDepositStatus(Authentication authentication, @PathVariable String depositCode) {
+        return depositService.statusForUser(CurrentUser.require(authentication).userId(), depositCode);
+    }
+
+    @GetMapping("/{depositCode}/qr")
+    public DepositQrResponse getDepositQr(Authentication authentication, @PathVariable String depositCode) {
+        return depositService.qrForUser(CurrentUser.require(authentication).userId(), depositCode);
     }
 
     @PostMapping("/{depositCode}/cancel")

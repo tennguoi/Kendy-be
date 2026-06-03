@@ -1,5 +1,7 @@
 package com.example.KendyDigital.controller;
 
+import java.time.Instant;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -35,6 +37,8 @@ import com.example.KendyDigital.dto.SystemSettingResponse;
 import com.example.KendyDigital.dto.SystemSettingUpdateRequest;
 import com.example.KendyDigital.dto.SystemSettingsBulkUpdateRequest;
 import com.example.KendyDigital.dto.TicketResponse;
+import com.example.KendyDigital.dto.TotpSetupResponse;
+import com.example.KendyDigital.dto.TwoFactorVerifyRequest;
 import com.example.KendyDigital.dto.WebhookConfigRequest;
 import com.example.KendyDigital.dto.WebhookRetryRequest;
 import com.example.KendyDigital.dto.WalletTransactionResponse;
@@ -55,8 +59,9 @@ public class AdminOperationsController {
 
     @GetMapping("/api/admin/users/{id}/sessions")
     public List<AuthSessionResponse> userSessions(@PathVariable Long id,
-            @RequestParam(required = false) Integer limit) {
-        return adminOperationsService.listSessions(id, limit);
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return adminOperationsService.listSessions(id, page, size);
     }
 
     @DeleteMapping("/api/admin/users/{id}/sessions/{sessionId}")
@@ -66,19 +71,24 @@ public class AdminOperationsController {
     }
 
     @GetMapping("/api/admin/users/{id}/orders")
-    public List<OrderResponse> userOrders(@PathVariable Long id, @RequestParam(required = false) Integer limit) {
-        return adminOperationsService.listUserOrders(id, limit);
+    public List<OrderResponse> userOrders(@PathVariable Long id,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return adminOperationsService.listUserOrders(id, page, size);
     }
 
     @GetMapping("/api/admin/users/{id}/wallet-transactions")
     public List<WalletTransactionResponse> userWalletTransactions(@PathVariable Long id,
-            @RequestParam(required = false) Integer limit) {
-        return adminOperationsService.listUserWalletTransactions(id, limit);
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return adminOperationsService.listUserWalletTransactions(id, page, size);
     }
 
     @GetMapping("/api/admin/users/{id}/tickets")
-    public List<TicketResponse> userTickets(@PathVariable Long id, @RequestParam(required = false) Integer limit) {
-        return adminOperationsService.listUserTickets(id, limit);
+    public List<TicketResponse> userTickets(@PathVariable Long id,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return adminOperationsService.listUserTickets(id, page, size);
     }
 
     @PostMapping("/api/admin/users/bulk-lock")
@@ -228,22 +238,25 @@ public class AdminOperationsController {
         return adminOperationsService.listAdmins(limit);
     }
 
+    @PostMapping("/api/admin/admins/{id}/2fa/setup")
+    public TotpSetupResponse setupTwoFactor(Authentication authentication, @PathVariable Long id) {
+        return adminOperationsService.setupTwoFactor(CurrentUser.require(authentication).userId(), id);
+    }
+
     @PostMapping("/api/admin/admins/{id}/2fa/enable")
-    public AdminUserResponse enableTwoFactor(Authentication authentication, @PathVariable Long id) {
-        return adminOperationsService.setTwoFactor(CurrentUser.require(authentication).userId(), id, true,
-                "ADMIN_2FA_ENABLED");
+    public AdminUserResponse enableTwoFactor(Authentication authentication, @PathVariable Long id,
+            @Valid @RequestBody TwoFactorVerifyRequest request) {
+        return adminOperationsService.verifyAndEnableTwoFactor(CurrentUser.require(authentication).userId(), id, request);
     }
 
     @PostMapping("/api/admin/admins/{id}/2fa/disable")
     public AdminUserResponse disableTwoFactor(Authentication authentication, @PathVariable Long id) {
-        return adminOperationsService.setTwoFactor(CurrentUser.require(authentication).userId(), id, false,
-                "ADMIN_2FA_DISABLED");
+        return adminOperationsService.disableTwoFactor(CurrentUser.require(authentication).userId(), id);
     }
 
     @PostMapping("/api/admin/admins/{id}/2fa/reset")
-    public AdminUserResponse resetTwoFactor(Authentication authentication, @PathVariable Long id) {
-        return adminOperationsService.setTwoFactor(CurrentUser.require(authentication).userId(), id, false,
-                "ADMIN_2FA_RESET");
+    public TotpSetupResponse resetTwoFactor(Authentication authentication, @PathVariable Long id) {
+        return adminOperationsService.resetTwoFactor(CurrentUser.require(authentication).userId(), id);
     }
 
     @GetMapping("/api/admin/admins/{id}/permissions")
@@ -368,6 +381,15 @@ public class AdminOperationsController {
     @GetMapping("/api/admin/jobs/logs")
     public List<JobRecordResponse> jobLogs(@RequestParam(required = false) Integer limit) {
         return adminOperationsService.jobs(limit);
+    }
+
+    @GetMapping("/api/admin/health")
+    public Map<String, Object> health() {
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("status", "UP");
+        response.put("timestamp", Instant.now().toString());
+        response.put("service", "KendyDigital");
+        return response;
     }
 
     private ResponseEntity<String> csv(String fileName, String body) {

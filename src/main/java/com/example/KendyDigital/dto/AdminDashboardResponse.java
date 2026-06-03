@@ -21,5 +21,8 @@ public record AdminDashboardResponse(
         long pendingAdminTickets,
         long pendingUserTickets,
         long resolvedTickets,
-        long closedTickets) {
+        long closedTickets,
+        long todayDeposits,
+        BigDecimal todayRevenue,
+        long unmatchedBankCount) {
 }

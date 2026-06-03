@@ -129,4 +129,9 @@ public class Ticket extends TimestampedEntity {
         this.status = TicketStatus.CLOSED;
         this.closedAt = Instant.now();
     }
+
+    public void reopen() {
+        this.status = TicketStatus.PENDING_ADMIN;
+        this.closedAt = null;
+    }
 }

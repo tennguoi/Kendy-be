@@ -4,10 +4,10 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 
 @ConfigurationProperties(prefix = "app.sepay.webhook")
 public class SePayWebhookProperties {
-    private boolean requireApiKey = false;
+    private boolean requireApiKey = true;
     private String apiKey = "";
     private String apiKeyHeader = "X-SePay-Api-Key";
-    private boolean requireHmac = false;
+    private boolean requireHmac = true;
     private String hmacSecret = "";
     private String signatureHeader = "X-SePay-Signature";
 

@@ -12,10 +12,13 @@ import lombok.NoArgsConstructor;
 import lombok.AccessLevel;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Index;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 
@@ -74,6 +77,29 @@ public class ServiceItem extends TimestampedEntity {
 
     @Column(name = "sort_order", nullable = false)
     private int sortOrder = 0;
+
+    @Column(name = "meta_title")
+    private String metaTitle;
+
+    @Column(name = "meta_description", columnDefinition = "TEXT")
+    private String metaDescription;
+
+    @Column(name = "icon_url")
+    private String iconUrl;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "category_id")
+    private ServiceCategory category;
+
+    public void updateCategory(ServiceCategory category) {
+        this.category = category;
+    }
+
+    public void updateSeo(String metaTitle, String metaDescription, String iconUrl) {
+        if (metaTitle != null) this.metaTitle = metaTitle;
+        if (metaDescription != null) this.metaDescription = metaDescription;
+        if (iconUrl != null) this.iconUrl = iconUrl;
+    }
 
     public ServiceItem(String name, String slug, String shortDescription, String description, BigDecimal price,
             ServiceType type, ServiceStatus status) {
