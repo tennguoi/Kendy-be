@@ -66,11 +66,22 @@ public class UserAccount extends TimestampedEntity {
     @Column(name = "two_factor_enabled", nullable = false)
     private boolean twoFactorEnabled = false;
 
+    @Column(name = "admin_permissions", columnDefinition = "TEXT")
+    private String adminPermissions;
+
     public UserAccount(String name, String email, String phone, String passwordHash) {
         this.name = name;
         this.email = email;
         this.phone = phone;
         this.passwordHash = passwordHash;
+    }
+
+    public void enableTwoFactor() {
+        this.twoFactorEnabled = true;
+    }
+
+    public void disableTwoFactor() {
+        this.twoFactorEnabled = false;
     }
 
 }

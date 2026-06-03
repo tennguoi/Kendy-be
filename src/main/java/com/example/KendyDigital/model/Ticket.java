@@ -113,6 +113,18 @@ public class Ticket extends TimestampedEntity {
         }
     }
 
+    public void updatePriority(TicketPriority priority) {
+        if (priority != null) {
+            this.priority = priority;
+        }
+    }
+
+    public void updateCategory(TicketCategory category) {
+        if (category != null) {
+            this.category = category;
+        }
+    }
+
     public void close() {
         this.status = TicketStatus.CLOSED;
         this.closedAt = Instant.now();

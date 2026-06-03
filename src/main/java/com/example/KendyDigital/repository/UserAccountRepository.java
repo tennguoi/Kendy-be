@@ -3,6 +3,7 @@ package com.example.KendyDigital.repository;
 import java.math.BigDecimal;
 import java.util.Optional;
 import java.util.List;
+import java.time.Instant;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.domain.Pageable;
@@ -13,6 +14,7 @@ import org.springframework.data.repository.query.Param;
 import jakarta.persistence.LockModeType;
 
 import com.example.KendyDigital.model.UserAccount;
+import com.example.KendyDigital.model.UserRole;
 import com.example.KendyDigital.model.UserStatus;
 
 public interface UserAccountRepository extends JpaRepository<UserAccount, Long> {
@@ -24,7 +26,26 @@ public interface UserAccountRepository extends JpaRepository<UserAccount, Long> 
 
     List<UserAccount> findAllByStatusOrderByCreatedAtDesc(UserStatus status, Pageable pageable);
 
+    List<UserAccount> findAllByRoleInOrderByCreatedAtDesc(List<UserRole> roles, Pageable pageable);
+
+    @Query("""
+            select u from UserAccount u
+            where (:status is null or u.status = :status)
+              and (
+                :query is null
+                or lower(u.name) like lower(concat('%', :query, '%'))
+                or lower(u.email) like lower(concat('%', :query, '%'))
+                or lower(coalesce(u.phone, '')) like lower(concat('%', :query, '%'))
+                or (:exactId is not null and u.id = :exactId)
+              )
+            order by u.createdAt desc
+            """)
+    List<UserAccount> searchAdmin(@Param("query") String query, @Param("exactId") Long exactId,
+            @Param("status") UserStatus status, Pageable pageable);
+
     long countByStatus(UserStatus status);
+
+    long countByCreatedAtGreaterThanEqual(Instant from);
 
     @Query("select coalesce(sum(u.balance), 0) from UserAccount u")
     BigDecimal sumAllBalances();

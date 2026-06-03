@@ -28,6 +28,24 @@ public interface DepositRequestRepository extends JpaRepository<DepositRequest, 
 
     List<DepositRequest> findAllByStatusOrderByCreatedAtDesc(DepositStatus status, Pageable pageable);
 
+    @Query("""
+            select d from DepositRequest d
+            join d.user u
+            where (:status is null or d.status = :status)
+              and (:userId is null or u.id = :userId)
+              and (
+                :query is null
+                or lower(d.depositCode) like lower(concat('%', :query, '%'))
+                or lower(d.transferContent) like lower(concat('%', :query, '%'))
+                or lower(d.bankAccount) like lower(concat('%', :query, '%'))
+                or lower(u.email) like lower(concat('%', :query, '%'))
+                or lower(u.name) like lower(concat('%', :query, '%'))
+                or (:exactId is not null and d.id = :exactId)
+              )
+            order by d.createdAt desc
+            """)
+    List<DepositRequest> searchAdmin(@Param("query") String query, @Param("exactId") Long exactId,
+            @Param("status") DepositStatus status, @Param("userId") Long userId, Pageable pageable);
 
     long countByStatus(DepositStatus status);
 

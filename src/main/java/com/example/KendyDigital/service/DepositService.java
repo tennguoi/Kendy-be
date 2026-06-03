@@ -14,6 +14,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import com.example.KendyDigital.common.CodeGenerator;
 import com.example.KendyDigital.config.BankProperties;
+import com.example.KendyDigital.dto.CancelDepositRequest;
 import com.example.KendyDigital.dto.CreateDepositRequest;
 import com.example.KendyDigital.dto.DepositResponse;
 import com.example.KendyDigital.model.DepositRequest;
@@ -29,15 +30,18 @@ public class DepositService {
     private final UserAccountRepository userAccountRepository;
     private final CodeGenerator codeGenerator;
     private final BankProperties bankProperties;
+    private final AuditService auditService;
 
     public DepositService(DepositRequestRepository depositRequestRepository,
             UserAccountRepository userAccountRepository,
             CodeGenerator codeGenerator,
-            BankProperties bankProperties) {
+            BankProperties bankProperties,
+            AuditService auditService) {
         this.depositRequestRepository = depositRequestRepository;
         this.userAccountRepository = userAccountRepository;
         this.codeGenerator = codeGenerator;
         this.bankProperties = bankProperties;
+        this.auditService = auditService;
     }
 
     @Transactional
@@ -87,11 +91,39 @@ public class DepositService {
                 .toList();
     }
 
+    @Transactional
+    public DepositResponse cancelForUser(Long userId, String depositCode, CancelDepositRequest request) {
+        DepositRequest deposit = depositRequestRepository.findByDepositCodeForUpdate(depositCode)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Deposit not found"));
+        if (!deposit.getUser().getId().equals(userId)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Deposit not found");
+        }
+        if (deposit.getStatus() == DepositStatus.COMPLETED || deposit.getWalletTransaction() != null) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Completed deposit cannot be cancelled");
+        }
+        if (deposit.getStatus() == DepositStatus.MANUAL_REVIEW) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Deposit is under manual review");
+        }
+        if (deposit.getStatus() != DepositStatus.CANCELLED) {
+            deposit.cancel();
+            auditService.recordSystem(
+                    "DEPOSIT_CANCELLED_BY_USER",
+                    "DEPOSIT_REQUEST",
+                    deposit.getId(),
+                    "userId=" + userId + ",reason=" + blankToNull(request == null ? null : request.reason()));
+        }
+        return DepositResponse.from(deposit);
+    }
+
     private String nextDepositCode() {
         String code;
         do {
             code = codeGenerator.generate(bankProperties.getTransferPrefix(), 10);
         } while (depositRequestRepository.existsByDepositCode(code));
         return code;
+    }
+
+    private String blankToNull(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
     }
 }

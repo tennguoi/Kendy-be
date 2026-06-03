@@ -27,6 +27,27 @@ public interface WalletTransactionRepository extends JpaRepository<WalletTransac
 
     List<WalletTransaction> findAllByOrderByCreatedAtDesc(Pageable pageable);
 
+    @Query("""
+            select w from WalletTransaction w
+            join w.user u
+            where (:userId is null or u.id = :userId)
+              and (:type is null or w.type = :type)
+              and (:direction is null or w.direction = :direction)
+              and (
+                :query is null
+                or lower(w.transactionCode) like lower(concat('%', :query, '%'))
+                or lower(coalesce(w.referenceType, '')) like lower(concat('%', :query, '%'))
+                or lower(coalesce(w.description, '')) like lower(concat('%', :query, '%'))
+                or lower(u.email) like lower(concat('%', :query, '%'))
+                or lower(u.name) like lower(concat('%', :query, '%'))
+                or (:exactId is not null and w.id = :exactId)
+                or (:exactId is not null and w.referenceId = :exactId)
+              )
+            order by w.createdAt desc
+            """)
+    List<WalletTransaction> searchAdmin(@Param("query") String query, @Param("exactId") Long exactId,
+            @Param("userId") Long userId, @Param("type") WalletTransactionType type,
+            @Param("direction") WalletTransactionDirection direction, Pageable pageable);
 
     long countByUser_Id(Long userId);
 
@@ -35,4 +56,12 @@ public interface WalletTransactionRepository extends JpaRepository<WalletTransac
 
     @Query("select coalesce(sum(w.amount), 0) from WalletTransaction w where w.type = :type and w.direction = :direction")
     BigDecimal sumAmountByTypeAndDirection(@Param("type") WalletTransactionType type, @Param("direction") WalletTransactionDirection direction);
+
+    @Query("""
+            select coalesce(sum(w.amount), 0) from WalletTransaction w
+            where w.type = :type and w.direction = :direction and w.createdAt >= :from and w.createdAt < :to
+            """)
+    BigDecimal sumAmountByTypeAndDirectionBetween(@Param("type") WalletTransactionType type,
+            @Param("direction") WalletTransactionDirection direction, @Param("from") java.time.Instant from,
+            @Param("to") java.time.Instant to);
 }

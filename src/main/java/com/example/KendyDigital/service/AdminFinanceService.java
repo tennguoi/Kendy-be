@@ -1,8 +1,12 @@
 package com.example.KendyDigital.service;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.springframework.data.domain.PageRequest;
 
@@ -11,16 +15,23 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import com.example.KendyDigital.config.BankProperties;
 import com.example.KendyDigital.dto.AdminBankTransactionResponse;
 import com.example.KendyDigital.dto.AdminDashboardResponse;
+import com.example.KendyDigital.dto.AdminDepositCancelRequest;
+import com.example.KendyDigital.dto.AdminDepositExtendRequest;
 import com.example.KendyDigital.dto.AdminUserDetailResponse;
 import com.example.KendyDigital.dto.AdminUserResponse;
 import com.example.KendyDigital.dto.AdminUserRoleUpdateRequest;
 import com.example.KendyDigital.dto.AdminUserStatusUpdateRequest;
 import com.example.KendyDigital.dto.AdminWalletAdjustmentRequest;
+import com.example.KendyDigital.dto.BulkManualCreditBankTransactionsRequest;
 import com.example.KendyDigital.dto.DepositResponse;
 import com.example.KendyDigital.dto.IgnoreBankTransactionRequest;
 import com.example.KendyDigital.dto.ManualCreditBankTransactionRequest;
+import com.example.KendyDigital.dto.ManualCreditDepositRequest;
+import com.example.KendyDigital.dto.MatchBankTransactionRequest;
+import com.example.KendyDigital.dto.ReprocessBankTransactionRequest;
 import com.example.KendyDigital.dto.RevenueReportResponse;
 import com.example.KendyDigital.dto.WalletTransactionResponse;
 import com.example.KendyDigital.model.BankTransaction;
@@ -53,6 +64,7 @@ public class AdminFinanceService {
     private final WalletTransactionRepository walletTransactionRepository;
     private final WalletLedgerService walletLedgerService;
     private final AuditService auditService;
+    private final Pattern depositCodePattern;
 
     public AdminFinanceService(UserAccountRepository userAccountRepository,
             OrderRepository orderRepository,
@@ -61,7 +73,8 @@ public class AdminFinanceService {
             DepositRequestRepository depositRequestRepository,
             WalletTransactionRepository walletTransactionRepository,
             WalletLedgerService walletLedgerService,
-            AuditService auditService) {
+            AuditService auditService,
+            BankProperties bankProperties) {
         this.userAccountRepository = userAccountRepository;
         this.orderRepository = orderRepository;
         this.ticketRepository = ticketRepository;
@@ -70,6 +83,8 @@ public class AdminFinanceService {
         this.walletTransactionRepository = walletTransactionRepository;
         this.walletLedgerService = walletLedgerService;
         this.auditService = auditService;
+        this.depositCodePattern = Pattern.compile("\\b" + Pattern.quote(bankProperties.getTransferPrefix())
+                + "[A-Z0-9]{8,}\\b", Pattern.CASE_INSENSITIVE);
     }
 
     @Transactional(readOnly = true)
@@ -109,9 +124,25 @@ public class AdminFinanceService {
 
     @Transactional(readOnly = true)
     public List<AdminUserResponse> listUsers(UserStatus status) {
+        return listUsers(status, null);
+    }
+
+    @Transactional(readOnly = true)
+    public List<AdminUserResponse> listUsers(UserStatus status, Integer limit) {
         List<UserAccount> users = status == null
-                ? userAccountRepository.findAllByOrderByCreatedAtDesc(PageRequest.of(0, 100))
-                : userAccountRepository.findAllByStatusOrderByCreatedAtDesc(status, PageRequest.of(0, 100));
+                ? userAccountRepository.findAllByOrderByCreatedAtDesc(page(limit))
+                : userAccountRepository.findAllByStatusOrderByCreatedAtDesc(status, page(limit));
+        return users.stream().map(AdminUserResponse::from).toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<AdminUserResponse> searchUsers(String query, UserStatus status, Integer limit) {
+        String normalizedQuery = normalizeQuery(query);
+        List<UserAccount> users = userAccountRepository.searchAdmin(
+                normalizedQuery,
+                parseLongOrNull(normalizedQuery),
+                status,
+                page(limit));
         return users.stream().map(AdminUserResponse::from).toList();
     }
 
@@ -163,28 +194,104 @@ public class AdminFinanceService {
 
     @Transactional(readOnly = true)
     public List<DepositResponse> listDeposits(DepositStatus status, Long userId) {
+        return listDeposits(status, userId, null);
+    }
+
+    @Transactional(readOnly = true)
+    public List<DepositResponse> listDeposits(DepositStatus status, Long userId, Integer limit) {
         List<DepositRequest> deposits = userId != null
-                ? depositRequestRepository.findAllByUser_IdOrderByCreatedAtDesc(userId, PageRequest.of(0, 100))
+                ? depositRequestRepository.findAllByUser_IdOrderByCreatedAtDesc(userId, page(limit))
                 : status == null
-                        ? depositRequestRepository.findAllByOrderByCreatedAtDesc(PageRequest.of(0, 100))
-                        : depositRequestRepository.findAllByStatusOrderByCreatedAtDesc(status, PageRequest.of(0, 100));
+                        ? depositRequestRepository.findAllByOrderByCreatedAtDesc(page(limit))
+                        : depositRequestRepository.findAllByStatusOrderByCreatedAtDesc(status, page(limit));
         return deposits.stream().map(DepositResponse::from).toList();
     }
 
     @Transactional(readOnly = true)
+    public List<DepositResponse> searchDeposits(String query, DepositStatus status, Long userId, Integer limit) {
+        String normalizedQuery = normalizeQuery(query);
+        List<DepositRequest> deposits = depositRequestRepository.searchAdmin(
+                normalizedQuery,
+                parseLongOrNull(normalizedQuery),
+                status,
+                userId,
+                page(limit));
+        return deposits.stream().map(DepositResponse::from).toList();
+    }
+
+    @Transactional(readOnly = true)
+    public DepositResponse getDepositForAdmin(String depositCode) {
+        return depositRequestRepository.findByDepositCode(normalizeDepositCode(depositCode))
+                .map(DepositResponse::from)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Deposit request not found"));
+    }
+
+    @Transactional(readOnly = true)
     public List<AdminBankTransactionResponse> listBankTransactions(BankTransactionStatus status) {
+        return listBankTransactions(status, null);
+    }
+
+    @Transactional(readOnly = true)
+    public List<AdminBankTransactionResponse> listBankTransactions(BankTransactionStatus status, Integer limit) {
         List<BankTransaction> transactions = status == null
-                ? bankTransactionRepository.findAllByOrderByReceivedAtDesc(PageRequest.of(0, 100))
-                : bankTransactionRepository.findAllByStatusOrderByReceivedAtDesc(status, PageRequest.of(0, 100));
+                ? bankTransactionRepository.findAllByOrderByReceivedAtDesc(page(limit))
+                : bankTransactionRepository.findAllByStatusOrderByReceivedAtDesc(status, page(limit));
         return transactions.stream().map(AdminBankTransactionResponse::from).toList();
     }
 
     @Transactional(readOnly = true)
+    public List<AdminBankTransactionResponse> searchBankTransactions(String query, BankTransactionStatus status,
+            Integer limit) {
+        String normalizedQuery = normalizeQuery(query);
+        Long parsedId = parseLongOrNull(normalizedQuery);
+        List<BankTransaction> transactions = bankTransactionRepository.searchAdmin(
+                normalizedQuery,
+                parsedId,
+                parsedId,
+                status,
+                page(limit));
+        return transactions.stream().map(AdminBankTransactionResponse::from).toList();
+    }
+
+    @Transactional(readOnly = true)
+    public AdminBankTransactionResponse getBankTransaction(Long bankTransactionId) {
+        return bankTransactionRepository.findById(bankTransactionId)
+                .map(AdminBankTransactionResponse::from)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Bank transaction not found"));
+    }
+
+    @Transactional(readOnly = true)
     public List<WalletTransactionResponse> listWalletTransactions(Long userId) {
+        return listWalletTransactions(userId, null);
+    }
+
+    @Transactional(readOnly = true)
+    public List<WalletTransactionResponse> listWalletTransactions(Long userId, Integer limit) {
         List<WalletTransaction> transactions = userId == null
-                ? walletTransactionRepository.findAllByOrderByCreatedAtDesc(PageRequest.of(0, 100))
-                : walletTransactionRepository.findAllByUser_IdOrderByCreatedAtDesc(userId, PageRequest.of(0, 100));
+                ? walletTransactionRepository.findAllByOrderByCreatedAtDesc(page(limit))
+                : walletTransactionRepository.findAllByUser_IdOrderByCreatedAtDesc(userId, page(limit));
         return transactions.stream().map(WalletTransactionResponse::from).toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<WalletTransactionResponse> searchWalletTransactions(String query, Long userId,
+            WalletTransactionType type, WalletTransactionDirection direction, Integer limit) {
+        String normalizedQuery = normalizeQuery(query);
+        List<WalletTransaction> transactions = walletTransactionRepository.searchAdmin(
+                normalizedQuery,
+                parseLongOrNull(normalizedQuery),
+                userId,
+                type,
+                direction,
+                page(limit));
+        return transactions.stream().map(WalletTransactionResponse::from).toList();
+    }
+
+    @Transactional(readOnly = true)
+    public WalletTransactionResponse getWalletTransaction(Long walletTransactionId) {
+        return walletTransactionRepository.findById(walletTransactionId)
+                .map(WalletTransactionResponse::from)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Wallet transaction not found"));
     }
 
     @Transactional
@@ -226,6 +333,83 @@ public class AdminFinanceService {
     }
 
     @Transactional
+    public DepositResponse cancelDeposit(Long adminUserId, String depositCode, AdminDepositCancelRequest request) {
+        DepositRequest deposit = depositRequestRepository.findByDepositCodeForUpdate(normalizeDepositCode(depositCode))
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Deposit request not found"));
+        ensureDepositCanBeChanged(deposit, "Completed deposit cannot be cancelled");
+        if (deposit.getStatus() != DepositStatus.CANCELLED) {
+            deposit.cancel();
+            auditService.recordAdmin(
+                    adminUserId,
+                    "DEPOSIT_CANCELLED_BY_ADMIN",
+                    "DEPOSIT_REQUEST",
+                    deposit.getId(),
+                    "reason=" + request.reason());
+        }
+        return DepositResponse.from(deposit);
+    }
+
+    @Transactional
+    public DepositResponse extendDeposit(Long adminUserId, String depositCode, AdminDepositExtendRequest request) {
+        DepositRequest deposit = depositRequestRepository.findByDepositCodeForUpdate(normalizeDepositCode(depositCode))
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Deposit request not found"));
+        ensureDepositCanBeChanged(deposit, "Completed deposit cannot be extended");
+        if (deposit.getStatus() == DepositStatus.CANCELLED) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Cancelled deposit cannot be extended");
+        }
+
+        Instant baseTime = deposit.getExpiredAt().isAfter(Instant.now()) ? deposit.getExpiredAt() : Instant.now();
+        deposit.extendTo(baseTime.plusSeconds(request.minutes() * 60L));
+        auditService.recordAdmin(
+                adminUserId,
+                "DEPOSIT_EXTENDED",
+                "DEPOSIT_REQUEST",
+                deposit.getId(),
+                "minutes=" + request.minutes() + ",reason=" + request.reason());
+        return DepositResponse.from(deposit);
+    }
+
+    @Transactional
+    public DepositResponse manualCreditDeposit(Long adminUserId, String depositCode,
+            ManualCreditDepositRequest request) {
+        DepositRequest deposit = depositRequestRepository.findByDepositCodeForUpdate(normalizeDepositCode(depositCode))
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Deposit request not found"));
+        ensureDepositCanBeChanged(deposit, "Deposit has already been credited");
+        if (deposit.getStatus() == DepositStatus.CANCELLED) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Cancelled deposit cannot be credited");
+        }
+        if (deposit.getMatchedBankTransaction() != null) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Use bank transaction manual-credit for deposits with a matched bank transaction");
+        }
+
+        UserAccount user = userAccountRepository.findByIdForUpdate(deposit.getUser().getId())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+        if (user.getStatus() != UserStatus.ACTIVE) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "User is not active");
+        }
+
+        WalletTransaction walletTransaction = walletLedgerService.credit(
+                user,
+                deposit.getAmount(),
+                WalletTransactionType.DEPOSIT,
+                "DEPOSIT_REQUEST",
+                deposit.getId(),
+                "Manual deposit credit " + deposit.getDepositCode() + ": " + request.reason(),
+                adminUserId);
+        deposit.complete(null, walletTransaction);
+
+        auditService.recordAdmin(
+                adminUserId,
+                "DEPOSIT_MANUAL_CREDITED",
+                "DEPOSIT_REQUEST",
+                deposit.getId(),
+                "userId=" + user.getId() + ",walletTransactionId=" + walletTransaction.getId()
+                        + ",reason=" + request.reason());
+        return DepositResponse.from(deposit);
+    }
+
+    @Transactional
     public AdminBankTransactionResponse ignoreBankTransaction(Long adminUserId, Long bankTransactionId,
             IgnoreBankTransactionRequest request) {
         BankTransaction transaction = bankTransactionRepository.findByIdForUpdate(bankTransactionId)
@@ -240,6 +424,144 @@ public class AdminFinanceService {
                 transaction.getId(),
                 "reason=" + request.reason());
         return AdminBankTransactionResponse.from(transaction);
+    }
+
+    @Transactional
+    public AdminBankTransactionResponse matchBankTransaction(Long adminUserId, Long bankTransactionId,
+            MatchBankTransactionRequest request) {
+        BankTransaction bankTransaction = bankTransactionRepository.findByIdForUpdate(bankTransactionId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Bank transaction not found"));
+        ensureNotCredited(bankTransaction);
+        ensureNotDuplicate(bankTransaction);
+        ensureIncomingTransfer(bankTransaction);
+
+        DepositRequest deposit = depositRequestRepository.findByDepositCodeForUpdate(
+                        normalizeDepositCode(request.depositCode()))
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Deposit request not found"));
+        ensureDepositCanBeLinked(deposit);
+
+        if (deposit.getStatus() == DepositStatus.PENDING && deposit.getExpiredAt().isBefore(Instant.now())) {
+            deposit.markManualReview();
+        }
+        if (deposit.getStatus() == DepositStatus.PENDING
+                && !amountMatches(deposit.getAmount(), bankTransaction.getTransferAmount())) {
+            deposit.markManualReview();
+        }
+
+        bankTransaction.match(deposit, request.reason());
+        auditService.recordAdmin(
+                adminUserId,
+                "BANK_TRANSACTION_MATCHED",
+                "BANK_TRANSACTION",
+                bankTransaction.getId(),
+                "depositCode=" + deposit.getDepositCode() + ",reason=" + request.reason());
+        return AdminBankTransactionResponse.from(bankTransaction);
+    }
+
+    @Transactional
+    public AdminBankTransactionResponse reprocessBankTransaction(Long adminUserId, Long bankTransactionId,
+            ReprocessBankTransactionRequest request) {
+        BankTransaction bankTransaction = bankTransactionRepository.findByIdForUpdate(bankTransactionId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Bank transaction not found"));
+        ensureNotCredited(bankTransaction);
+        ensureNotDuplicate(bankTransaction);
+
+        if (!isIncomingTransfer(bankTransaction)) {
+            bankTransaction.ignore("Reprocess ignored non-incoming transfer: " + request.reason());
+            auditService.recordAdmin(
+                    adminUserId,
+                    "BANK_TRANSACTION_REPROCESS_IGNORED",
+                    "BANK_TRANSACTION",
+                    bankTransaction.getId(),
+                    "reason=" + request.reason());
+            return AdminBankTransactionResponse.from(bankTransaction);
+        }
+
+        BigDecimal transferAmount = bankTransaction.getTransferAmount();
+        if (transferAmount == null || transferAmount.compareTo(BigDecimal.ZERO) <= 0) {
+            return markManualReviewAfterReprocess(
+                    adminUserId,
+                    bankTransaction,
+                    "Bank transaction amount is invalid",
+                    null,
+                    request.reason());
+        }
+
+        DepositRequest deposit = resolveDepositForReprocess(bankTransaction, request.depositCode()).orElse(null);
+        if (deposit == null) {
+            return markManualReviewAfterReprocess(
+                    adminUserId,
+                    bankTransaction,
+                    "Deposit request not found",
+                    null,
+                    request.reason());
+        }
+
+        if (deposit.getStatus() == DepositStatus.COMPLETED || deposit.getWalletTransaction() != null) {
+            return markManualReviewAfterReprocess(
+                    adminUserId,
+                    bankTransaction,
+                    "Deposit request has already been credited",
+                    deposit,
+                    request.reason());
+        }
+        if (deposit.getStatus() == DepositStatus.CANCELLED) {
+            return markManualReviewAfterReprocess(
+                    adminUserId,
+                    bankTransaction,
+                    "Deposit request has been cancelled",
+                    deposit,
+                    request.reason());
+        }
+        if (deposit.getExpiredAt().isBefore(Instant.now())) {
+            deposit.markManualReview();
+            return markManualReviewAfterReprocess(
+                    adminUserId,
+                    bankTransaction,
+                    "Deposit request expired",
+                    deposit,
+                    request.reason());
+        }
+        if (!amountMatches(deposit.getAmount(), transferAmount)) {
+            deposit.markManualReview();
+            return markManualReviewAfterReprocess(
+                    adminUserId,
+                    bankTransaction,
+                    "Transfer amount does not match deposit request",
+                    deposit,
+                    request.reason());
+        }
+
+        UserAccount user = userAccountRepository.findByIdForUpdate(deposit.getUser().getId())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+        if (user.getStatus() != UserStatus.ACTIVE) {
+            return markManualReviewAfterReprocess(
+                    adminUserId,
+                    bankTransaction,
+                    "User is not active",
+                    deposit,
+                    request.reason());
+        }
+
+        WalletTransaction walletTransaction = walletLedgerService.credit(
+                user,
+                transferAmount,
+                WalletTransactionType.DEPOSIT,
+                "DEPOSIT_REQUEST",
+                deposit.getId(),
+                "Reprocessed bank deposit " + bankTransaction.getId() + " for " + deposit.getDepositCode(),
+                adminUserId);
+        deposit.complete(bankTransaction, walletTransaction);
+        bankTransaction.credit(deposit, walletTransaction);
+
+        auditService.recordAdmin(
+                adminUserId,
+                "BANK_TRANSACTION_REPROCESSED_CREDITED",
+                "BANK_TRANSACTION",
+                bankTransaction.getId(),
+                "depositCode=" + deposit.getDepositCode() + ",walletTransactionId=" + walletTransaction.getId()
+                        + ",reason=" + request.reason());
+        return AdminBankTransactionResponse.from(bankTransaction);
     }
 
     @Transactional
@@ -286,6 +608,16 @@ public class AdminFinanceService {
         return AdminBankTransactionResponse.from(bankTransaction);
     }
 
+    @Transactional
+    public List<AdminBankTransactionResponse> bulkManualCreditBankTransactions(Long adminUserId,
+            BulkManualCreditBankTransactionsRequest request) {
+        return request.bankTransactionIds().stream()
+                .map(id -> manualCreditBankTransaction(adminUserId, id,
+                        new ManualCreditBankTransactionRequest(request.userId(), request.depositCode(),
+                                request.reason())))
+                .toList();
+    }
+
     private DepositRequest findOptionalDepositForManualCredit(String depositCode, UserAccount user) {
         if (depositCode == null || depositCode.isBlank()) {
             return null;
@@ -306,19 +638,115 @@ public class AdminFinanceService {
         return depositRequest;
     }
 
+    private Optional<DepositRequest> resolveDepositForReprocess(BankTransaction bankTransaction, String depositCode) {
+        if (depositCode != null && !depositCode.isBlank()) {
+            return depositRequestRepository.findByDepositCodeForUpdate(normalizeDepositCode(depositCode));
+        }
+
+        if (bankTransaction.getMatchedDepositRequest() != null) {
+            return depositRequestRepository.findByDepositCodeForUpdate(
+                    bankTransaction.getMatchedDepositRequest().getDepositCode());
+        }
+
+        return extractDepositCode(bankTransaction.getContent(), bankTransaction.getCode())
+                .flatMap(depositRequestRepository::findByDepositCodeForUpdate);
+    }
+
+    private AdminBankTransactionResponse markManualReviewAfterReprocess(Long adminUserId,
+            BankTransaction bankTransaction, String reviewReason, DepositRequest deposit, String adminReason) {
+        bankTransaction.manualReview(reviewReason + ": " + adminReason, deposit);
+        auditService.recordAdmin(
+                adminUserId,
+                "BANK_TRANSACTION_REPROCESS_MANUAL_REVIEW",
+                "BANK_TRANSACTION",
+                bankTransaction.getId(),
+                "reviewReason=" + reviewReason + ",adminReason=" + adminReason
+                        + (deposit == null ? "" : ",depositCode=" + deposit.getDepositCode()));
+        return AdminBankTransactionResponse.from(bankTransaction);
+    }
+
     private void ensureNotCredited(BankTransaction transaction) {
         if (transaction.getStatus() == BankTransactionStatus.CREDITED || transaction.getWalletTransaction() != null) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Bank transaction has already been credited");
         }
     }
 
+    private void ensureNotDuplicate(BankTransaction transaction) {
+        if (transaction.getStatus() == BankTransactionStatus.DUPLICATE) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Duplicate bank transaction cannot be reprocessed");
+        }
+    }
+
     private void ensureIncomingTransfer(BankTransaction transaction) {
-        if (transaction.getTransferType() != null && !TRANSFER_IN.equalsIgnoreCase(transaction.getTransferType())) {
+        if (!isIncomingTransfer(transaction)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Only incoming bank transactions can be credited");
         }
     }
 
+    private boolean isIncomingTransfer(BankTransaction transaction) {
+        return transaction.getTransferType() == null || TRANSFER_IN.equalsIgnoreCase(transaction.getTransferType());
+    }
+
+    private void ensureDepositCanBeChanged(DepositRequest deposit, String message) {
+        if (deposit.getStatus() == DepositStatus.COMPLETED || deposit.getWalletTransaction() != null) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, message);
+        }
+    }
+
+    private void ensureDepositCanBeLinked(DepositRequest deposit) {
+        if (deposit.getStatus() == DepositStatus.COMPLETED || deposit.getWalletTransaction() != null) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Deposit request has already been credited");
+        }
+        if (deposit.getStatus() == DepositStatus.CANCELLED) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Deposit request has been cancelled");
+        }
+    }
+
+    private boolean amountMatches(BigDecimal expectedAmount, BigDecimal actualAmount) {
+        return expectedAmount != null && actualAmount != null && expectedAmount.compareTo(actualAmount) == 0;
+    }
+
+    private Optional<String> extractDepositCode(String content, String code) {
+        String text = (nullSafe(content) + " " + nullSafe(code)).toUpperCase(Locale.ROOT);
+        Matcher matcher = depositCodePattern.matcher(text);
+        if (matcher.find()) {
+            return Optional.of(matcher.group().toUpperCase(Locale.ROOT));
+        }
+        return Optional.empty();
+    }
+
+    private PageRequest page(Integer limit) {
+        int normalizedLimit = limit == null ? 100 : Math.max(1, Math.min(limit, 200));
+        return PageRequest.of(0, normalizedLimit);
+    }
+
+    private String normalizeQuery(String query) {
+        return query == null || query.isBlank() ? null : query.trim();
+    }
+
+    private Long parseLongOrNull(String value) {
+        if (value == null) {
+            return null;
+        }
+        try {
+            return Long.parseLong(value);
+        } catch (NumberFormatException ex) {
+            return null;
+        }
+    }
+
+    private String normalizeDepositCode(String depositCode) {
+        if (depositCode == null || depositCode.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Deposit code is required");
+        }
+        return depositCode.trim().toUpperCase(Locale.ROOT);
+    }
+
     private String blankToNull(String value) {
         return value == null || value.isBlank() ? null : value.trim();
+    }
+
+    private String nullSafe(String value) {
+        return value == null ? "" : value;
     }
 }

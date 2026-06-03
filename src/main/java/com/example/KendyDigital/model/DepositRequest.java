@@ -107,4 +107,15 @@ public class DepositRequest extends TimestampedEntity {
     public void markManualReview() {
         this.status = DepositStatus.MANUAL_REVIEW;
     }
+
+    public void cancel() {
+        this.status = DepositStatus.CANCELLED;
+    }
+
+    public void extendTo(Instant expiredAt) {
+        this.expiredAt = expiredAt;
+        if (this.status == DepositStatus.EXPIRED) {
+            this.status = DepositStatus.PENDING;
+        }
+    }
 }

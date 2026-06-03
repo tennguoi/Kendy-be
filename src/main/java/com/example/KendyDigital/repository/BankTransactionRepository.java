@@ -22,6 +22,24 @@ public interface BankTransactionRepository extends JpaRepository<BankTransaction
 
     List<BankTransaction> findAllByStatusOrderByReceivedAtDesc(BankTransactionStatus status, Pageable pageable);
 
+    @Query("""
+            select b from BankTransaction b
+            where (:status is null or b.status = :status)
+              and (
+                :query is null
+                or lower(coalesce(b.referenceCode, '')) like lower(concat('%', :query, '%'))
+                or lower(coalesce(b.code, '')) like lower(concat('%', :query, '%'))
+                or lower(coalesce(b.content, '')) like lower(concat('%', :query, '%'))
+                or lower(coalesce(b.accountNumber, '')) like lower(concat('%', :query, '%'))
+                or lower(coalesce(b.gateway, '')) like lower(concat('%', :query, '%'))
+                or (:exactId is not null and b.id = :exactId)
+                or (:sepayId is not null and b.sepayId = :sepayId)
+              )
+            order by b.receivedAt desc
+            """)
+    List<BankTransaction> searchAdmin(@Param("query") String query, @Param("exactId") Long exactId,
+            @Param("sepayId") Long sepayId, @Param("status") BankTransactionStatus status, Pageable pageable);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select b from BankTransaction b where b.id = :id")
     Optional<BankTransaction> findByIdForUpdate(@Param("id") Long id);

@@ -121,6 +121,13 @@ public class BankTransaction extends TimestampedEntity {
         }
     }
 
+    public void match(DepositRequest depositRequest, String reason) {
+        this.status = BankTransactionStatus.MATCHED;
+        this.reviewReason = reason;
+        this.matchedDepositRequest = depositRequest;
+        this.matchedUser = depositRequest.getUser();
+    }
+
     public void credit(DepositRequest depositRequest, WalletTransaction walletTransaction) {
         this.status = BankTransactionStatus.CREDITED;
         this.matchedDepositRequest = depositRequest;

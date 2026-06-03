@@ -20,6 +20,7 @@ public record OrderResponse(
         String adminNote,
         String userNote,
         Instant processingAt,
+        Instant processingDeadlineAt,
         Instant completedAt,
         Instant cancelledAt,
         Instant createdAt) {
@@ -38,6 +39,7 @@ public record OrderResponse(
                 order.getAdminNote(),
                 order.getUserNote(),
                 order.getProcessingAt(),
+                order.getProcessingDeadlineAt(),
                 order.getCompletedAt(),
                 order.getCancelledAt(),
                 order.getCreatedAt());

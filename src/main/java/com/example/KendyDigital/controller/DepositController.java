@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.example.KendyDigital.dto.CancelDepositRequest;
 import com.example.KendyDigital.dto.CreateDepositRequest;
 import com.example.KendyDigital.dto.DepositResponse;
 import com.example.KendyDigital.model.DepositStatus;
@@ -43,5 +44,11 @@ public class DepositController {
     @GetMapping("/{depositCode}")
     public DepositResponse getDeposit(Authentication authentication, @PathVariable String depositCode) {
         return depositService.getDepositForUser(CurrentUser.require(authentication).userId(), depositCode);
+    }
+
+    @PostMapping("/{depositCode}/cancel")
+    public DepositResponse cancelDeposit(Authentication authentication, @PathVariable String depositCode,
+            @RequestBody(required = false) CancelDepositRequest request) {
+        return depositService.cancelForUser(CurrentUser.require(authentication).userId(), depositCode, request);
     }
 }

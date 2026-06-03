@@ -4,28 +4,35 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import com.example.KendyDigital.dto.CreateServiceRequest;
+import com.example.KendyDigital.dto.OrderResponse;
 import com.example.KendyDigital.dto.ServiceResponse;
 import com.example.KendyDigital.dto.ServiceStatusUpdateRequest;
 import com.example.KendyDigital.dto.UpdateServiceRequest;
 import com.example.KendyDigital.model.ServiceItem;
 import com.example.KendyDigital.model.ServiceStatus;
 import com.example.KendyDigital.model.ServiceType;
+import com.example.KendyDigital.repository.OrderRepository;
 import com.example.KendyDigital.repository.ServiceItemRepository;
 
 @Service
 public class ServiceCatalogService {
     private final ServiceItemRepository serviceItemRepository;
+    private final OrderRepository orderRepository;
     private final AuditService auditService;
 
-    public ServiceCatalogService(ServiceItemRepository serviceItemRepository, AuditService auditService) {
+    public ServiceCatalogService(ServiceItemRepository serviceItemRepository, OrderRepository orderRepository,
+            AuditService auditService) {
         this.serviceItemRepository = serviceItemRepository;
+        this.orderRepository = orderRepository;
         this.auditService = auditService;
     }
 
@@ -76,6 +83,19 @@ public class ServiceCatalogService {
     @Transactional(readOnly = true)
     public List<ServiceResponse> listForAdmin() {
         return serviceItemRepository.findAllByOrderBySortOrderAscNameAsc()
+                .stream()
+                .map(ServiceResponse::from)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<ServiceResponse> searchForAdmin(String query, ServiceStatus status, Integer limit) {
+        String normalizedQuery = query == null || query.isBlank() ? null : query.trim();
+        return serviceItemRepository.searchAdmin(
+                        normalizedQuery,
+                        parseLongOrNull(normalizedQuery),
+                        status,
+                        page(limit))
                 .stream()
                 .map(ServiceResponse::from)
                 .toList();
@@ -163,6 +183,42 @@ public class ServiceCatalogService {
         return ServiceResponse.from(service);
     }
 
+    @Transactional(readOnly = true)
+    public List<Map<String, Object>> getCategories(Long id) {
+        ServiceItem service = serviceItemRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Service not found"));
+        return List.of(Map.of(
+                "id", service.getType().name(),
+                "name", service.getType().name(),
+                "source", "service.type"));
+    }
+
+    @Transactional(readOnly = true)
+    public List<OrderResponse> listOrders(Long id, Integer limit) {
+        if (!serviceItemRepository.existsById(id)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Service not found");
+        }
+        return orderRepository.findAllByService_IdOrderByCreatedAtDesc(id, page(limit))
+                .stream()
+                .map(OrderResponse::from)
+                .toList();
+    }
+
+    @Transactional
+    public List<ServiceResponse> bulkStatus(Long adminUserId, List<Long> ids, ServiceStatus status, String reason) {
+        return ids.stream()
+                .map(id -> {
+                    ServiceItem service = serviceItemRepository.findById(id)
+                            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
+                                    "Service not found: " + id));
+                    service.changeStatus(status);
+                    auditService.recordAdmin(adminUserId, "SERVICE_BULK_STATUS_UPDATED", "SERVICE", service.getId(),
+                            "status=" + status + ",reason=" + blankToNull(reason));
+                    return ServiceResponse.from(service);
+                })
+                .toList();
+    }
+
     private String normalizeSlug(String slug) {
         return requireTrimmed(slug, "Service slug is required").toLowerCase(Locale.ROOT);
     }
@@ -176,5 +232,25 @@ public class ServiceCatalogService {
 
     private BigDecimal normalizeMoney(BigDecimal amount) {
         return amount.setScale(2, RoundingMode.HALF_UP);
+    }
+
+    private String blankToNull(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
+    }
+
+    private Long parseLongOrNull(String value) {
+        if (value == null) {
+            return null;
+        }
+        try {
+            return Long.parseLong(value);
+        } catch (NumberFormatException ex) {
+            return null;
+        }
+    }
+
+    private PageRequest page(Integer limit) {
+        int normalizedLimit = limit == null ? 100 : Math.max(1, Math.min(limit, 200));
+        return PageRequest.of(0, normalizedLimit);
     }
 }

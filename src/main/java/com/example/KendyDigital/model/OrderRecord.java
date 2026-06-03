@@ -90,6 +90,9 @@ public class OrderRecord extends TimestampedEntity {
     @Column(name = "processing_at")
     private Instant processingAt = Instant.now();
 
+    @Column(name = "processing_deadline_at")
+    private Instant processingDeadlineAt;
+
     @Column(name = "completed_at")
     private Instant completedAt;
 
@@ -143,5 +146,30 @@ public class OrderRecord extends TimestampedEntity {
         this.adminNote = reason;
         this.refundTransaction = refundTransaction;
         this.cancelledAt = Instant.now();
+    }
+
+    public void updateAdminNote(String adminNote) {
+        this.adminNote = adminNote;
+    }
+
+    public void updateUserNote(String userNote) {
+        this.userNote = userNote;
+    }
+
+    public void extendProcessing(Instant processingDeadlineAt, String adminNote) {
+        this.processingDeadlineAt = processingDeadlineAt;
+        if (adminNote != null) {
+            this.adminNote = adminNote;
+        }
+    }
+
+    public void reprocess(String adminNote) {
+        this.status = OrderStatus.PROCESSING;
+        this.processingAt = Instant.now();
+        this.completedAt = null;
+        this.cancelledAt = null;
+        if (adminNote != null) {
+            this.adminNote = adminNote;
+        }
     }
 }

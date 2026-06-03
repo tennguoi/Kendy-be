@@ -11,10 +11,14 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.example.KendyDigital.dto.AdminOrderUpdateRequest;
+import com.example.KendyDigital.dto.BulkRefundOrdersRequest;
 import com.example.KendyDigital.dto.CancelOrderRequest;
 import com.example.KendyDigital.dto.CreateOrderRequest;
+import com.example.KendyDigital.dto.ExtendOrderRequest;
+import com.example.KendyDigital.dto.OrderNoteRequest;
 import com.example.KendyDigital.dto.OrderResponse;
 import com.example.KendyDigital.dto.RefundOrderRequest;
+import com.example.KendyDigital.dto.ReprocessOrderRequest;
 import com.example.KendyDigital.model.OrderStatus;
 import com.example.KendyDigital.security.CurrentUser;
 import com.example.KendyDigital.service.OrderService;
@@ -53,8 +57,17 @@ public class OrderController {
 
     @GetMapping("/api/admin/orders")
     public List<OrderResponse> listForAdmin(@RequestParam(required = false) OrderStatus status,
-            @RequestParam(required = false) Long userId) {
-        return orderService.listForAdmin(status, userId);
+            @RequestParam(required = false) Long userId,
+            @RequestParam(required = false) Integer limit) {
+        return orderService.listForAdmin(status, userId, limit);
+    }
+
+    @GetMapping("/api/admin/orders/search")
+    public List<OrderResponse> searchForAdmin(@RequestParam(required = false) String query,
+            @RequestParam(required = false) OrderStatus status,
+            @RequestParam(required = false) Long userId,
+            @RequestParam(required = false) Integer limit) {
+        return orderService.searchForAdmin(query, status, userId, limit);
     }
 
     @GetMapping("/api/admin/orders/{orderCode}")
@@ -84,5 +97,35 @@ public class OrderController {
     public OrderResponse refund(Authentication authentication, @PathVariable String orderCode,
             @Valid @RequestBody RefundOrderRequest request) {
         return orderService.refund(orderCode, CurrentUser.require(authentication).userId(), request);
+    }
+
+    @PostMapping("/api/admin/orders/{orderCode}/admin-note")
+    public OrderResponse updateAdminNote(Authentication authentication, @PathVariable String orderCode,
+            @Valid @RequestBody OrderNoteRequest request) {
+        return orderService.updateAdminNote(orderCode, CurrentUser.require(authentication).userId(), request);
+    }
+
+    @PostMapping("/api/admin/orders/{orderCode}/user-note")
+    public OrderResponse updateUserNote(Authentication authentication, @PathVariable String orderCode,
+            @Valid @RequestBody OrderNoteRequest request) {
+        return orderService.updateUserNote(orderCode, CurrentUser.require(authentication).userId(), request);
+    }
+
+    @PostMapping("/api/admin/orders/{orderCode}/extend")
+    public OrderResponse extend(Authentication authentication, @PathVariable String orderCode,
+            @Valid @RequestBody ExtendOrderRequest request) {
+        return orderService.extend(orderCode, CurrentUser.require(authentication).userId(), request);
+    }
+
+    @PostMapping("/api/admin/orders/{orderCode}/reprocess")
+    public OrderResponse reprocess(Authentication authentication, @PathVariable String orderCode,
+            @Valid @RequestBody ReprocessOrderRequest request) {
+        return orderService.reprocess(orderCode, CurrentUser.require(authentication).userId(), request);
+    }
+
+    @PostMapping("/api/admin/orders/bulk-refund")
+    public List<OrderResponse> bulkRefund(Authentication authentication,
+            @Valid @RequestBody BulkRefundOrdersRequest request) {
+        return orderService.bulkRefund(CurrentUser.require(authentication).userId(), request);
     }
 }

@@ -26,10 +26,31 @@ public interface OrderRepository extends JpaRepository<OrderRecord, Long> {
 
     List<OrderRecord> findAllByUser_IdAndStatusOrderByCreatedAtDesc(Long userId, OrderStatus status, Pageable pageable);
 
+    List<OrderRecord> findAllByService_IdOrderByCreatedAtDesc(Long serviceId, Pageable pageable);
+
     List<OrderRecord> findAllByOrderByCreatedAtDesc(Pageable pageable);
 
     List<OrderRecord> findAllByStatusOrderByCreatedAtDesc(OrderStatus status, Pageable pageable);
 
+    @Query("""
+            select o from OrderRecord o
+            join o.user u
+            join o.service s
+            where (:status is null or o.status = :status)
+              and (:userId is null or u.id = :userId)
+              and (
+                :query is null
+                or lower(o.orderCode) like lower(concat('%', :query, '%'))
+                or lower(u.email) like lower(concat('%', :query, '%'))
+                or lower(u.name) like lower(concat('%', :query, '%'))
+                or lower(s.name) like lower(concat('%', :query, '%'))
+                or lower(s.slug) like lower(concat('%', :query, '%'))
+                or (:exactId is not null and o.id = :exactId)
+              )
+            order by o.createdAt desc
+            """)
+    List<OrderRecord> searchAdmin(@Param("query") String query, @Param("exactId") Long exactId,
+            @Param("status") OrderStatus status, @Param("userId") Long userId, Pageable pageable);
 
     long countByStatus(OrderStatus status);
 
@@ -37,10 +58,26 @@ public interface OrderRepository extends JpaRepository<OrderRecord, Long> {
 
     long countByUser_IdAndStatus(Long userId, OrderStatus status);
 
+    long countByService_Id(Long serviceId);
+
+    long countByService_IdAndStatus(Long serviceId, OrderStatus status);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select o from OrderRecord o join fetch o.user where o.orderCode = :orderCode")
     Optional<OrderRecord> findByOrderCodeForUpdate(@Param("orderCode") String orderCode);
 
     @Query("select coalesce(sum(o.amount), 0) from OrderRecord o where o.status = :status")
     BigDecimal sumAmountByStatus(@Param("status") OrderStatus status);
+
+    @Query("select coalesce(sum(o.amount), 0) from OrderRecord o where o.status = :status and o.createdAt >= :from and o.createdAt < :to")
+    BigDecimal sumAmountByStatusBetween(@Param("status") OrderStatus status, @Param("from") java.time.Instant from,
+            @Param("to") java.time.Instant to);
+
+    @Query("""
+            select o.service.id, o.service.name, count(o), coalesce(sum(o.amount), 0)
+            from OrderRecord o
+            group by o.service.id, o.service.name
+            order by count(o) desc
+            """)
+    List<Object[]> servicePerformance(Pageable pageable);
 }

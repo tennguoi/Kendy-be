@@ -1,6 +1,7 @@
 package com.example.KendyDigital.service;
 
 import java.math.RoundingMode;
+import java.time.Instant;
 import java.util.List;
 
 import org.springframework.data.domain.PageRequest;
@@ -11,10 +12,14 @@ import org.springframework.web.server.ResponseStatusException;
 
 import com.example.KendyDigital.common.CodeGenerator;
 import com.example.KendyDigital.dto.AdminOrderUpdateRequest;
+import com.example.KendyDigital.dto.BulkRefundOrdersRequest;
 import com.example.KendyDigital.dto.CancelOrderRequest;
 import com.example.KendyDigital.dto.CreateOrderRequest;
+import com.example.KendyDigital.dto.ExtendOrderRequest;
+import com.example.KendyDigital.dto.OrderNoteRequest;
 import com.example.KendyDigital.dto.OrderResponse;
 import com.example.KendyDigital.dto.RefundOrderRequest;
+import com.example.KendyDigital.dto.ReprocessOrderRequest;
 import com.example.KendyDigital.model.OrderRecord;
 import com.example.KendyDigital.model.OrderStatus;
 import com.example.KendyDigital.model.ServiceItem;
@@ -113,12 +118,31 @@ public class OrderService {
 
     @Transactional(readOnly = true)
     public List<OrderResponse> listForAdmin(OrderStatus status, Long userId) {
+        return listForAdmin(status, userId, null);
+    }
+
+    @Transactional(readOnly = true)
+    public List<OrderResponse> listForAdmin(OrderStatus status, Long userId, Integer limit) {
         List<OrderRecord> orders = userId != null
-                ? orderRepository.findAllByUser_IdOrderByCreatedAtDesc(userId, PageRequest.of(0, 100))
+                ? orderRepository.findAllByUser_IdOrderByCreatedAtDesc(userId, page(limit))
                 : status == null
-                        ? orderRepository.findAllByOrderByCreatedAtDesc(PageRequest.of(0, 100))
-                        : orderRepository.findAllByStatusOrderByCreatedAtDesc(status, PageRequest.of(0, 100));
+                        ? orderRepository.findAllByOrderByCreatedAtDesc(page(limit))
+                        : orderRepository.findAllByStatusOrderByCreatedAtDesc(status, page(limit));
         return orders.stream()
+                .map(OrderResponse::from)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<OrderResponse> searchForAdmin(String query, OrderStatus status, Long userId, Integer limit) {
+        String normalizedQuery = normalizeQuery(query);
+        return orderRepository.searchAdmin(
+                        normalizedQuery,
+                        parseLongOrNull(normalizedQuery),
+                        status,
+                        userId,
+                        page(limit))
+                .stream()
                 .map(OrderResponse::from)
                 .toList();
     }
@@ -244,6 +268,60 @@ public class OrderService {
         return OrderResponse.from(order);
     }
 
+    @Transactional
+    public OrderResponse updateAdminNote(String orderCode, Long adminUserId, OrderNoteRequest request) {
+        OrderRecord order = orderRepository.findByOrderCodeForUpdate(orderCode)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found"));
+        order.updateAdminNote(request.note().trim());
+        auditService.recordAdmin(adminUserId, "ORDER_ADMIN_NOTE_UPDATED", "ORDER", order.getId(), request.note());
+        return OrderResponse.from(order);
+    }
+
+    @Transactional
+    public OrderResponse updateUserNote(String orderCode, Long adminUserId, OrderNoteRequest request) {
+        OrderRecord order = orderRepository.findByOrderCodeForUpdate(orderCode)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found"));
+        order.updateUserNote(request.note().trim());
+        auditService.recordAdmin(adminUserId, "ORDER_USER_NOTE_UPDATED", "ORDER", order.getId(), request.note());
+        return OrderResponse.from(order);
+    }
+
+    @Transactional
+    public OrderResponse extend(String orderCode, Long adminUserId, ExtendOrderRequest request) {
+        OrderRecord order = orderRepository.findByOrderCodeForUpdate(orderCode)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found"));
+        if (order.getStatus() != OrderStatus.PENDING && order.getStatus() != OrderStatus.PROCESSING) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Only pending/processing orders can be extended");
+        }
+        Instant baseTime = order.getProcessingDeadlineAt() != null && order.getProcessingDeadlineAt().isAfter(Instant.now())
+                ? order.getProcessingDeadlineAt()
+                : Instant.now();
+        order.extendProcessing(baseTime.plusSeconds(request.minutes() * 60L), request.reason().trim());
+        auditService.recordAdmin(adminUserId, "ORDER_EXTENDED", "ORDER", order.getId(),
+                "minutes=" + request.minutes() + ",reason=" + request.reason());
+        return OrderResponse.from(order);
+    }
+
+    @Transactional
+    public OrderResponse reprocess(String orderCode, Long adminUserId, ReprocessOrderRequest request) {
+        OrderRecord order = orderRepository.findByOrderCodeForUpdate(orderCode)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found"));
+        if (order.getStatus() == OrderStatus.REFUNDED || order.getRefundTransaction() != null) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Refunded order cannot be reprocessed");
+        }
+        order.reprocess(request.reason().trim());
+        auditService.recordAdmin(adminUserId, "ORDER_REPROCESSED", "ORDER", order.getId(),
+                "reason=" + request.reason());
+        return OrderResponse.from(order);
+    }
+
+    @Transactional
+    public List<OrderResponse> bulkRefund(Long adminUserId, BulkRefundOrdersRequest request) {
+        return request.orderCodes().stream()
+                .map(code -> refund(code, adminUserId, new RefundOrderRequest(request.reason())))
+                .toList();
+    }
+
     private WalletTransaction createRefundTransaction(OrderRecord order, Long createdBy, String description) {
         if (order.getRefundTransaction() != null || order.getStatus() == OrderStatus.REFUNDED) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Order has already been refunded");
@@ -276,5 +354,25 @@ public class OrderService {
 
     private String blankToNull(String value) {
         return value == null || value.isBlank() ? null : value.trim();
+    }
+
+    private String normalizeQuery(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
+    }
+
+    private Long parseLongOrNull(String value) {
+        if (value == null) {
+            return null;
+        }
+        try {
+            return Long.parseLong(value);
+        } catch (NumberFormatException ex) {
+            return null;
+        }
+    }
+
+    private PageRequest page(Integer limit) {
+        int normalizedLimit = limit == null ? 100 : Math.max(1, Math.min(limit, 200));
+        return PageRequest.of(0, normalizedLimit);
     }
 }
