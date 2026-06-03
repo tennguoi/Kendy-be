@@ -22,7 +22,7 @@ import org.springframework.session.data.redis.config.annotation.web.http.EnableR
  */
 @Configuration
 @EnableConfigurationProperties
-@ConditionalOnProperty(prefix = "app.redis", name = "enabled", havingValue = "true", matchIfMissing = true)
+@ConditionalOnProperty(prefix = "app.redis", name = "enabled", havingValue = "true")
 public class RedisAutoConfig {
 
     @Bean
@@ -70,7 +70,7 @@ public class RedisAutoConfig {
     }
 
     @Configuration
-    @ConditionalOnProperty(prefix = "app.redis", name = "session-enabled", havingValue = "true")
+    @ConditionalOnProperty(prefix = "app.redis", name = { "enabled", "session-enabled" }, havingValue = "true")
     @EnableRedisHttpSession
     static class RedisSessionConfig {
         // Empty: annotation enables Redis-backed HTTP session when app.redis.session-enabled=true
