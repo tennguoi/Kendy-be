@@ -9,6 +9,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import com.example.KendyDigital.model.UserAccount;
 import com.example.KendyDigital.model.UserRole;
+import com.example.KendyDigital.repository.SystemSettingRepository;
 import com.example.KendyDigital.repository.UserAccountRepository;
 
 import jakarta.servlet.FilterChain;
@@ -24,9 +25,12 @@ public class TwoFactorRequiredFilter extends OncePerRequestFilter {
     };
 
     private final UserAccountRepository userAccountRepository;
+    private final SystemSettingRepository systemSettingRepository;
 
-    public TwoFactorRequiredFilter(UserAccountRepository userAccountRepository) {
+    public TwoFactorRequiredFilter(UserAccountRepository userAccountRepository,
+                                    SystemSettingRepository systemSettingRepository) {
         this.userAccountRepository = userAccountRepository;
+        this.systemSettingRepository = systemSettingRepository;
     }
 
     @Override
@@ -39,10 +43,16 @@ public class TwoFactorRequiredFilter extends OncePerRequestFilter {
             if (authentication != null && authentication.isAuthenticated()
                     && authentication.getPrincipal() instanceof AuthenticatedUser principal) {
                 if (principal.role() == UserRole.ADMIN || principal.role() == UserRole.SUPER_ADMIN) {
-                    UserAccount admin = userAccountRepository.findById(principal.userId()).orElse(null);
-                    if (admin != null && !admin.isTwoFactorEnabled()) {
-                        response.sendError(HttpStatus.FORBIDDEN.value(), "Two-factor authentication must be enabled to access admin features");
-                        return;
+                    boolean twoFactorRequired = systemSettingRepository.findById("admin_2fa_required")
+                            .map(setting -> "true".equalsIgnoreCase(setting.getValue()))
+                            .orElse(false);
+                    if (twoFactorRequired) {
+                        UserAccount admin = userAccountRepository.findById(principal.userId()).orElse(null);
+                        if (admin != null && !admin.isTwoFactorEnabled()) {
+                            response.sendError(HttpStatus.FORBIDDEN.value(),
+                                    "Two-factor authentication must be enabled to access admin features");
+                            return;
+                        }
                     }
                 }
             }

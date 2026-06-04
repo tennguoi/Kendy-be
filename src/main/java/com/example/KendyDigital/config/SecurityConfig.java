@@ -47,6 +47,7 @@ public class SecurityConfig {
                                 "/api/auth/resend-verification", "/api/auth/verify-email").permitAll()
                         .requestMatchers("/api/webhooks/sepay").permitAll()
                 .requestMatchers("/api/services", "/api/services/**",
+                        "/api/pricing", "/api/pricing/**",
                         "/api/service-categories", "/api/service-categories/**").permitAll()
                 .requestMatchers("/api/admin/files/**").authenticated()
                 .requestMatchers("/api/admin/**").hasAnyRole("ADMIN", "SUPER_ADMIN")

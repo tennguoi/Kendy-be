@@ -2,9 +2,9 @@ package com.example.KendyDigital.service;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
 
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
@@ -14,12 +14,15 @@ import org.springframework.web.server.ResponseStatusException;
 
 import com.example.KendyDigital.dto.CreateServiceRequest;
 import com.example.KendyDigital.dto.OrderResponse;
+import com.example.KendyDigital.dto.ServicePricingResponse;
 import com.example.KendyDigital.dto.ServiceResponse;
 import com.example.KendyDigital.dto.ServiceStatusUpdateRequest;
 import com.example.KendyDigital.dto.UpdateServiceRequest;
 import com.example.KendyDigital.model.ServiceCategory;
+import com.example.KendyDigital.model.ServiceCtaType;
 import com.example.KendyDigital.model.ServiceItem;
 import com.example.KendyDigital.model.ServiceStatus;
+import com.example.KendyDigital.model.ServiceStockStatus;
 import com.example.KendyDigital.model.ServiceType;
 import com.example.KendyDigital.repository.OrderRepository;
 import com.example.KendyDigital.repository.ServiceCategoryRepository;
@@ -55,12 +58,25 @@ public class ServiceCatalogService {
                 normalizeMoney(request.price()),
                 request.type() == null ? ServiceType.MANUAL : request.type(),
                 request.status() == null ? ServiceStatus.ACTIVE : request.status());
+        if (request.priceText() != null) {
+            service.updatePriceText(blankToNull(request.priceText()));
+        }
         if (request.costPrice() != null) {
             service.updateCostPrice(normalizeMoney(request.costPrice()));
         }
+        service.updatePricingMetadata(
+                request.stockStatus() == null ? ServiceStockStatus.AVAILABLE : request.stockStatus(),
+                request.ctaType() == null ? ServiceCtaType.BUY_NOW : request.ctaType(),
+                blankToNull(request.pricingBadge()),
+                Boolean.TRUE.equals(request.featured()),
+                request.publicVisible() == null || request.publicVisible());
         if (request.inputSchema() != null) {
             service.updateInputSchema(request.inputSchema());
         }
+        service.updatePublicContent(
+                blankToNull(request.requirements()),
+                blankToNull(request.benefits()),
+                blankToNull(request.usageNotes()));
         if (request.processingTime() != null) {
             service.updateProcessingTime(request.processingTime());
         }
@@ -89,17 +105,26 @@ public class ServiceCatalogService {
 
     @Transactional(readOnly = true)
     public List<ServiceResponse> searchActive(String query, Long categoryId, Integer limit) {
+        return searchActive(query, categoryId, null, null, limit);
+    }
+
+    @Transactional(readOnly = true)
+    public List<ServiceResponse> searchActive(String query, Long categoryId, String categorySlug, String sort,
+            Integer limit) {
         String normalizedQuery = query == null || query.isBlank() ? null : query.trim();
-        PageRequest pageable = page(limit);
-        List<ServiceItem> services = normalizedQuery == null
-                ? listActiveWithoutSearch(categoryId, pageable)
-                : serviceItemRepository.searchPublic(
-                        normalizedQuery,
-                        parseLongOrNull(normalizedQuery),
-                        categoryId,
-                        pageable);
+        String queryPattern = likePattern(normalizedQuery);
+        int normalizedLimit = normalizedLimit(limit);
+        List<ServiceItem> services = serviceItemRepository.searchPublic(
+                queryPattern,
+                parseLongOrNull(normalizedQuery),
+                categoryId,
+                normalizeOptionalSlug(categorySlug),
+                null,
+                page(200));
         return services
                 .stream()
+                .sorted(comparator(sort))
+                .limit(normalizedLimit)
                 .map(ServiceResponse::from)
                 .toList();
     }
@@ -114,18 +139,69 @@ public class ServiceCatalogService {
 
     @Transactional(readOnly = true)
     public List<ServiceResponse> searchForAdmin(String query, ServiceStatus status, Integer limit) {
+        return searchForAdmin(query, status, null, null, null, null, limit);
+    }
+
+    @Transactional(readOnly = true)
+    public List<ServiceResponse> searchForAdmin(String query, ServiceStatus status, Long categoryId,
+            String categorySlug, Boolean featured, String sort, Integer limit) {
         String normalizedQuery = query == null || query.isBlank() ? null : query.trim();
-        PageRequest pageable = page(limit);
-        List<ServiceItem> services = normalizedQuery == null
-                ? listForAdminWithoutSearch(status, pageable)
-                : serviceItemRepository.searchAdmin(
-                        normalizedQuery,
-                        parseLongOrNull(normalizedQuery),
-                        status,
-                        pageable);
+        String queryPattern = likePattern(normalizedQuery);
+        int normalizedLimit = normalizedLimit(limit);
+        List<ServiceItem> services = serviceItemRepository.searchAdmin(
+                queryPattern,
+                parseLongOrNull(normalizedQuery),
+                status,
+                categoryId,
+                normalizeOptionalSlug(categorySlug),
+                featured,
+                page(200));
         return services
                 .stream()
+                .sorted(comparator(sort))
+                .limit(normalizedLimit)
                 .map(ServiceResponse::from)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<ServicePricingResponse> searchPricing(String query, Long categoryId, String categorySlug,
+            Boolean featured, String sort, Integer limit) {
+        String normalizedQuery = query == null || query.isBlank() ? null : query.trim();
+        String queryPattern = likePattern(normalizedQuery);
+        int normalizedLimit = normalizedLimit(limit);
+        return serviceItemRepository.searchPublic(
+                queryPattern,
+                parseLongOrNull(normalizedQuery),
+                categoryId,
+                normalizeOptionalSlug(categorySlug),
+                featured,
+                page(200))
+                .stream()
+                .sorted(comparator(sort))
+                .limit(normalizedLimit)
+                .map(ServicePricingResponse::from)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<ServicePricingResponse> searchPricingForAdmin(String query, ServiceStatus status, Long categoryId,
+            String categorySlug, Boolean featured, String sort, Integer limit) {
+        String normalizedQuery = query == null || query.isBlank() ? null : query.trim();
+        String queryPattern = likePattern(normalizedQuery);
+        int normalizedLimit = normalizedLimit(limit);
+        return serviceItemRepository.searchAdmin(
+                queryPattern,
+                parseLongOrNull(normalizedQuery),
+                status,
+                categoryId,
+                normalizeOptionalSlug(categorySlug),
+                featured,
+                page(200))
+                .stream()
+                .sorted(comparator(sort))
+                .limit(normalizedLimit)
+                .map(ServicePricingResponse::from)
                 .toList();
     }
 
@@ -162,6 +238,9 @@ public class ServiceCatalogService {
         if (request.price() != null) {
             service.updatePrice(normalizeMoney(request.price()));
         }
+        if (request.priceText() != null) {
+            service.updatePriceText(blankToNull(request.priceText()));
+        }
         if (request.costPrice() != null) {
             service.updateCostPrice(normalizeMoney(request.costPrice()));
         }
@@ -171,8 +250,23 @@ public class ServiceCatalogService {
         if (request.status() != null) {
             service.changeStatus(request.status());
         }
+        if (request.stockStatus() != null || request.ctaType() != null || request.pricingBadge() != null
+                || request.featured() != null || request.publicVisible() != null) {
+            service.updatePricingMetadata(
+                    request.stockStatus() == null ? service.getStockStatus() : request.stockStatus(),
+                    request.ctaType() == null ? service.getCtaType() : request.ctaType(),
+                    request.pricingBadge() == null ? service.getPricingBadge() : blankToNull(request.pricingBadge()),
+                    request.featured() == null ? service.isFeatured() : request.featured(),
+                    request.publicVisible() == null ? service.isPublicVisible() : request.publicVisible());
+        }
         if (request.inputSchema() != null) {
             service.updateInputSchema(request.inputSchema());
+        }
+        if (request.requirements() != null || request.benefits() != null || request.usageNotes() != null) {
+            service.updatePublicContent(
+                    request.requirements() == null ? service.getRequirements() : blankToNull(request.requirements()),
+                    request.benefits() == null ? service.getBenefits() : blankToNull(request.benefits()),
+                    request.usageNotes() == null ? service.getUsageNotes() : blankToNull(request.usageNotes()));
         }
         if (request.processingTime() != null) {
             service.updateProcessingTime(request.processingTime());
@@ -187,7 +281,7 @@ public class ServiceCatalogService {
             ServiceCategory category = serviceCategoryRepository.findById(request.categoryId())
                     .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Category not found"));
             service.updateCategory(category);
-        } else if (service.getCategory() != null) {
+        } else if (Boolean.TRUE.equals(request.clearCategory()) && service.getCategory() != null) {
             service.updateCategory(null);
         }
         if (request.metaTitle() != null || request.metaDescription() != null || request.iconUrl() != null) {
@@ -279,23 +373,6 @@ public class ServiceCatalogService {
         return value == null || value.isBlank() ? null : value.trim();
     }
 
-    private List<ServiceItem> listActiveWithoutSearch(Long categoryId, PageRequest pageable) {
-        if (categoryId == null) {
-            return serviceItemRepository.findByStatusOrderBySortOrderAscNameAsc(ServiceStatus.ACTIVE, pageable);
-        }
-        return serviceItemRepository.findByStatusAndCategory_IdOrderBySortOrderAscNameAsc(
-                ServiceStatus.ACTIVE,
-                categoryId,
-                pageable);
-    }
-
-    private List<ServiceItem> listForAdminWithoutSearch(ServiceStatus status, PageRequest pageable) {
-        if (status == null) {
-            return serviceItemRepository.findAllByOrderBySortOrderAscNameAsc(pageable);
-        }
-        return serviceItemRepository.findByStatusOrderBySortOrderAscNameAsc(status, pageable);
-    }
-
     private Long parseLongOrNull(String value) {
         if (value == null) {
             return null;
@@ -308,7 +385,36 @@ public class ServiceCatalogService {
     }
 
     private PageRequest page(Integer limit) {
-        int normalizedLimit = limit == null ? 100 : Math.max(1, Math.min(limit, 200));
-        return PageRequest.of(0, normalizedLimit);
+        return PageRequest.of(0, normalizedLimit(limit));
+    }
+
+    private int normalizedLimit(Integer limit) {
+        return limit == null ? 100 : Math.max(1, Math.min(limit, 200));
+    }
+
+    private String normalizeOptionalSlug(String slug) {
+        return slug == null || slug.isBlank() ? null : slug.trim().toLowerCase(Locale.ROOT);
+    }
+
+    private String likePattern(String query) {
+        return query == null ? null : "%" + query.toLowerCase(Locale.ROOT) + "%";
+    }
+
+    private Comparator<ServiceItem> comparator(String sort) {
+        String normalized = sort == null || sort.isBlank()
+                ? "sort_order"
+                : sort.trim().toLowerCase(Locale.ROOT).replace("-", "_");
+        Comparator<ServiceItem> defaultComparator = Comparator
+                .comparingInt(ServiceItem::getSortOrder)
+                .thenComparing(ServiceItem::getName, String.CASE_INSENSITIVE_ORDER);
+
+        return switch (normalized) {
+            case "name", "name_asc" -> Comparator.comparing(ServiceItem::getName, String.CASE_INSENSITIVE_ORDER);
+            case "price", "price_asc" -> Comparator.comparing(ServiceItem::getPrice).thenComparing(defaultComparator);
+            case "price_desc" -> Comparator.comparing(ServiceItem::getPrice).reversed().thenComparing(defaultComparator);
+            case "newest", "created_desc" -> Comparator.comparing(ServiceItem::getCreatedAt).reversed();
+            case "featured" -> Comparator.comparing(ServiceItem::isFeatured).reversed().thenComparing(defaultComparator);
+            default -> defaultComparator;
+        };
     }
 }
