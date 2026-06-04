@@ -90,11 +90,15 @@ public class ServiceCatalogService {
     @Transactional(readOnly = true)
     public List<ServiceResponse> searchActive(String query, Long categoryId, Integer limit) {
         String normalizedQuery = query == null || query.isBlank() ? null : query.trim();
-        return serviceItemRepository.searchPublic(
+        PageRequest pageable = page(limit);
+        List<ServiceItem> services = normalizedQuery == null
+                ? listActiveWithoutSearch(categoryId, pageable)
+                : serviceItemRepository.searchPublic(
                         normalizedQuery,
                         parseLongOrNull(normalizedQuery),
                         categoryId,
-                        page(limit))
+                        pageable);
+        return services
                 .stream()
                 .map(ServiceResponse::from)
                 .toList();
@@ -111,11 +115,15 @@ public class ServiceCatalogService {
     @Transactional(readOnly = true)
     public List<ServiceResponse> searchForAdmin(String query, ServiceStatus status, Integer limit) {
         String normalizedQuery = query == null || query.isBlank() ? null : query.trim();
-        return serviceItemRepository.searchAdmin(
+        PageRequest pageable = page(limit);
+        List<ServiceItem> services = normalizedQuery == null
+                ? listForAdminWithoutSearch(status, pageable)
+                : serviceItemRepository.searchAdmin(
                         normalizedQuery,
                         parseLongOrNull(normalizedQuery),
                         status,
-                        page(limit))
+                        pageable);
+        return services
                 .stream()
                 .map(ServiceResponse::from)
                 .toList();
@@ -269,6 +277,23 @@ public class ServiceCatalogService {
 
     private String blankToNull(String value) {
         return value == null || value.isBlank() ? null : value.trim();
+    }
+
+    private List<ServiceItem> listActiveWithoutSearch(Long categoryId, PageRequest pageable) {
+        if (categoryId == null) {
+            return serviceItemRepository.findByStatusOrderBySortOrderAscNameAsc(ServiceStatus.ACTIVE, pageable);
+        }
+        return serviceItemRepository.findByStatusAndCategory_IdOrderBySortOrderAscNameAsc(
+                ServiceStatus.ACTIVE,
+                categoryId,
+                pageable);
+    }
+
+    private List<ServiceItem> listForAdminWithoutSearch(ServiceStatus status, PageRequest pageable) {
+        if (status == null) {
+            return serviceItemRepository.findAllByOrderBySortOrderAscNameAsc(pageable);
+        }
+        return serviceItemRepository.findByStatusOrderBySortOrderAscNameAsc(status, pageable);
     }
 
     private Long parseLongOrNull(String value) {

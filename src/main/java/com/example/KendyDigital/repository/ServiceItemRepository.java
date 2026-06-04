@@ -18,10 +18,14 @@ public interface ServiceItemRepository extends JpaRepository<ServiceItem, Long> 
 
     List<ServiceItem> findByStatusOrderBySortOrderAscNameAsc(ServiceStatus status);
 
+    List<ServiceItem> findByStatusOrderBySortOrderAscNameAsc(ServiceStatus status, Pageable pageable);
+
     List<ServiceItem> findByStatusAndCategory_IdOrderBySortOrderAscNameAsc(ServiceStatus status, Long categoryId,
             Pageable pageable);
 
     List<ServiceItem> findAllByOrderBySortOrderAscNameAsc();
+
+    List<ServiceItem> findAllByOrderBySortOrderAscNameAsc(Pageable pageable);
 
     @Query("""
             select s from ServiceItem s

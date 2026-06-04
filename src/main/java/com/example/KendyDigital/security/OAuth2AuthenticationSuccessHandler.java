@@ -41,11 +41,15 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
             response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "OAuth2 authentication required");
             return;
         }
-        AuthTokenResponse authToken = oAuth2AuthService.login(
-                token.getAuthorizedClientRegistrationId(),
-                token.getPrincipal().getAttributes(),
-                accessToken(token));
-        response.sendRedirect(successUrl(authToken));
+        try {
+            AuthTokenResponse authToken = oAuth2AuthService.login(
+                    token.getAuthorizedClientRegistrationId(),
+                    token.getPrincipal().getAttributes(),
+                    accessToken(token));
+            response.sendRedirect(successUrl(authToken));
+        } catch (RuntimeException exception) {
+            response.sendRedirect(failureUrl(exception));
+        }
     }
 
     private String accessToken(OAuth2AuthenticationToken token) {
@@ -65,6 +69,14 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
                 + separator
                 + "token=" + encode(token.accessToken())
                 + "&expiresAt=" + encode(token.expiresAt().toString());
+    }
+
+    private String failureUrl(RuntimeException exception) {
+        String separator = properties.getFailureRedirectUrl().contains("?") ? "&" : "?";
+        String message = exception.getMessage() == null ? "OAuth login failed" : exception.getMessage();
+        return properties.getFailureRedirectUrl()
+                + separator
+                + "oauthError=" + encode(message);
     }
 
     private String encode(String value) {

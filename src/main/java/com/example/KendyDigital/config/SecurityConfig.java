@@ -85,7 +85,7 @@ public class SecurityConfig {
         configuration.addExposedHeader(RequestIdFilter.REQUEST_ID_HEADER);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/api/**", configuration);
+        source.registerCorsConfiguration("/**", configuration);
         return source;
     }
 }

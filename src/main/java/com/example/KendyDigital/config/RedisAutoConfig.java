@@ -15,7 +15,6 @@ import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactor
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
-import org.springframework.session.data.redis.config.annotation.web.http.EnableRedisHttpSession;
 
 /**
  * Auto-configuration for Redis. Beans are created only when `app.redis.enabled=true`.
@@ -68,14 +67,6 @@ public class RedisAutoConfig {
         tpl.afterPropertiesSet();
         return tpl;
     }
-
-    @Configuration
-    @ConditionalOnProperty(prefix = "app.redis", name = { "enabled", "session-enabled" }, havingValue = "true")
-    @EnableRedisHttpSession
-    static class RedisSessionConfig {
-        // Empty: annotation enables Redis-backed HTTP session when app.redis.session-enabled=true
-    }
-
     public static class AppRedisProperties {
         private boolean enabled = true;
         private String host = "localhost";
@@ -83,9 +74,6 @@ public class RedisAutoConfig {
         private String password;
         private int database = 0;
         private long timeoutMs = 2000;
-        private boolean sessionEnabled = false;
-        private int sessionTimeoutSeconds = 1800;
-
         public boolean isEnabled() {
             return enabled;
         }
@@ -132,22 +120,6 @@ public class RedisAutoConfig {
 
         public void setTimeoutMs(long timeoutMs) {
             this.timeoutMs = timeoutMs;
-        }
-
-        public boolean isSessionEnabled() {
-            return sessionEnabled;
-        }
-
-        public void setSessionEnabled(boolean sessionEnabled) {
-            this.sessionEnabled = sessionEnabled;
-        }
-
-        public int getSessionTimeoutSeconds() {
-            return sessionTimeoutSeconds;
-        }
-
-        public void setSessionTimeoutSeconds(int sessionTimeoutSeconds) {
-            this.sessionTimeoutSeconds = sessionTimeoutSeconds;
         }
     }
 }
