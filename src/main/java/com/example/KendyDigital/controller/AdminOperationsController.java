@@ -149,27 +149,62 @@ public class AdminOperationsController {
     // ── CSV Exports ───────────────────────────────────────────────────────────
 
     @GetMapping("/api/admin/reports/revenue/export")
-    public ResponseEntity<String> exportRevenue() {
+    public ResponseEntity<?> exportRevenue(@RequestParam(required = false) String format) {
+        if ("xlsx".equalsIgnoreCase(format)) {
+            byte[] data = exportAnalyticsService.exportRevenueXlsx();
+            return ResponseEntity.ok()
+                    .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"revenue.xlsx\"")
+                    .contentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                    .body(data);
+        }
         return csv("revenue.csv", exportAnalyticsService.exportRevenue());
     }
 
     @GetMapping("/api/admin/reports/users/export")
-    public ResponseEntity<String> exportUsers() {
+    public ResponseEntity<?> exportUsers(@RequestParam(required = false) String format) {
+        if ("xlsx".equalsIgnoreCase(format)) {
+            byte[] data = exportAnalyticsService.exportUsersXlsx();
+            return ResponseEntity.ok()
+                    .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"users.xlsx\"")
+                    .contentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                    .body(data);
+        }
         return csv("users.csv", exportAnalyticsService.exportUsers());
     }
 
     @GetMapping("/api/admin/reports/orders/export")
-    public ResponseEntity<String> exportOrders() {
+    public ResponseEntity<?> exportOrders(@RequestParam(required = false) String format) {
+        if ("xlsx".equalsIgnoreCase(format)) {
+            byte[] data = exportAnalyticsService.exportOrdersXlsx();
+            return ResponseEntity.ok()
+                    .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"orders.xlsx\"")
+                    .contentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                    .body(data);
+        }
         return csv("orders.csv", exportAnalyticsService.exportOrders());
     }
 
     @GetMapping("/api/admin/reports/bank/export")
-    public ResponseEntity<String> exportBank() {
+    public ResponseEntity<?> exportBank(@RequestParam(required = false) String format) {
+        if ("xlsx".equalsIgnoreCase(format)) {
+            byte[] data = exportAnalyticsService.exportBankXlsx();
+            return ResponseEntity.ok()
+                    .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"bank-transactions.xlsx\"")
+                    .contentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                    .body(data);
+        }
         return csv("bank-transactions.csv", exportAnalyticsService.exportBank());
     }
 
     @GetMapping("/api/admin/reports/tickets/export")
-    public ResponseEntity<String> exportTickets() {
+    public ResponseEntity<?> exportTickets(@RequestParam(required = false) String format) {
+        if ("xlsx".equalsIgnoreCase(format)) {
+            byte[] data = exportAnalyticsService.exportTicketsXlsx();
+            return ResponseEntity.ok()
+                    .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"tickets.xlsx\"")
+                    .contentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                    .body(data);
+        }
         return csv("tickets.csv", exportAnalyticsService.exportTickets());
     }
 
@@ -192,7 +227,14 @@ public class AdminOperationsController {
     }
 
     @GetMapping("/api/admin/audit-logs/export")
-    public ResponseEntity<String> exportAudit() {
+    public ResponseEntity<?> exportAudit(@RequestParam(required = false) String format) {
+        if ("xlsx".equalsIgnoreCase(format)) {
+            byte[] data = exportAnalyticsService.exportAuditXlsx();
+            return ResponseEntity.ok()
+                    .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"audit-logs.xlsx\"")
+                    .contentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                    .body(data);
+        }
         return csv("audit-logs.csv", exportAnalyticsService.exportAudit());
     }
 
