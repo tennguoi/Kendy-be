@@ -17,7 +17,9 @@ import org.springframework.web.server.ResponseStatusException;
 import com.example.KendyDigital.dto.AuthTokenResponse;
 import com.example.KendyDigital.dto.AuthUserResponse;
 import com.example.KendyDigital.model.UserAccount;
+import com.example.KendyDigital.model.UserRole;
 import com.example.KendyDigital.model.UserStatus;
+import com.example.KendyDigital.repository.SystemSettingRepository;
 import com.example.KendyDigital.repository.UserAccountRepository;
 
 @Service
@@ -25,6 +27,8 @@ public class OAuth2AuthService {
     private final UserAccountRepository userAccountRepository;
     private final PasswordEncoder passwordEncoder;
     private final AuthTokenService authTokenService;
+    private final UserSecurityService userSecurityService;
+    private final SystemSettingRepository systemSettingRepository;
     private final AuditService auditService;
     private final UserNotificationService userNotificationService;
     private final RestClient restClient = RestClient.create();
@@ -33,16 +37,20 @@ public class OAuth2AuthService {
     public OAuth2AuthService(UserAccountRepository userAccountRepository,
             PasswordEncoder passwordEncoder,
             AuthTokenService authTokenService,
+            UserSecurityService userSecurityService,
+            SystemSettingRepository systemSettingRepository,
             AuditService auditService,
             UserNotificationService userNotificationService) {
         this.userAccountRepository = userAccountRepository;
         this.passwordEncoder = passwordEncoder;
         this.authTokenService = authTokenService;
+        this.userSecurityService = userSecurityService;
+        this.systemSettingRepository = systemSettingRepository;
         this.auditService = auditService;
         this.userNotificationService = userNotificationService;
     }
 
-    @Transactional
+    @Transactional(noRollbackFor = OAuthTwoFactorRequiredException.class)
     public AuthTokenResponse login(String registrationId, Map<String, Object> attributes, String accessToken) {
         OAuthProfile profile = profile(registrationId, attributes, accessToken);
         UserAccount user = userAccountRepository
@@ -62,6 +70,15 @@ public class OAuth2AuthService {
             user.verifyEmail();
         }
 
+        if (requiresLoginTwoFactor(user)) {
+            var challenge = userSecurityService.issueOAuthTwoFactorChallenge(user);
+            throw new OAuthTwoFactorRequiredException(
+                    challenge.token(),
+                    challenge.expiresAt(),
+                    user.getEmail(),
+                    profile.providerDisplayName());
+        }
+
         AuthTokenService.IssuedToken issuedToken = authTokenService.issue(user);
         auditService.recordSystem("USER_OAUTH_LOGIN", "USER", user.getId(), "provider=" + profile.provider());
         userNotificationService.create(user.getId(),
@@ -70,6 +87,18 @@ public class OAuth2AuthService {
                 "SECURITY",
                 "/account/security");
         return new AuthTokenResponse(issuedToken.token(), issuedToken.expiresAt(), AuthUserResponse.from(user));
+    }
+
+    private boolean requiresLoginTwoFactor(UserAccount user) {
+        if (user.isTwoFactorEnabled()) {
+            return true;
+        }
+        if (user.getRole() != UserRole.ADMIN && user.getRole() != UserRole.SUPER_ADMIN) {
+            return false;
+        }
+        return systemSettingRepository.findById("admin_2fa_required")
+                .map(setting -> "true".equalsIgnoreCase(setting.getValue()))
+                .orElse(false);
     }
 
     private OAuthProfile profile(String registrationId, Map<String, Object> attributes, String accessToken) {

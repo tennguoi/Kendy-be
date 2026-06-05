@@ -19,7 +19,6 @@ import com.example.KendyDigital.security.BearerTokenAuthenticationFilter;
 import com.example.KendyDigital.security.ApiKeyAuthenticationFilter;
 import com.example.KendyDigital.security.OAuth2AuthenticationFailureHandler;
 import com.example.KendyDigital.security.OAuth2AuthenticationSuccessHandler;
-import com.example.KendyDigital.security.TwoFactorRequiredFilter;
 import com.example.KendyDigital.common.RateLimitFilter;
 import com.example.KendyDigital.common.RequestIdFilter;
 
@@ -31,7 +30,6 @@ public class SecurityConfig {
             ApiKeyAuthenticationFilter apiKeyAuthenticationFilter,
             OAuth2AuthenticationSuccessHandler oAuth2AuthenticationSuccessHandler,
             OAuth2AuthenticationFailureHandler oAuth2AuthenticationFailureHandler,
-            TwoFactorRequiredFilter twoFactorRequiredFilter,
             RequestIdFilter requestIdFilter, RateLimitFilter rateLimitFilter)
             throws Exception {
         http.csrf(csrf -> csrf.disable())
@@ -42,6 +40,7 @@ public class SecurityConfig {
                         .requestMatchers("/oauth2/**", "/login/oauth2/**").permitAll()
                         .requestMatchers("/api/auth/register", "/api/auth/login",
                                 "/api/auth/2fa/email-code",
+                                "/api/auth/oauth2/2fa/verify",
                                 "/api/auth/oauth2/providers",
                                 "/api/auth/forgot-password", "/api/auth/reset-password",
                                 "/api/auth/resend-verification", "/api/auth/verify-email").permitAll()
@@ -61,7 +60,6 @@ public class SecurityConfig {
                 .addFilterBefore(rateLimitFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(apiKeyAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(bearerTokenAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
-                .addFilterAfter(twoFactorRequiredFilter, BearerTokenAuthenticationFilter.class)
                 .oauth2Login(oauth2 -> oauth2
                         .successHandler(oAuth2AuthenticationSuccessHandler)
                         .failureHandler(oAuth2AuthenticationFailureHandler))

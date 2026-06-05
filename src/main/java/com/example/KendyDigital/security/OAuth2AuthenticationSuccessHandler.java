@@ -15,6 +15,7 @@ import org.springframework.stereotype.Component;
 import com.example.KendyDigital.config.AppOAuth2Properties;
 import com.example.KendyDigital.dto.AuthTokenResponse;
 import com.example.KendyDigital.service.OAuth2AuthService;
+import com.example.KendyDigital.service.OAuthTwoFactorRequiredException;
 
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -47,6 +48,8 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
                     token.getPrincipal().getAttributes(),
                     accessToken(token));
             response.sendRedirect(successUrl(authToken));
+        } catch (OAuthTwoFactorRequiredException exception) {
+            response.sendRedirect(twoFactorUrl(exception));
         } catch (RuntimeException exception) {
             response.sendRedirect(failureUrl(exception));
         }
@@ -77,6 +80,16 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
         return properties.getFailureRedirectUrl()
                 + separator
                 + "oauthError=" + encode(message);
+    }
+
+    private String twoFactorUrl(OAuthTwoFactorRequiredException exception) {
+        String separator = properties.getSuccessRedirectUrl().contains("?") ? "&" : "?";
+        return properties.getSuccessRedirectUrl()
+                + separator
+                + "oauth2fa=" + encode(exception.challengeToken())
+                + "&expiresAt=" + encode(exception.expiresAt().toString())
+                + "&email=" + encode(exception.email())
+                + "&provider=" + encode(exception.provider());
     }
 
     private String encode(String value) {

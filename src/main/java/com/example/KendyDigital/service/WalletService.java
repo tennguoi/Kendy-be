@@ -1,6 +1,7 @@
 package com.example.KendyDigital.service;
 
 import java.util.List;
+import java.util.Locale;
 
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
@@ -70,7 +71,7 @@ public class WalletService {
         String normalizedQuery = normalizeQuery(query);
         return walletTransactionRepository.searchUser(
                         userId,
-                        normalizedQuery,
+                        likePattern(normalizedQuery),
                         parseLongOrNull(normalizedQuery),
                         type,
                         direction,
@@ -93,6 +94,10 @@ public class WalletService {
 
     private String normalizeQuery(String value) {
         return value == null || value.isBlank() ? null : value.trim();
+    }
+
+    private String likePattern(String value) {
+        return value == null ? null : "%" + value.toLowerCase(Locale.ROOT) + "%";
     }
 
     private Long parseLongOrNull(String value) {

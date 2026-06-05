@@ -15,7 +15,9 @@ import com.example.KendyDigital.dto.AuthTokenResponse;
 import com.example.KendyDigital.dto.AuthUserResponse;
 import com.example.KendyDigital.dto.SecurityTokenResponse;
 import com.example.KendyDigital.model.UserAccount;
+import com.example.KendyDigital.model.UserRole;
 import com.example.KendyDigital.model.UserStatus;
+import com.example.KendyDigital.repository.SystemSettingRepository;
 import com.example.KendyDigital.repository.UserAccountRepository;
 
 @Service
@@ -25,15 +27,18 @@ public class AuthService {
     private final AuthTokenService authTokenService;
     private final TwoFactorService twoFactorService;
     private final UserSecurityService userSecurityService;
+    private final SystemSettingRepository systemSettingRepository;
 
     public AuthService(UserAccountRepository userAccountRepository, PasswordEncoder passwordEncoder,
             AuthTokenService authTokenService, TwoFactorService twoFactorService,
-            UserSecurityService userSecurityService) {
+            UserSecurityService userSecurityService,
+            SystemSettingRepository systemSettingRepository) {
         this.userAccountRepository = userAccountRepository;
         this.passwordEncoder = passwordEncoder;
         this.authTokenService = authTokenService;
         this.twoFactorService = twoFactorService;
         this.userSecurityService = userSecurityService;
+        this.systemSettingRepository = systemSettingRepository;
     }
 
     @Transactional
@@ -65,7 +70,7 @@ public class AuthService {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Account is not active");
         }
 
-        if (user.isTwoFactorEnabled() && user.getTwoFactorSecret() != null) {
+        if (requiresLoginTwoFactor(user)) {
             if (request.twoFactorCode() != null && !request.twoFactorCode().isBlank()) {
                 if (twoFactorService.verify(user.getTwoFactorSecret(), request.twoFactorCode())) {
                     return issueToken(user);
@@ -99,10 +104,22 @@ public class AuthService {
         if (user.getStatus() != UserStatus.ACTIVE) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Account is not active");
         }
-        if (!user.isTwoFactorEnabled() || user.getTwoFactorSecret() == null) {
+        if (!requiresLoginTwoFactor(user)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "2FA is not enabled");
         }
         return userSecurityService.sendTwoFactorEmailCode(user);
+    }
+
+    private boolean requiresLoginTwoFactor(UserAccount user) {
+        if (user.isTwoFactorEnabled()) {
+            return true;
+        }
+        if (user.getRole() != UserRole.ADMIN && user.getRole() != UserRole.SUPER_ADMIN) {
+            return false;
+        }
+        return systemSettingRepository.findById("admin_2fa_required")
+                .map(setting -> "true".equalsIgnoreCase(setting.getValue()))
+                .orElse(false);
     }
 
     private AuthTokenResponse issueToken(UserAccount user) {

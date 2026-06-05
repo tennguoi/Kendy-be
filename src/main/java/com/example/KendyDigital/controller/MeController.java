@@ -18,6 +18,7 @@ import com.example.KendyDigital.dto.TotpSetupResponse;
 import com.example.KendyDigital.dto.TwoFactorDisableRequest;
 import com.example.KendyDigital.dto.TwoFactorVerifyRequest;
 import com.example.KendyDigital.dto.UpdateProfileRequest;
+import com.example.KendyDigital.dto.SecurityTokenResponse;
 import com.example.KendyDigital.dto.UserApiKeyCreateRequest;
 import com.example.KendyDigital.dto.UserApiKeyCreatedResponse;
 import com.example.KendyDigital.dto.UserApiKeyResponse;
@@ -93,6 +94,17 @@ public class MeController {
     public AuthUserResponse enableTwoFactor(Authentication authentication,
             @Valid @RequestBody TwoFactorVerifyRequest request) {
         return userSecurityService.enableTwoFactor(CurrentUser.require(authentication).userId(), request);
+    }
+
+    @PostMapping("/api/me/2fa/email-code")
+    public SecurityTokenResponse sendTwoFactorEnableEmailCode(Authentication authentication) {
+        return userSecurityService.requestEmailTwoFactorEnable(CurrentUser.require(authentication).userId());
+    }
+
+    @PostMapping("/api/me/2fa/enable-email")
+    public AuthUserResponse enableEmailTwoFactor(Authentication authentication,
+            @Valid @RequestBody TwoFactorVerifyRequest request) {
+        return userSecurityService.enableEmailTwoFactor(CurrentUser.require(authentication).userId(), request);
     }
 
     @PostMapping("/api/me/2fa/disable")

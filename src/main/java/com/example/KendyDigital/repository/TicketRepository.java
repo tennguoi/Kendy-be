@@ -39,16 +39,16 @@ public interface TicketRepository extends JpaRepository<Ticket, Long> {
               and (:category is null or t.category = :category)
               and (:priority is null or t.priority = :priority)
               and (
-                :query is null
-                or lower(t.ticketCode) like lower(concat('%', :query, '%'))
-                or lower(t.subject) like lower(concat('%', :query, '%'))
-                or lower(coalesce(o.orderCode, '')) like lower(concat('%', :query, '%'))
-                or lower(coalesce(d.depositCode, '')) like lower(concat('%', :query, '%'))
+                :queryPattern is null
+                or lower(t.ticketCode) like :queryPattern
+                or lower(t.subject) like :queryPattern
+                or lower(coalesce(o.orderCode, '')) like :queryPattern
+                or lower(coalesce(d.depositCode, '')) like :queryPattern
                 or (:exactId is not null and t.id = :exactId)
               )
             order by t.createdAt desc
             """)
-    List<Ticket> searchUser(@Param("userId") Long userId, @Param("query") String query,
+    List<Ticket> searchUser(@Param("userId") Long userId, @Param("queryPattern") String queryPattern,
             @Param("exactId") Long exactId, @Param("status") TicketStatus status,
             @Param("category") TicketCategory category, @Param("priority") TicketPriority priority,
             Pageable pageable);
@@ -63,18 +63,18 @@ public interface TicketRepository extends JpaRepository<Ticket, Long> {
               and (:priority is null or t.priority = :priority)
               and (:userId is null or u.id = :userId)
               and (
-                :query is null
-                or lower(t.ticketCode) like lower(concat('%', :query, '%'))
-                or lower(t.subject) like lower(concat('%', :query, '%'))
-                or lower(u.email) like lower(concat('%', :query, '%'))
-                or lower(u.name) like lower(concat('%', :query, '%'))
-                or lower(coalesce(o.orderCode, '')) like lower(concat('%', :query, '%'))
-                or lower(coalesce(d.depositCode, '')) like lower(concat('%', :query, '%'))
+                :queryPattern is null
+                or lower(t.ticketCode) like :queryPattern
+                or lower(t.subject) like :queryPattern
+                or lower(u.email) like :queryPattern
+                or lower(u.name) like :queryPattern
+                or lower(coalesce(o.orderCode, '')) like :queryPattern
+                or lower(coalesce(d.depositCode, '')) like :queryPattern
                 or (:exactId is not null and t.id = :exactId)
               )
             order by t.createdAt desc
             """)
-    List<Ticket> searchAdmin(@Param("query") String query, @Param("exactId") Long exactId,
+    List<Ticket> searchAdmin(@Param("queryPattern") String queryPattern, @Param("exactId") Long exactId,
             @Param("status") TicketStatus status, @Param("category") TicketCategory category,
             @Param("priority") TicketPriority priority, @Param("userId") Long userId, Pageable pageable);
 
