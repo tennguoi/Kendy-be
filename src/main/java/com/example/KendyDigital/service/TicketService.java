@@ -1,6 +1,7 @@
 package com.example.KendyDigital.service;
 
 import java.util.List;
+import java.util.Locale;
 
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
@@ -102,7 +103,7 @@ public class TicketService {
         String normalizedQuery = normalizeQuery(query);
         return ticketRepository.searchUser(
                         userId,
-                        normalizedQuery,
+                        likePattern(normalizedQuery),
                         parseLongOrNull(normalizedQuery),
                         status,
                         category,
@@ -181,7 +182,7 @@ public class TicketService {
             TicketPriority priority, Long userId, Integer limit) {
         String normalizedQuery = normalizeQuery(query);
         return ticketRepository.searchAdmin(
-                        normalizedQuery,
+                        likePattern(normalizedQuery),
                         parseLongOrNull(normalizedQuery),
                         status,
                         category,
@@ -455,6 +456,10 @@ public class TicketService {
 
     private String normalizeQuery(String value) {
         return value == null || value.isBlank() ? null : value.trim();
+    }
+
+    private String likePattern(String value) {
+        return value == null ? null : "%" + value.toLowerCase(Locale.ROOT) + "%";
     }
 
     private Long parseLongOrNull(String value) {

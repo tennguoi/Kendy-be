@@ -18,7 +18,7 @@ import lombok.Setter;
 @Table(name = "system_settings")
 public class SystemSetting extends TimestampedEntity {
     @Id
-    @Column(name = "setting_key", nullable = false)
+    @Column(name = "setting_key", columnDefinition = "TEXT", nullable = false)
     private String key;
 
     @Column(name = "setting_value", columnDefinition = "TEXT")

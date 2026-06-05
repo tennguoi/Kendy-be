@@ -168,7 +168,7 @@ public class AdminFinanceService {
     public List<AdminUserResponse> searchUsers(String query, UserStatus status, int page, int size) {
         String normalizedQuery = normalizeQuery(query);
         List<UserAccount> users = userAccountRepository.searchAdmin(
-                normalizedQuery,
+                likePattern(normalizedQuery),
                 parseLongOrNull(normalizedQuery),
                 status,
                 paged(page, size));
@@ -251,7 +251,7 @@ public class AdminFinanceService {
             Instant fromDate, Instant toDate, int page, int size) {
         String normalizedQuery = normalizeQuery(query);
         List<DepositRequest> deposits = depositRequestRepository.searchAdmin(
-                normalizedQuery,
+                likePattern(normalizedQuery),
                 parseLongOrNull(normalizedQuery),
                 status,
                 userId,
@@ -296,7 +296,7 @@ public class AdminFinanceService {
         String normalizedQuery = normalizeQuery(query);
         Long parsedId = parseLongOrNull(normalizedQuery);
         List<BankTransaction> transactions = bankTransactionRepository.searchAdmin(
-                normalizedQuery,
+                likePattern(normalizedQuery),
                 parsedId,
                 parsedId,
                 status,
@@ -332,7 +332,7 @@ public class AdminFinanceService {
             Instant fromDate, Instant toDate, int page, int size) {
         String normalizedQuery = normalizeQuery(query);
         List<OrderRecord> orders = orderRepository.searchAdmin(
-                normalizedQuery,
+                likePattern(normalizedQuery),
                 parseLongOrNull(normalizedQuery),
                 status,
                 userId,
@@ -365,7 +365,7 @@ public class AdminFinanceService {
             Instant fromDate, Instant toDate, int page, int size) {
         String normalizedQuery = normalizeQuery(query);
         List<WalletTransaction> transactions = walletTransactionRepository.searchAdmin(
-                normalizedQuery,
+                likePattern(normalizedQuery),
                 parseLongOrNull(normalizedQuery),
                 userId,
                 type,
@@ -828,6 +828,10 @@ public class AdminFinanceService {
 
     private String normalizeQuery(String query) {
         return query == null || query.isBlank() ? null : query.trim();
+    }
+
+    private String likePattern(String query) {
+        return query == null ? null : "%" + query.toLowerCase(Locale.ROOT) + "%";
     }
 
     private Long parseLongOrNull(String value) {

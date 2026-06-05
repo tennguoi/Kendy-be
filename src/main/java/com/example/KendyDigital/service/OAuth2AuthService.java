@@ -17,7 +17,9 @@ import org.springframework.web.server.ResponseStatusException;
 import com.example.KendyDigital.dto.AuthTokenResponse;
 import com.example.KendyDigital.dto.AuthUserResponse;
 import com.example.KendyDigital.model.UserAccount;
+import com.example.KendyDigital.model.UserRole;
 import com.example.KendyDigital.model.UserStatus;
+import com.example.KendyDigital.repository.SystemSettingRepository;
 import com.example.KendyDigital.repository.UserAccountRepository;
 
 @Service
@@ -25,6 +27,8 @@ public class OAuth2AuthService {
     private final UserAccountRepository userAccountRepository;
     private final PasswordEncoder passwordEncoder;
     private final AuthTokenService authTokenService;
+    private final UserSecurityService userSecurityService;
+    private final SystemSettingRepository systemSettingRepository;
     private final AuditService auditService;
     private final UserNotificationService userNotificationService;
     private final RestClient restClient = RestClient.create();
@@ -33,16 +37,20 @@ public class OAuth2AuthService {
     public OAuth2AuthService(UserAccountRepository userAccountRepository,
             PasswordEncoder passwordEncoder,
             AuthTokenService authTokenService,
+            UserSecurityService userSecurityService,
+            SystemSettingRepository systemSettingRepository,
             AuditService auditService,
             UserNotificationService userNotificationService) {
         this.userAccountRepository = userAccountRepository;
         this.passwordEncoder = passwordEncoder;
         this.authTokenService = authTokenService;
+        this.userSecurityService = userSecurityService;
+        this.systemSettingRepository = systemSettingRepository;
         this.auditService = auditService;
         this.userNotificationService = userNotificationService;
     }
 
-    @Transactional
+    @Transactional(noRollbackFor = OAuthTwoFactorRequiredException.class)
     public AuthTokenResponse login(String registrationId, Map<String, Object> attributes, String accessToken) {
         OAuthProfile profile = profile(registrationId, attributes, accessToken);
         UserAccount user = userAccountRepository
@@ -62,6 +70,15 @@ public class OAuth2AuthService {
             user.verifyEmail();
         }
 
+        if (requiresLoginTwoFactor(user)) {
+            var challenge = userSecurityService.issueOAuthTwoFactorChallenge(user);
+            throw new OAuthTwoFactorRequiredException(
+                    challenge.token(),
+                    challenge.expiresAt(),
+                    user.getEmail(),
+                    profile.providerDisplayName());
+        }
+
         AuthTokenService.IssuedToken issuedToken = authTokenService.issue(user);
         auditService.recordSystem("USER_OAUTH_LOGIN", "USER", user.getId(), "provider=" + profile.provider());
         userNotificationService.create(user.getId(),
@@ -70,6 +87,18 @@ public class OAuth2AuthService {
                 "SECURITY",
                 "/account/security");
         return new AuthTokenResponse(issuedToken.token(), issuedToken.expiresAt(), AuthUserResponse.from(user));
+    }
+
+    private boolean requiresLoginTwoFactor(UserAccount user) {
+        if (user.isTwoFactorEnabled()) {
+            return true;
+        }
+        if (user.getRole() != UserRole.ADMIN && user.getRole() != UserRole.SUPER_ADMIN) {
+            return false;
+        }
+        return systemSettingRepository.findById("admin_2fa_required")
+                .map(setting -> "true".equalsIgnoreCase(setting.getValue()))
+                .orElse(false);
     }
 
     private OAuthProfile profile(String registrationId, Map<String, Object> attributes, String accessToken) {
@@ -95,6 +124,11 @@ public class OAuth2AuthService {
     }
 
     private OAuthProfile githubProfile(Map<String, Object> attributes, String accessToken) {
+        String providerId = String.valueOf(attributes.get("id"));
+        if (providerId == null || providerId.isBlank() || "null".equals(providerId)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "GitHub account id is required");
+        }
+        String login = optionalString(attributes, "login", providerId);
         String email = optionalString(attributes, "email", null);
         boolean emailVerified = true;
         if ((email == null || email.isBlank()) && accessToken != null && !accessToken.isBlank()) {
@@ -103,16 +137,12 @@ public class OAuth2AuthService {
             emailVerified = githubEmail.verified();
         }
         if (email == null || email.isBlank()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "GitHub email is required. Make sure the GitHub OAuth app requests user:email.");
-        }
-        String providerId = String.valueOf(attributes.get("id"));
-        if (providerId == null || providerId.isBlank() || "null".equals(providerId)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "GitHub account id is required");
+            email = githubFallbackEmail(providerId, login);
+            emailVerified = false;
         }
         String name = optionalString(attributes, "name", null);
         if (name == null || name.isBlank()) {
-            name = optionalString(attributes, "login", email);
+            name = login;
         }
         return new OAuthProfile(
                 "github",
@@ -129,6 +159,9 @@ public class OAuth2AuthService {
             List<Map<String, Object>> emails = restClient.get()
                     .uri("https://api.github.com/user/emails")
                     .headers(headers -> headers.setBearerAuth(accessToken))
+                    .header("Accept", "application/vnd.github+json")
+                    .header("X-GitHub-Api-Version", "2022-11-28")
+                    .header("User-Agent", "KendyDigital")
                     .retrieve()
                     .body(new ParameterizedTypeReference<>() {
                     });
@@ -159,6 +192,15 @@ public class OAuth2AuthService {
     private String optionalString(Map<String, Object> attributes, String key, String fallback) {
         Object value = attributes.get(key);
         return value == null ? fallback : value.toString();
+    }
+
+    private String githubFallbackEmail(String providerId, String login) {
+        String normalizedLogin = login == null ? "github-user" : login.toLowerCase(Locale.ROOT)
+                .replaceAll("[^a-z0-9._-]", "-");
+        if (normalizedLogin.isBlank()) {
+            normalizedLogin = "github-user";
+        }
+        return providerId + "+" + normalizedLogin + "@users.noreply.github.com";
     }
 
     private String randomPassword() {

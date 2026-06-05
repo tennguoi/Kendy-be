@@ -50,6 +50,8 @@ public class UserSecurityService {
     private static final Duration PASSWORD_RESET_TTL = Duration.ofMinutes(30);
     private static final Duration EMAIL_VERIFY_TTL = Duration.ofHours(24);
     private static final Duration EMAIL_2FA_TTL = Duration.ofMinutes(10);
+    private static final Duration OAUTH_2FA_CHALLENGE_TTL = Duration.ofMinutes(10);
+    private static final String EMAIL_TWO_FACTOR_SECRET = "EMAIL_2FA";
     private static final String API_KEY_PREFIX = "kdy_";
 
     private final UserAccountRepository userAccountRepository;
@@ -216,8 +218,29 @@ public class UserSecurityService {
         }
         user.enableTwoFactor(user.getTwoFactorSecret(), user.getBackupCodes());
         auditService.recordSystem("USER_2FA_ENABLED", "USER", user.getId(), null);
-        userNotificationService.create(user.getId(), "Two-factor authentication enabled",
-                "Your account now requires a 2FA code when logging in.", "SECURITY", "/account/security");
+        return AuthUserResponse.from(user);
+    }
+
+    @Transactional
+    public SecurityTokenResponse requestEmailTwoFactorEnable(Long userId) {
+        UserAccount user = requireUser(userId);
+        if (user.isTwoFactorEnabled()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "2FA is already enabled");
+        }
+        return sendTwoFactorEmailCode(user);
+    }
+
+    @Transactional
+    public AuthUserResponse enableEmailTwoFactor(Long userId, TwoFactorVerifyRequest request) {
+        UserAccount user = requireUserForUpdate(userId);
+        if (user.isTwoFactorEnabled()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "2FA is already enabled");
+        }
+        if (!verifyEmailTwoFactorCode(user, request.code())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid verification code");
+        }
+        user.enableTwoFactor(EMAIL_TWO_FACTOR_SECRET, null);
+        auditService.recordSystem("USER_EMAIL_2FA_ENABLED", "USER", user.getId(), null);
         return AuthUserResponse.from(user);
     }
 
@@ -326,6 +349,27 @@ public class UserSecurityService {
     }
 
     @Transactional
+    public SecurityTokenResponse issueOAuthTwoFactorChallenge(UserAccount user) {
+        sendTwoFactorEmailCode(user);
+        IssuedSecurityToken challenge = issueSecurityToken(user, UserSecurityTokenType.OAUTH_2FA_CHALLENGE,
+                OAUTH_2FA_CHALLENGE_TTL);
+        return new SecurityTokenResponse("OAuth 2FA challenge issued.", challenge.expiresAt(), challenge.token());
+    }
+
+    @Transactional
+    public AuthTokenResponse verifyOAuthTwoFactor(String challengeToken, String code) {
+        UserSecurityToken challenge = requireUsableToken(challengeToken, UserSecurityTokenType.OAUTH_2FA_CHALLENGE);
+        UserAccount user = challenge.getUser();
+        if (!verifyEmailTwoFactorCode(user, code)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid verification code");
+        }
+        challenge.markUsed();
+        AuthTokenService.IssuedToken issued = authTokenService.issue(user);
+        auditService.recordSystem("USER_OAUTH_2FA_VERIFIED", "USER", user.getId(), null);
+        return new AuthTokenResponse(issued.token(), issued.expiresAt(), AuthUserResponse.from(user));
+    }
+
+    @Transactional
     public boolean verifyEmailTwoFactorCode(UserAccount user, String code) {
         if (code == null || code.isBlank()) {
             return false;
@@ -378,6 +422,9 @@ public class UserSecurityService {
     private boolean verifyTwoFactorOrBackup(UserAccount user, String code) {
         if (code == null || code.isBlank()) {
             return false;
+        }
+        if (verifyEmailTwoFactorCode(user, code)) {
+            return true;
         }
         if (twoFactorService.verify(user.getTwoFactorSecret(), code)) {
             return true;

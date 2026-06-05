@@ -56,6 +56,11 @@ public class AuthController {
         return authService.sendLoginTwoFactorEmailCode(request);
     }
 
+    @PostMapping("/oauth2/2fa/verify")
+    public AuthTokenResponse verifyOAuthTwoFactor(@Valid @RequestBody OAuthTwoFactorVerifyRequest request) {
+        return userSecurityService.verifyOAuthTwoFactor(request.challengeToken(), request.code());
+    }
+
     @PostMapping("/refresh")
     public AuthTokenResponse refresh(@RequestHeader(name = "Authorization", required = false) String authorization) {
         return userSecurityService.refresh(extractBearerToken(authorization));

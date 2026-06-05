@@ -17,6 +17,7 @@ import com.example.KendyDigital.dto.CreateServiceRequest;
 import com.example.KendyDigital.dto.IdsRequest;
 import com.example.KendyDigital.dto.OrderResponse;
 import com.example.KendyDigital.dto.ServiceCategoryResponse;
+import com.example.KendyDigital.dto.ServicePricingResponse;
 import com.example.KendyDigital.dto.ServiceResponse;
 import com.example.KendyDigital.dto.ServiceStatusUpdateRequest;
 import com.example.KendyDigital.dto.UpdateServiceRequest;
@@ -37,15 +38,39 @@ public class ServiceCatalogController {
     @GetMapping("/api/services")
     public List<ServiceResponse> listActive(@RequestParam(required = false) String query,
             @RequestParam(required = false) Long categoryId,
+            @RequestParam(required = false) String categorySlug,
+            @RequestParam(required = false) String sort,
             @RequestParam(required = false) Integer limit) {
-        return serviceCatalogService.searchActive(query, categoryId, limit);
+        return serviceCatalogService.searchActive(query, categoryId, categorySlug, sort, limit);
     }
 
     @GetMapping("/api/services/search")
     public List<ServiceResponse> searchActive(@RequestParam(required = false) String query,
             @RequestParam(required = false) Long categoryId,
+            @RequestParam(required = false) String categorySlug,
+            @RequestParam(required = false) String sort,
             @RequestParam(required = false) Integer limit) {
-        return serviceCatalogService.searchActive(query, categoryId, limit);
+        return serviceCatalogService.searchActive(query, categoryId, categorySlug, sort, limit);
+    }
+
+    @GetMapping("/api/pricing")
+    public List<ServicePricingResponse> listPricing(@RequestParam(required = false) String query,
+            @RequestParam(required = false) Long categoryId,
+            @RequestParam(required = false) String categorySlug,
+            @RequestParam(required = false) Boolean featured,
+            @RequestParam(required = false) String sort,
+            @RequestParam(required = false) Integer limit) {
+        return serviceCatalogService.searchPricing(query, categoryId, categorySlug, featured, sort, limit);
+    }
+
+    @GetMapping("/api/pricing/search")
+    public List<ServicePricingResponse> searchPricing(@RequestParam(required = false) String query,
+            @RequestParam(required = false) Long categoryId,
+            @RequestParam(required = false) String categorySlug,
+            @RequestParam(required = false) Boolean featured,
+            @RequestParam(required = false) String sort,
+            @RequestParam(required = false) Integer limit) {
+        return serviceCatalogService.searchPricing(query, categoryId, categorySlug, featured, sort, limit);
     }
 
     @GetMapping("/api/services/{slug}")
@@ -61,8 +86,36 @@ public class ServiceCatalogController {
     @GetMapping("/api/admin/services/search")
     public List<ServiceResponse> searchForAdmin(@RequestParam(required = false) String query,
             @RequestParam(required = false) ServiceStatus status,
+            @RequestParam(required = false) Long categoryId,
+            @RequestParam(required = false) String categorySlug,
+            @RequestParam(required = false) Boolean featured,
+            @RequestParam(required = false) String sort,
             @RequestParam(required = false) Integer limit) {
-        return serviceCatalogService.searchForAdmin(query, status, limit);
+        return serviceCatalogService.searchForAdmin(query, status, categoryId, categorySlug, featured, sort, limit);
+    }
+
+    @GetMapping("/api/admin/pricing")
+    public List<ServicePricingResponse> pricingForAdmin(@RequestParam(required = false) String query,
+            @RequestParam(required = false) ServiceStatus status,
+            @RequestParam(required = false) Long categoryId,
+            @RequestParam(required = false) String categorySlug,
+            @RequestParam(required = false) Boolean featured,
+            @RequestParam(required = false) String sort,
+            @RequestParam(required = false) Integer limit) {
+        return serviceCatalogService.searchPricingForAdmin(query, status, categoryId, categorySlug, featured, sort,
+                limit);
+    }
+
+    @GetMapping("/api/admin/pricing/search")
+    public List<ServicePricingResponse> searchPricingForAdmin(@RequestParam(required = false) String query,
+            @RequestParam(required = false) ServiceStatus status,
+            @RequestParam(required = false) Long categoryId,
+            @RequestParam(required = false) String categorySlug,
+            @RequestParam(required = false) Boolean featured,
+            @RequestParam(required = false) String sort,
+            @RequestParam(required = false) Integer limit) {
+        return serviceCatalogService.searchPricingForAdmin(query, status, categoryId, categorySlug, featured, sort,
+                limit);
     }
 
     @GetMapping("/api/admin/services/{id}/categories")

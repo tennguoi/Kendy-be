@@ -3,5 +3,6 @@ package com.example.KendyDigital.model;
 public enum UserSecurityTokenType {
     PASSWORD_RESET,
     EMAIL_VERIFICATION,
-    EMAIL_2FA
+    EMAIL_2FA,
+    OAUTH_2FA_CHALLENGE
 }

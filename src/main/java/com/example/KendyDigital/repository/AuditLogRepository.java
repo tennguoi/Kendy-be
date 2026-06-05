@@ -23,14 +23,14 @@ public interface AuditLogRepository extends JpaRepository<AuditLog, Long> {
               and (:targetType is null or a.targetType = :targetType)
               and (:targetId is null or a.targetId = :targetId)
               and (
-                :query is null
-                or lower(a.action) like lower(concat('%', :query, '%'))
-                or lower(coalesce(a.targetType, '')) like lower(concat('%', :query, '%'))
-                or lower(coalesce(a.metadata, '')) like lower(concat('%', :query, '%'))
+                :queryPattern is null
+                or lower(a.action) like :queryPattern
+                or lower(coalesce(a.targetType, '')) like :queryPattern
+                or lower(coalesce(a.metadata, '')) like :queryPattern
               )
             order by a.createdAt desc
             """)
-    List<AuditLog> searchAdmin(@Param("query") String query, @Param("action") String action,
+    List<AuditLog> searchAdmin(@Param("queryPattern") String queryPattern, @Param("action") String action,
             @Param("actorUserId") Long actorUserId, @Param("targetType") String targetType,
             @Param("targetId") Long targetId, Pageable pageable);
 }

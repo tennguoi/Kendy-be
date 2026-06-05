@@ -30,7 +30,9 @@ import jakarta.persistence.UniqueConstraint;
         name = "services",
         indexes = {
                 @Index(name = "idx_services_status", columnList = "status"),
-                @Index(name = "idx_services_sort_order", columnList = "sort_order")
+                @Index(name = "idx_services_sort_order", columnList = "sort_order"),
+                @Index(name = "idx_services_featured", columnList = "featured"),
+                @Index(name = "idx_services_public_visible", columnList = "public_visible")
         },
         uniqueConstraints = {
                 @UniqueConstraint(name = "uk_services_slug", columnNames = "slug")
@@ -55,6 +57,9 @@ public class ServiceItem extends TimestampedEntity {
     @Column(nullable = false, precision = 18, scale = 2)
     private BigDecimal price;
 
+    @Column(name = "price_text")
+    private String priceText;
+
     @Column(name = "cost_price", precision = 18, scale = 2)
     private BigDecimal costPrice;
 
@@ -66,8 +71,34 @@ public class ServiceItem extends TimestampedEntity {
     @Column(nullable = false, length = 32)
     private ServiceStatus status = ServiceStatus.ACTIVE;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "stock_status", nullable = false, length = 32)
+    private ServiceStockStatus stockStatus = ServiceStockStatus.AVAILABLE;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "cta_type", nullable = false, length = 32)
+    private ServiceCtaType ctaType = ServiceCtaType.BUY_NOW;
+
+    @Column(name = "pricing_badge")
+    private String pricingBadge;
+
+    @Column(name = "featured", nullable = false)
+    private boolean featured = false;
+
+    @Column(name = "public_visible", nullable = false)
+    private boolean publicVisible = true;
+
     @Column(name = "input_schema", columnDefinition = "TEXT")
     private String inputSchema;
+
+    @Column(name = "requirements", columnDefinition = "TEXT")
+    private String requirements;
+
+    @Column(name = "benefits", columnDefinition = "TEXT")
+    private String benefits;
+
+    @Column(name = "usage_notes", columnDefinition = "TEXT")
+    private String usageNotes;
 
     @Column(name = "processing_time")
     private String processingTime;
@@ -126,6 +157,10 @@ public class ServiceItem extends TimestampedEntity {
         this.price = price;
     }
 
+    public void updatePriceText(String priceText) {
+        this.priceText = priceText;
+    }
+
     public void updateCostPrice(BigDecimal costPrice) {
         this.costPrice = costPrice;
     }
@@ -138,8 +173,23 @@ public class ServiceItem extends TimestampedEntity {
         this.status = status;
     }
 
+    public void updatePricingMetadata(ServiceStockStatus stockStatus, ServiceCtaType ctaType, String pricingBadge,
+            boolean featured, boolean publicVisible) {
+        this.stockStatus = stockStatus;
+        this.ctaType = ctaType;
+        this.pricingBadge = pricingBadge;
+        this.featured = featured;
+        this.publicVisible = publicVisible;
+    }
+
     public void updateInputSchema(String inputSchema) {
         this.inputSchema = inputSchema;
+    }
+
+    public void updatePublicContent(String requirements, String benefits, String usageNotes) {
+        this.requirements = requirements;
+        this.benefits = benefits;
+        this.usageNotes = usageNotes;
     }
 
     public void updateProcessingTime(String processingTime) {

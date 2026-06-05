@@ -18,40 +18,61 @@ public interface ServiceItemRepository extends JpaRepository<ServiceItem, Long> 
 
     List<ServiceItem> findByStatusOrderBySortOrderAscNameAsc(ServiceStatus status);
 
+    List<ServiceItem> findByStatusOrderBySortOrderAscNameAsc(ServiceStatus status, Pageable pageable);
+
+    List<ServiceItem> findByStatusAndPublicVisibleTrueOrderBySortOrderAscNameAsc(ServiceStatus status,
+            Pageable pageable);
+
     List<ServiceItem> findByStatusAndCategory_IdOrderBySortOrderAscNameAsc(ServiceStatus status, Long categoryId,
             Pageable pageable);
 
+    List<ServiceItem> findByStatusAndPublicVisibleTrueAndCategory_IdOrderBySortOrderAscNameAsc(ServiceStatus status,
+            Long categoryId, Pageable pageable);
+
+    List<ServiceItem> findByStatusAndPublicVisibleTrueAndFeaturedOrderBySortOrderAscNameAsc(ServiceStatus status,
+            boolean featured, Pageable pageable);
+
     List<ServiceItem> findAllByOrderBySortOrderAscNameAsc();
+
+    List<ServiceItem> findAllByOrderBySortOrderAscNameAsc(Pageable pageable);
 
     @Query("""
             select s from ServiceItem s
             where (:status is null or s.status = :status)
+              and (:categoryId is null or s.category.id = :categoryId)
+              and (:categorySlug is null or s.category.slug = :categorySlug)
+              and (:featured is null or s.featured = :featured)
               and (
-                :query is null
-                or lower(s.name) like lower(concat('%', :query, '%'))
-                or lower(s.slug) like lower(concat('%', :query, '%'))
-                or lower(coalesce(s.shortDescription, '')) like lower(concat('%', :query, '%'))
+                :queryPattern is null
+                or lower(s.name) like :queryPattern
+                or lower(s.slug) like :queryPattern
+                or lower(coalesce(s.shortDescription, '')) like :queryPattern
                 or (:exactId is not null and s.id = :exactId)
               )
             order by s.sortOrder asc, s.name asc
             """)
-    List<ServiceItem> searchAdmin(@Param("query") String query, @Param("exactId") Long exactId,
-            @Param("status") ServiceStatus status, Pageable pageable);
+    List<ServiceItem> searchAdmin(@Param("queryPattern") String queryPattern, @Param("exactId") Long exactId,
+            @Param("status") ServiceStatus status, @Param("categoryId") Long categoryId,
+            @Param("categorySlug") String categorySlug, @Param("featured") Boolean featured, Pageable pageable);
 
     @Query("""
             select s from ServiceItem s
             where s.status = com.example.KendyDigital.model.ServiceStatus.ACTIVE
+              and s.publicVisible = true
               and (:categoryId is null or s.category.id = :categoryId)
+              and (:categorySlug is null or s.category.slug = :categorySlug)
+              and (:featured is null or s.featured = :featured)
               and (
-                :query is null
-                or lower(s.name) like lower(concat('%', :query, '%'))
-                or lower(s.slug) like lower(concat('%', :query, '%'))
-                or lower(coalesce(s.shortDescription, '')) like lower(concat('%', :query, '%'))
-                or lower(coalesce(s.description, '')) like lower(concat('%', :query, '%'))
+                :queryPattern is null
+                or lower(s.name) like :queryPattern
+                or lower(s.slug) like :queryPattern
+                or lower(coalesce(s.shortDescription, '')) like :queryPattern
+                or lower(coalesce(s.description, '')) like :queryPattern
                 or (:exactId is not null and s.id = :exactId)
               )
             order by s.sortOrder asc, s.name asc
             """)
-    List<ServiceItem> searchPublic(@Param("query") String query, @Param("exactId") Long exactId,
-            @Param("categoryId") Long categoryId, Pageable pageable);
+    List<ServiceItem> searchPublic(@Param("queryPattern") String queryPattern, @Param("exactId") Long exactId,
+            @Param("categoryId") Long categoryId, @Param("categorySlug") String categorySlug,
+            @Param("featured") Boolean featured, Pageable pageable);
 }

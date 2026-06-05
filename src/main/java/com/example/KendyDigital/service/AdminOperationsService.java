@@ -308,7 +308,7 @@ public class AdminOperationsService {
 
     @Transactional(readOnly = true)
     public List<SystemSettingResponse> searchSettings(String query, Integer limit) {
-        return systemSettingRepository.search(normalizeQuery(query), page(limit))
+        return systemSettingRepository.search(likePattern(normalizeQuery(query)), page(limit))
                 .stream()
                 .map(SystemSettingResponse::from)
                 .toList();
@@ -352,7 +352,7 @@ public class AdminOperationsService {
         response.put("apiKeyHeader", sePayWebhookProperties.getApiKeyHeader());
         response.put("requireHmac", sePayWebhookProperties.isRequireHmac());
         response.put("signatureHeader", sePayWebhookProperties.getSignatureHeader());
-        response.put("recentWebhookLogs", auditLogRepository.searchAdmin("SEPAY", null, null, null, null, PageRequest.of(0, 10))
+        response.put("recentWebhookLogs", auditLogRepository.searchAdmin(likePattern("SEPAY"), null, null, null, null, PageRequest.of(0, 10))
                 .stream()
                 .map(com.example.KendyDigital.dto.AuditLogResponse::from)
                 .toList());
@@ -367,7 +367,7 @@ public class AdminOperationsService {
 
     @Transactional(readOnly = true)
     public List<com.example.KendyDigital.dto.AuditLogResponse> sepayLogs(Integer limit) {
-        return auditLogRepository.searchAdmin("SEPAY", null, null, null, null, page(limit))
+        return auditLogRepository.searchAdmin(likePattern("SEPAY"), null, null, null, null, page(limit))
                 .stream()
                 .map(com.example.KendyDigital.dto.AuditLogResponse::from)
                 .toList();
@@ -612,7 +612,7 @@ public class AdminOperationsService {
     @Transactional(readOnly = true)
     public List<com.example.KendyDigital.dto.AuditLogResponse> searchAudit(String query, String action,
             Long actorUserId, String targetType, Long targetId, Integer limit) {
-        return auditLogRepository.searchAdmin(normalizeQuery(query), blankToNull(action), actorUserId,
+        return auditLogRepository.searchAdmin(likePattern(normalizeQuery(query)), blankToNull(action), actorUserId,
                         blankToNull(targetType), targetId, page(limit))
                 .stream()
                 .map(com.example.KendyDigital.dto.AuditLogResponse::from)
@@ -691,6 +691,10 @@ public class AdminOperationsService {
 
     private String normalizeQuery(String value) {
         return value == null || value.isBlank() ? null : value.trim();
+    }
+
+    private String likePattern(String value) {
+        return value == null ? null : "%" + value.toLowerCase(java.util.Locale.ROOT) + "%";
     }
 
     private String blankToNull(String value) {

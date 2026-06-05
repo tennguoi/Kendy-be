@@ -38,16 +38,16 @@ public interface OrderRepository extends JpaRepository<OrderRecord, Long> {
             where o.user.id = :userId
               and (:status is null or o.status = :status)
               and (
-                :query is null
-                or lower(o.orderCode) like lower(concat('%', :query, '%'))
-                or lower(s.name) like lower(concat('%', :query, '%'))
-                or lower(s.slug) like lower(concat('%', :query, '%'))
-                or lower(coalesce(o.inputData, '')) like lower(concat('%', :query, '%'))
+                :queryPattern is null
+                or lower(o.orderCode) like :queryPattern
+                or lower(s.name) like :queryPattern
+                or lower(s.slug) like :queryPattern
+                or lower(coalesce(o.inputData, '')) like :queryPattern
                 or (:exactId is not null and o.id = :exactId)
               )
             order by o.createdAt desc
             """)
-    List<OrderRecord> searchUser(@Param("userId") Long userId, @Param("query") String query,
+    List<OrderRecord> searchUser(@Param("userId") Long userId, @Param("queryPattern") String queryPattern,
             @Param("exactId") Long exactId, @Param("status") OrderStatus status, Pageable pageable);
 
     @Query("""
@@ -57,17 +57,17 @@ public interface OrderRepository extends JpaRepository<OrderRecord, Long> {
             where (:status is null or o.status = :status)
               and (:userId is null or u.id = :userId)
               and (
-                :query is null
-                or lower(o.orderCode) like lower(concat('%', :query, '%'))
-                or lower(u.email) like lower(concat('%', :query, '%'))
-                or lower(u.name) like lower(concat('%', :query, '%'))
-                or lower(s.name) like lower(concat('%', :query, '%'))
-                or lower(s.slug) like lower(concat('%', :query, '%'))
+                :queryPattern is null
+                or lower(o.orderCode) like :queryPattern
+                or lower(u.email) like :queryPattern
+                or lower(u.name) like :queryPattern
+                or lower(s.name) like :queryPattern
+                or lower(s.slug) like :queryPattern
                 or (:exactId is not null and o.id = :exactId)
               )
             order by o.createdAt desc
             """)
-    List<OrderRecord> searchAdmin(@Param("query") String query, @Param("exactId") Long exactId,
+    List<OrderRecord> searchAdmin(@Param("queryPattern") String queryPattern, @Param("exactId") Long exactId,
             @Param("status") OrderStatus status, @Param("userId") Long userId, Pageable pageable);
 
     long countByStatus(OrderStatus status);

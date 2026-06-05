@@ -3,6 +3,7 @@ package com.example.KendyDigital.service;
 import java.math.RoundingMode;
 import java.time.Instant;
 import java.util.List;
+import java.util.Locale;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -135,7 +136,7 @@ public class OrderService {
         String normalizedQuery = normalizeQuery(query);
         return orderRepository.searchUser(
                         userId,
-                        normalizedQuery,
+                        likePattern(normalizedQuery),
                         parseLongOrNull(normalizedQuery),
                         status,
                         paged(page, size))
@@ -165,7 +166,7 @@ public class OrderService {
     public List<OrderResponse> searchForAdmin(String query, OrderStatus status, Long userId, Integer limit) {
         String normalizedQuery = normalizeQuery(query);
         return orderRepository.searchAdmin(
-                        normalizedQuery,
+                        likePattern(normalizedQuery),
                         parseLongOrNull(normalizedQuery),
                         status,
                         userId,
@@ -405,6 +406,10 @@ public class OrderService {
 
     private String normalizeQuery(String value) {
         return value == null || value.isBlank() ? null : value.trim();
+    }
+
+    private String likePattern(String value) {
+        return value == null ? null : "%" + value.toLowerCase(Locale.ROOT) + "%";
     }
 
     private Long parseLongOrNull(String value) {

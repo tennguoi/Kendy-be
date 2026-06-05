@@ -34,15 +34,15 @@ public interface UserAccountRepository extends JpaRepository<UserAccount, Long> 
             select u from UserAccount u
             where (:status is null or u.status = :status)
               and (
-                :query is null
-                or lower(u.name) like lower(concat('%', :query, '%'))
-                or lower(u.email) like lower(concat('%', :query, '%'))
-                or lower(coalesce(u.phone, '')) like lower(concat('%', :query, '%'))
+                :queryPattern is null
+                or lower(u.name) like :queryPattern
+                or lower(u.email) like :queryPattern
+                or lower(coalesce(u.phone, '')) like :queryPattern
                 or (:exactId is not null and u.id = :exactId)
               )
             order by u.createdAt desc
             """)
-    List<UserAccount> searchAdmin(@Param("query") String query, @Param("exactId") Long exactId,
+    List<UserAccount> searchAdmin(@Param("queryPattern") String queryPattern, @Param("exactId") Long exactId,
             @Param("status") UserStatus status, Pageable pageable);
 
     long countByStatus(UserStatus status);

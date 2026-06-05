@@ -36,16 +36,16 @@ public interface WalletTransactionRepository extends JpaRepository<WalletTransac
               and (:type is null or w.type = :type)
               and (:direction is null or w.direction = :direction)
               and (
-                :query is null
-                or lower(w.transactionCode) like lower(concat('%', :query, '%'))
-                or lower(coalesce(w.referenceType, '')) like lower(concat('%', :query, '%'))
-                or lower(coalesce(w.description, '')) like lower(concat('%', :query, '%'))
+                :queryPattern is null
+                or lower(w.transactionCode) like :queryPattern
+                or lower(coalesce(w.referenceType, '')) like :queryPattern
+                or lower(coalesce(w.description, '')) like :queryPattern
                 or (:exactId is not null and w.id = :exactId)
                 or (:exactId is not null and w.referenceId = :exactId)
               )
             order by w.createdAt desc
             """)
-    List<WalletTransaction> searchUser(@Param("userId") Long userId, @Param("query") String query,
+    List<WalletTransaction> searchUser(@Param("userId") Long userId, @Param("queryPattern") String queryPattern,
             @Param("exactId") Long exactId, @Param("type") WalletTransactionType type,
             @Param("direction") WalletTransactionDirection direction, Pageable pageable);
 
@@ -56,18 +56,18 @@ public interface WalletTransactionRepository extends JpaRepository<WalletTransac
               and (:type is null or w.type = :type)
               and (:direction is null or w.direction = :direction)
               and (
-                :query is null
-                or lower(w.transactionCode) like lower(concat('%', :query, '%'))
-                or lower(coalesce(w.referenceType, '')) like lower(concat('%', :query, '%'))
-                or lower(coalesce(w.description, '')) like lower(concat('%', :query, '%'))
-                or lower(u.email) like lower(concat('%', :query, '%'))
-                or lower(u.name) like lower(concat('%', :query, '%'))
+                :queryPattern is null
+                or lower(w.transactionCode) like :queryPattern
+                or lower(coalesce(w.referenceType, '')) like :queryPattern
+                or lower(coalesce(w.description, '')) like :queryPattern
+                or lower(u.email) like :queryPattern
+                or lower(u.name) like :queryPattern
                 or (:exactId is not null and w.id = :exactId)
                 or (:exactId is not null and w.referenceId = :exactId)
               )
             order by w.createdAt desc
             """)
-    List<WalletTransaction> searchAdmin(@Param("query") String query, @Param("exactId") Long exactId,
+    List<WalletTransaction> searchAdmin(@Param("queryPattern") String queryPattern, @Param("exactId") Long exactId,
             @Param("userId") Long userId, @Param("type") WalletTransactionType type,
             @Param("direction") WalletTransactionDirection direction, Pageable pageable);
 

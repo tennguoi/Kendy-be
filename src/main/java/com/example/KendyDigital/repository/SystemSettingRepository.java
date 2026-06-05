@@ -12,8 +12,8 @@ import com.example.KendyDigital.model.SystemSetting;
 public interface SystemSettingRepository extends JpaRepository<SystemSetting, String> {
     @Query("""
             select s from SystemSetting s
-            where :query is null or lower(s.key) like lower(concat('%', :query, '%'))
+            where :queryPattern is null or lower(s.key) like :queryPattern
             order by s.key asc
             """)
-    List<SystemSetting> search(@Param("query") String query, Pageable pageable);
+    List<SystemSetting> search(@Param("queryPattern") String queryPattern, Pageable pageable);
 }

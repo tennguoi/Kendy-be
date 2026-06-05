@@ -15,6 +15,7 @@ import org.springframework.stereotype.Component;
 import com.example.KendyDigital.config.AppOAuth2Properties;
 import com.example.KendyDigital.dto.AuthTokenResponse;
 import com.example.KendyDigital.service.OAuth2AuthService;
+import com.example.KendyDigital.service.OAuthTwoFactorRequiredException;
 
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -41,11 +42,17 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
             response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "OAuth2 authentication required");
             return;
         }
-        AuthTokenResponse authToken = oAuth2AuthService.login(
-                token.getAuthorizedClientRegistrationId(),
-                token.getPrincipal().getAttributes(),
-                accessToken(token));
-        response.sendRedirect(successUrl(authToken));
+        try {
+            AuthTokenResponse authToken = oAuth2AuthService.login(
+                    token.getAuthorizedClientRegistrationId(),
+                    token.getPrincipal().getAttributes(),
+                    accessToken(token));
+            response.sendRedirect(successUrl(authToken));
+        } catch (OAuthTwoFactorRequiredException exception) {
+            response.sendRedirect(twoFactorUrl(exception));
+        } catch (RuntimeException exception) {
+            response.sendRedirect(failureUrl(exception));
+        }
     }
 
     private String accessToken(OAuth2AuthenticationToken token) {
@@ -65,6 +72,24 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
                 + separator
                 + "token=" + encode(token.accessToken())
                 + "&expiresAt=" + encode(token.expiresAt().toString());
+    }
+
+    private String failureUrl(RuntimeException exception) {
+        String separator = properties.getFailureRedirectUrl().contains("?") ? "&" : "?";
+        String message = exception.getMessage() == null ? "OAuth login failed" : exception.getMessage();
+        return properties.getFailureRedirectUrl()
+                + separator
+                + "oauthError=" + encode(message);
+    }
+
+    private String twoFactorUrl(OAuthTwoFactorRequiredException exception) {
+        String separator = properties.getSuccessRedirectUrl().contains("?") ? "&" : "?";
+        return properties.getSuccessRedirectUrl()
+                + separator
+                + "oauth2fa=" + encode(exception.challengeToken())
+                + "&expiresAt=" + encode(exception.expiresAt().toString())
+                + "&email=" + encode(exception.email())
+                + "&provider=" + encode(exception.provider());
     }
 
     private String encode(String value) {

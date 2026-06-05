@@ -35,17 +35,17 @@ public interface DepositRequestRepository extends JpaRepository<DepositRequest, 
             where (:status is null or d.status = :status)
               and (:userId is null or u.id = :userId)
               and (
-                :query is null
-                or lower(d.depositCode) like lower(concat('%', :query, '%'))
-                or lower(d.transferContent) like lower(concat('%', :query, '%'))
-                or lower(d.bankAccount) like lower(concat('%', :query, '%'))
-                or lower(u.email) like lower(concat('%', :query, '%'))
-                or lower(u.name) like lower(concat('%', :query, '%'))
+                :queryPattern is null
+                or lower(d.depositCode) like :queryPattern
+                or lower(d.transferContent) like :queryPattern
+                or lower(d.bankAccount) like :queryPattern
+                or lower(u.email) like :queryPattern
+                or lower(u.name) like :queryPattern
                 or (:exactId is not null and d.id = :exactId)
               )
             order by d.createdAt desc
             """)
-    List<DepositRequest> searchAdmin(@Param("query") String query, @Param("exactId") Long exactId,
+    List<DepositRequest> searchAdmin(@Param("queryPattern") String queryPattern, @Param("exactId") Long exactId,
             @Param("status") DepositStatus status, @Param("userId") Long userId, Pageable pageable);
 
     long countByStatus(DepositStatus status);
