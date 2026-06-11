@@ -24,15 +24,18 @@ public class UserNotificationService {
     private final UserNotificationSettingsRepository settingsRepository;
     private final UserAccountRepository userAccountRepository;
     private final EmailNotificationService emailNotificationService;
+    private final NotificationRealtimeService notificationRealtimeService;
 
     public UserNotificationService(UserNotificationRepository userNotificationRepository,
             UserNotificationSettingsRepository settingsRepository,
             UserAccountRepository userAccountRepository,
-            EmailNotificationService emailNotificationService) {
+            EmailNotificationService emailNotificationService,
+            NotificationRealtimeService notificationRealtimeService) {
         this.userNotificationRepository = userNotificationRepository;
         this.settingsRepository = settingsRepository;
         this.userAccountRepository = userAccountRepository;
         this.emailNotificationService = emailNotificationService;
+        this.notificationRealtimeService = notificationRealtimeService;
     }
 
     @Transactional(readOnly = true)
@@ -87,6 +90,10 @@ public class UserNotificationService {
         if (user != null) {
             UserNotification notification = userNotificationRepository.save(
                     new UserNotification(user, title, message, type, actionUrl));
+            notificationRealtimeService.publishNotification(
+                    userId,
+                    UserNotificationResponse.from(notification),
+                    unreadCount(userId));
             if (shouldSendEmail(userId, type)) {
                 emailNotificationService.sendUserNotification(user, notification.getTitle(),
                         notification.getMessage(), notification.getActionUrl());

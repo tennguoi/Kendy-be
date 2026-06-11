@@ -2,8 +2,10 @@ package com.example.KendyDigital.dto;
 
 
 import com.example.KendyDigital.model.*;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import java.math.BigDecimal;
 
+@JsonIgnoreProperties(ignoreUnknown = true)
 public record SePayWebhookPayload(
         Long id,
         String gateway,
@@ -13,6 +15,7 @@ public record SePayWebhookPayload(
         String code,
         String content,
         String transferType,
+        String description,
         BigDecimal transferAmount,
         BigDecimal accumulated,
         String referenceCode) {

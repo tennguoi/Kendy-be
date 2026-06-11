@@ -1,5 +1,6 @@
 package com.example.KendyDigital.service;
 
+import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Instant;
 import java.util.List;
@@ -26,6 +27,7 @@ import com.example.KendyDigital.dto.ReprocessOrderRequest;
 import com.example.KendyDigital.model.OrderRecord;
 import com.example.KendyDigital.model.OrderStatus;
 import com.example.KendyDigital.model.ServiceItem;
+import com.example.KendyDigital.model.ServiceCtaType;
 import com.example.KendyDigital.model.ServiceStatus;
 import com.example.KendyDigital.model.UserAccount;
 import com.example.KendyDigital.model.UserStatus;
@@ -87,13 +89,26 @@ public class OrderService {
         if (service.getStatus() != ServiceStatus.ACTIVE) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Service is not active");
         }
+        if (service.getCtaType() != null && service.getCtaType() != ServiceCtaType.BUY_NOW) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Service requires consultation before purchase");
+        }
+        BigDecimal orderAmount = service.getPrice().setScale(2, RoundingMode.HALF_UP);
+        if (orderAmount.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Service price must be greater than zero");
+        }
+        BigDecimal currentBalance = user.getBalance() == null
+                ? BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP)
+                : user.getBalance().setScale(2, RoundingMode.HALF_UP);
+        if (currentBalance.compareTo(orderAmount) < 0) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Insufficient wallet balance");
+        }
         validateInputData(service, request.inputData());
 
         OrderRecord order = orderRepository.save(new OrderRecord(
                 nextOrderCode(),
                 user,
                 service,
-                service.getPrice().setScale(2, RoundingMode.HALF_UP),
+                orderAmount,
                 request.inputData(),
                 idempotencyKey));
 

@@ -15,6 +15,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
@@ -31,6 +32,8 @@ import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 
 import org.springframework.http.HttpHeaders;
+import org.springframework.util.MultiValueMap;
+
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -52,23 +55,69 @@ public class SePayWebhookController {
     @PostMapping
     public ResponseEntity<SePayWebhookResponse> receive(
             @RequestHeader HttpHeaders headers,
+            @RequestParam MultiValueMap<String, String> queryParams,
             @RequestBody String rawPayload) {
-        verifyApiKey(headers);
+        verifyApiKey(headers, queryParams);
         verifyHmac(headers, rawPayload);
         SePayWebhookPayload payload = parsePayload(rawPayload);
         sePayWebhookService.process(payload, rawPayload);
         return ResponseEntity.ok(new SePayWebhookResponse(true));
     }
 
-    private void verifyApiKey(HttpHeaders headers) {
+    private void verifyApiKey(HttpHeaders headers, MultiValueMap<String, String> queryParams) {
         if (!properties.isRequireApiKey()) {
             return;
         }
-        String receivedApiKey = headers.getFirst(properties.getApiKeyHeader());
+        String receivedApiKey = resolveWebhookSecret(headers, queryParams);
         if (properties.getApiKey() == null || properties.getApiKey().isBlank()
                 || !properties.getApiKey().equals(receivedApiKey)) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid SePay webhook API key");
         }
+    }
+
+    private String resolveWebhookSecret(HttpHeaders headers, MultiValueMap<String, String> queryParams) {
+        String configuredHeader = normalizeHeaderValue(headers.getFirst(properties.getApiKeyHeader()));
+        if (!configuredHeader.isBlank()) {
+            return configuredHeader;
+        }
+
+        String sepaySecret = normalizeHeaderValue(headers.getFirst("X-SePay-Webhook-Secret"));
+        if (!sepaySecret.isBlank()) {
+            return sepaySecret;
+        }
+
+        String genericSecret = normalizeHeaderValue(headers.getFirst("X-Webhook-Secret"));
+        if (!genericSecret.isBlank()) {
+            return genericSecret;
+        }
+
+        String authorization = normalizeHeaderValue(headers.getFirst(HttpHeaders.AUTHORIZATION));
+        if (authorization.regionMatches(true, 0, "Bearer ", 0, "Bearer ".length())) {
+            return authorization.substring("Bearer ".length()).trim();
+        }
+        if (authorization.regionMatches(true, 0, "Apikey ", 0, "Apikey ".length())) {
+            return authorization.substring("Apikey ".length()).trim();
+        }
+
+        String querySecret = firstQueryParam(queryParams, "secret", "webhookSecret", "webhook-secret", "apiKey", "token");
+        if (!querySecret.isBlank()) {
+            return querySecret;
+        }
+
+        return "";
+    }
+
+    private String firstQueryParam(MultiValueMap<String, String> queryParams, String... keys) {
+        if (queryParams == null) {
+            return "";
+        }
+        for (String key : keys) {
+            String value = normalizeHeaderValue(queryParams.getFirst(key));
+            if (!value.isBlank()) {
+                return value;
+            }
+        }
+        return "";
     }
 
     private void verifyHmac(HttpHeaders headers, String rawPayload) {
@@ -96,7 +145,7 @@ public class SePayWebhookController {
         try {
             return objectMapper.readValue(rawPayload, SePayWebhookPayload.class);
         } catch (JsonProcessingException exception) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid SePay payload");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid SePay payload: " + exception.getMessage());
         }
     }
 
@@ -119,5 +168,9 @@ public class SePayWebhookController {
             normalized = normalized.substring("sha256=".length());
         }
         return normalized.toLowerCase();
+    }
+
+    private String normalizeHeaderValue(String value) {
+        return value == null ? "" : value.trim();
     }
 }
