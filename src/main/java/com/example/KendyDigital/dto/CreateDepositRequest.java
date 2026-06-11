@@ -8,5 +8,5 @@ import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotNull;
 
 public record CreateDepositRequest(
-        @NotNull @DecimalMin("10000.00") BigDecimal amount) {
+        @NotNull @DecimalMin(value = "1000.00", inclusive = false) BigDecimal amount) {
 }

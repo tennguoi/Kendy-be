@@ -37,6 +37,7 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                        .requestMatchers("/ws/**").permitAll()
                         .requestMatchers("/oauth2/**", "/login/oauth2/**").permitAll()
                         .requestMatchers("/api/auth/register", "/api/auth/login",
                                 "/api/auth/2fa/email-code",
@@ -44,7 +45,8 @@ public class SecurityConfig {
                                 "/api/auth/oauth2/providers",
                                 "/api/auth/forgot-password", "/api/auth/reset-password",
                                 "/api/auth/resend-verification", "/api/auth/verify-email").permitAll()
-                        .requestMatchers("/api/webhooks/sepay").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/webhooks/sepay", "/api/webhooks/sepay/").permitAll()
+                        .requestMatchers("/api/webhooks/sepay/**").permitAll()
                 .requestMatchers("/api/services", "/api/services/**",
                         "/api/pricing", "/api/pricing/**",
                         "/api/service-categories", "/api/service-categories/**").permitAll()

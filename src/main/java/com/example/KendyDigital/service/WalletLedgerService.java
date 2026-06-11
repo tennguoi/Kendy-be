@@ -17,10 +17,14 @@ import com.example.KendyDigital.common.CodeGenerator;
 @Service
 public class WalletLedgerService {
     private final WalletTransactionRepository walletTransactionRepository;
+    private final UserAccountRepository userAccountRepository;
     private final CodeGenerator codeGenerator;
 
-    public WalletLedgerService(WalletTransactionRepository walletTransactionRepository, CodeGenerator codeGenerator) {
+    public WalletLedgerService(WalletTransactionRepository walletTransactionRepository,
+            UserAccountRepository userAccountRepository,
+            CodeGenerator codeGenerator) {
         this.walletTransactionRepository = walletTransactionRepository;
+        this.userAccountRepository = userAccountRepository;
         this.codeGenerator = codeGenerator;
     }
 
@@ -30,6 +34,7 @@ public class WalletLedgerService {
         BigDecimal balanceBefore = normalizeMoney(user.getBalance());
         BigDecimal balanceAfter = balanceBefore.add(normalizedAmount);
         user.setBalance(balanceAfter);
+        userAccountRepository.save(user);
 
         WalletTransaction transaction = new WalletTransaction(
                 nextTransactionCode(),
@@ -55,6 +60,7 @@ public class WalletLedgerService {
             throw new IllegalArgumentException("Insufficient wallet balance");
         }
         user.setBalance(balanceAfter);
+        userAccountRepository.save(user);
 
         WalletTransaction transaction = new WalletTransaction(
                 nextTransactionCode(),
