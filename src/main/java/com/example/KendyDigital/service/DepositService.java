@@ -48,13 +48,18 @@ public class DepositService {
 
     @Transactional
     public DepositResponse createDeposit(Long userId, CreateDepositRequest request) {
+        return DepositResponse.from(createDepositForAmount(userId, request.amount()));
+    }
+
+    @Transactional
+    public DepositRequest createDepositForAmount(Long userId, BigDecimal rawAmount) {
         UserAccount user = userAccountRepository.findById(userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
         if (user.getStatus() != UserStatus.ACTIVE) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "User is not active");
         }
 
-        BigDecimal amount = request.amount().setScale(2, RoundingMode.HALF_UP);
+        BigDecimal amount = rawAmount.setScale(2, RoundingMode.HALF_UP);
         String depositCode = nextDepositCode();
         String transferContent = depositCode;
         Instant expiredAt = Instant.now().plus(Duration.ofMinutes(bankProperties.getDepositExpiryMinutes()));
@@ -69,7 +74,7 @@ public class DepositService {
                 transferContent,
                 expiredAt);
 
-        return DepositResponse.from(depositRequestRepository.save(deposit));
+        return depositRequestRepository.save(deposit);
     }
 
     @Transactional(readOnly = true)
