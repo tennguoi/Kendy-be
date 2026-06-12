@@ -6,10 +6,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
-import com.example.KendyDigital.dto.AuthUserResponse;
-import com.example.KendyDigital.dto.ChangePasswordRequest;
-import com.example.KendyDigital.dto.UpdateProfileRequest;
-import com.example.KendyDigital.dto.UserDashboardResponse;
+import com.example.KendyDigital.dto.auth.response.AuthUserResponse;
+import com.example.KendyDigital.dto.user.request.ChangePasswordRequest;
+import com.example.KendyDigital.dto.user.request.UpdateProfileRequest;
+import com.example.KendyDigital.dto.user.response.UserDashboardResponse;
 import com.example.KendyDigital.model.DepositStatus;
 import com.example.KendyDigital.model.OrderStatus;
 import com.example.KendyDigital.model.TicketStatus;

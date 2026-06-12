@@ -8,12 +8,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
-import com.example.KendyDigital.dto.AuthLoginRequest;
-import com.example.KendyDigital.dto.AuthRegisterRequest;
-import com.example.KendyDigital.dto.AuthTwoFactorEmailRequest;
-import com.example.KendyDigital.dto.AuthTokenResponse;
-import com.example.KendyDigital.dto.AuthUserResponse;
-import com.example.KendyDigital.dto.SecurityTokenResponse;
+import com.example.KendyDigital.dto.auth.request.AuthLoginRequest;
+import com.example.KendyDigital.dto.auth.request.AuthRegisterRequest;
+import com.example.KendyDigital.dto.auth.request.AuthTwoFactorEmailRequest;
+import com.example.KendyDigital.dto.auth.response.AuthTokenResponse;
+import com.example.KendyDigital.dto.auth.response.AuthUserResponse;
+import com.example.KendyDigital.dto.auth.response.SecurityTokenResponse;
 import com.example.KendyDigital.model.UserAccount;
 import com.example.KendyDigital.model.UserRole;
 import com.example.KendyDigital.model.UserStatus;

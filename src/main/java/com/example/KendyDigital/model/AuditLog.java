@@ -47,6 +47,9 @@ public class AuditLog extends TimestampedEntity {
     @Column(columnDefinition = "TEXT")
     private String metadata;
 
+    @Column(name = "ip_address")
+    private String ipAddress;
+
     public AuditLog(Long actorUserId, String actorRole, String action, String targetType, Long targetId,
             String metadata) {
         this.actorUserId = actorUserId;

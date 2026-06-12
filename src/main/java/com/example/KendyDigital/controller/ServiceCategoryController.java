@@ -11,9 +11,9 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.example.KendyDigital.dto.CreateServiceCategoryRequest;
-import com.example.KendyDigital.dto.ServiceCategoryResponse;
-import com.example.KendyDigital.dto.UpdateServiceCategoryRequest;
+import com.example.KendyDigital.dto.catalog.request.CreateServiceCategoryRequest;
+import com.example.KendyDigital.dto.catalog.response.ServiceCategoryResponse;
+import com.example.KendyDigital.dto.catalog.request.UpdateServiceCategoryRequest;
 import com.example.KendyDigital.security.CurrentUser;
 import com.example.KendyDigital.service.ServiceCategoryService;
 

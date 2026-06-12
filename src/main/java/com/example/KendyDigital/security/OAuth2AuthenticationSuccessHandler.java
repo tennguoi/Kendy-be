@@ -13,7 +13,7 @@ import org.springframework.security.web.authentication.AuthenticationSuccessHand
 import org.springframework.stereotype.Component;
 
 import com.example.KendyDigital.config.AppOAuth2Properties;
-import com.example.KendyDigital.dto.AuthTokenResponse;
+import com.example.KendyDigital.dto.auth.response.AuthTokenResponse;
 import com.example.KendyDigital.service.OAuth2AuthService;
 import com.example.KendyDigital.service.OAuthTwoFactorRequiredException;
 

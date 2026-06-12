@@ -1,4 +1,6 @@
 package com.example.KendyDigital.service;
+import com.example.KendyDigital.dto.auth.response.AuthSessionResponse;
+
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -20,20 +22,20 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
-import com.example.KendyDigital.dto.AuthEmailRequest;
-import com.example.KendyDigital.dto.AuthForgotPasswordRequest;
-import com.example.KendyDigital.dto.AuthResetPasswordRequest;
-import com.example.KendyDigital.dto.AuthTokenResponse;
-import com.example.KendyDigital.dto.AuthUserResponse;
-import com.example.KendyDigital.dto.AuthVerifyEmailRequest;
-import com.example.KendyDigital.dto.SecurityTokenResponse;
-import com.example.KendyDigital.dto.TotpSetupResponse;
-import com.example.KendyDigital.dto.TwoFactorDisableRequest;
-import com.example.KendyDigital.dto.TwoFactorVerifyRequest;
-import com.example.KendyDigital.dto.UserApiKeyCreateRequest;
-import com.example.KendyDigital.dto.UserApiKeyCreatedResponse;
-import com.example.KendyDigital.dto.UserApiKeyResponse;
-import com.example.KendyDigital.dto.UserSecurityOverviewResponse;
+import com.example.KendyDigital.dto.auth.request.AuthEmailRequest;
+import com.example.KendyDigital.dto.auth.request.AuthForgotPasswordRequest;
+import com.example.KendyDigital.dto.auth.request.AuthResetPasswordRequest;
+import com.example.KendyDigital.dto.auth.response.AuthTokenResponse;
+import com.example.KendyDigital.dto.auth.response.AuthUserResponse;
+import com.example.KendyDigital.dto.auth.request.AuthVerifyEmailRequest;
+import com.example.KendyDigital.dto.auth.response.SecurityTokenResponse;
+import com.example.KendyDigital.dto.auth.response.TotpSetupResponse;
+import com.example.KendyDigital.dto.auth.request.TwoFactorDisableRequest;
+import com.example.KendyDigital.dto.auth.request.TwoFactorVerifyRequest;
+import com.example.KendyDigital.dto.user.request.UserApiKeyCreateRequest;
+import com.example.KendyDigital.dto.user.response.UserApiKeyCreatedResponse;
+import com.example.KendyDigital.dto.user.response.UserApiKeyResponse;
+import com.example.KendyDigital.dto.user.response.UserSecurityOverviewResponse;
 import com.example.KendyDigital.model.AuthSession;
 import com.example.KendyDigital.model.UserAccount;
 import com.example.KendyDigital.model.UserApiKey;
@@ -168,10 +170,10 @@ public class UserSecurityService {
     }
 
     @Transactional(readOnly = true)
-    public List<com.example.KendyDigital.dto.AuthSessionResponse> sessions(Long userId, int page, int size) {
+    public List<com.example.KendyDigital.dto.auth.response.AuthSessionResponse> sessions(Long userId, int page, int size) {
         return authSessionRepository.findAllByUser_IdOrderByCreatedAtDesc(userId, paged(page, size))
                 .stream()
-                .map(com.example.KendyDigital.dto.AuthSessionResponse::from)
+                .map(com.example.KendyDigital.dto.auth.response.AuthSessionResponse::from)
                 .toList();
     }
 

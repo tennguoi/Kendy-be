@@ -3,7 +3,6 @@ package com.example.KendyDigital.service;
 
 
 
-import com.example.KendyDigital.dto.*;
 import com.example.KendyDigital.repository.*;
 import com.example.KendyDigital.model.*;
 import java.math.BigDecimal;
@@ -16,7 +15,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.example.KendyDigital.service.AuditService;
-import com.example.KendyDigital.dto.BalanceIntegrityIssueResponse;
+import com.example.KendyDigital.dto.finance.response.BalanceIntegrityIssueResponse;
 
 @Service
 public class BalanceIntegrityService {

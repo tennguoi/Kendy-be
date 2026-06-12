@@ -8,9 +8,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
-import com.example.KendyDigital.dto.UserNotificationResponse;
-import com.example.KendyDigital.dto.UserNotificationSettingsRequest;
-import com.example.KendyDigital.dto.UserNotificationSettingsResponse;
+import com.example.KendyDigital.dto.notification.response.UserNotificationResponse;
+import com.example.KendyDigital.dto.notification.request.UserNotificationSettingsRequest;
+import com.example.KendyDigital.dto.notification.response.UserNotificationSettingsResponse;
 import com.example.KendyDigital.model.UserAccount;
 import com.example.KendyDigital.model.UserNotification;
 import com.example.KendyDigital.model.UserNotificationSettings;

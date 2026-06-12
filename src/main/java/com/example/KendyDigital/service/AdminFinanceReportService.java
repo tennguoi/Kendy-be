@@ -8,8 +8,8 @@ import java.time.ZoneOffset;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.example.KendyDigital.dto.AdminDashboardResponse;
-import com.example.KendyDigital.dto.RevenueReportResponse;
+import com.example.KendyDigital.dto.finance.response.AdminDashboardResponse;
+import com.example.KendyDigital.dto.finance.response.RevenueReportResponse;
 import com.example.KendyDigital.model.BankTransactionStatus;
 import com.example.KendyDigital.model.DepositStatus;
 import com.example.KendyDigital.model.OrderStatus;

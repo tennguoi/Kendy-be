@@ -8,7 +8,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
-import com.example.KendyDigital.dto.ServiceResponse;
+import com.example.KendyDigital.dto.catalog.response.ServiceResponse;
 import com.example.KendyDigital.model.ServiceItem;
 import com.example.KendyDigital.model.ServiceStatus;
 import com.example.KendyDigital.model.UserAccount;

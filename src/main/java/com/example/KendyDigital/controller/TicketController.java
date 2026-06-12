@@ -1,4 +1,11 @@
 package com.example.KendyDigital.controller;
+import com.example.KendyDigital.dto.ticket.request.AdminTicketUpdateRequest;
+import com.example.KendyDigital.dto.ticket.request.CreateTicketMessageRequest;
+import com.example.KendyDigital.dto.ticket.request.CreateTicketRequest;
+import com.example.KendyDigital.dto.ticket.request.TicketFieldUpdateRequest;
+import com.example.KendyDigital.dto.ticket.response.TicketAttachmentResponse;
+import com.example.KendyDigital.dto.ticket.response.TicketResponse;
+
 
 import java.util.List;
 import java.util.Map;
@@ -19,7 +26,6 @@ import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
-import com.example.KendyDigital.dto.*;
 import com.example.KendyDigital.model.TicketCategory;
 import com.example.KendyDigital.model.TicketPriority;
 import com.example.KendyDigital.model.TicketStatus;

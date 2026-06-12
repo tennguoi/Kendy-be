@@ -14,11 +14,11 @@ import org.springframework.web.server.ResponseStatusException;
 
 import com.example.KendyDigital.common.CodeGenerator;
 import com.example.KendyDigital.config.BankProperties;
-import com.example.KendyDigital.dto.CancelDepositRequest;
-import com.example.KendyDigital.dto.CreateDepositRequest;
-import com.example.KendyDigital.dto.DepositResponse;
-import com.example.KendyDigital.dto.DepositQrResponse;
-import com.example.KendyDigital.dto.DepositStatusResponse;
+import com.example.KendyDigital.dto.deposit.request.CancelDepositRequest;
+import com.example.KendyDigital.dto.deposit.request.CreateDepositRequest;
+import com.example.KendyDigital.dto.deposit.response.DepositResponse;
+import com.example.KendyDigital.dto.deposit.response.DepositQrResponse;
+import com.example.KendyDigital.dto.deposit.response.DepositStatusResponse;
 import com.example.KendyDigital.model.DepositRequest;
 import com.example.KendyDigital.model.DepositStatus;
 import com.example.KendyDigital.model.UserAccount;

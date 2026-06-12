@@ -1,4 +1,6 @@
 package com.example.KendyDigital.service;
+import com.example.KendyDigital.dto.catalog.response.ServiceCategoryResponse;
+
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -12,12 +14,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
-import com.example.KendyDigital.dto.CreateServiceRequest;
-import com.example.KendyDigital.dto.OrderResponse;
-import com.example.KendyDigital.dto.ServicePricingResponse;
-import com.example.KendyDigital.dto.ServiceResponse;
-import com.example.KendyDigital.dto.ServiceStatusUpdateRequest;
-import com.example.KendyDigital.dto.UpdateServiceRequest;
+import com.example.KendyDigital.dto.catalog.request.CreateServiceRequest;
+import com.example.KendyDigital.dto.order.response.OrderResponse;
+import com.example.KendyDigital.dto.catalog.response.ServicePricingResponse;
+import com.example.KendyDigital.dto.catalog.response.ServiceResponse;
+import com.example.KendyDigital.dto.catalog.request.ServiceStatusUpdateRequest;
+import com.example.KendyDigital.dto.catalog.request.UpdateServiceRequest;
 import com.example.KendyDigital.model.ServiceCategory;
 import com.example.KendyDigital.model.ServiceCtaType;
 import com.example.KendyDigital.model.ServiceItem;
@@ -319,13 +321,13 @@ public class ServiceCatalogService {
     }
 
     @Transactional(readOnly = true)
-    public List<com.example.KendyDigital.dto.ServiceCategoryResponse> getCategories(Long id) {
+    public List<com.example.KendyDigital.dto.catalog.response.ServiceCategoryResponse> getCategories(Long id) {
         ServiceItem service = serviceItemRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Service not found"));
         if (service.getCategory() == null) {
             return List.of();
         }
-        return List.of(com.example.KendyDigital.dto.ServiceCategoryResponse.from(service.getCategory()));
+        return List.of(com.example.KendyDigital.dto.catalog.response.ServiceCategoryResponse.from(service.getCategory()));
     }
 
     @Transactional(readOnly = true)

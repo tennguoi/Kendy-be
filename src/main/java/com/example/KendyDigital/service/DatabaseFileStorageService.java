@@ -1,4 +1,6 @@
 package com.example.KendyDigital.service;
+import com.example.KendyDigital.dto.file.response.StoredFileResponse;
+
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;

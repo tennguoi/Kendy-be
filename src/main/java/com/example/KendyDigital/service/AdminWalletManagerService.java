@@ -12,8 +12,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
-import com.example.KendyDigital.dto.AdminWalletAdjustmentRequest;
-import com.example.KendyDigital.dto.WalletTransactionResponse;
+import com.example.KendyDigital.dto.user.request.AdminWalletAdjustmentRequest;
+import com.example.KendyDigital.dto.wallet.response.WalletTransactionResponse;
 import com.example.KendyDigital.model.UserAccount;
 import com.example.KendyDigital.model.WalletTransaction;
 import com.example.KendyDigital.model.WalletTransactionDirection;

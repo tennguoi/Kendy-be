@@ -9,7 +9,6 @@ import com.example.KendyDigital.service.*;
 import com.example.KendyDigital.security.*;
 import com.example.KendyDigital.repository.*;
 import com.example.KendyDigital.model.*;
-import com.example.KendyDigital.dto.*;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -21,8 +20,8 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
 import com.example.KendyDigital.config.SePayWebhookProperties;
-import com.example.KendyDigital.dto.SePayWebhookPayload;
-import com.example.KendyDigital.dto.SePayWebhookResponse;
+import com.example.KendyDigital.dto.webhook.request.SePayWebhookPayload;
+import com.example.KendyDigital.dto.webhook.response.SePayWebhookResponse;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;

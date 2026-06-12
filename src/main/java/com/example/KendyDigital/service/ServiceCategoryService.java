@@ -8,9 +8,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
-import com.example.KendyDigital.dto.CreateServiceCategoryRequest;
-import com.example.KendyDigital.dto.ServiceCategoryResponse;
-import com.example.KendyDigital.dto.UpdateServiceCategoryRequest;
+import com.example.KendyDigital.dto.catalog.request.CreateServiceCategoryRequest;
+import com.example.KendyDigital.dto.catalog.response.ServiceCategoryResponse;
+import com.example.KendyDigital.dto.catalog.request.UpdateServiceCategoryRequest;
 import com.example.KendyDigital.model.ServiceCategory;
 import com.example.KendyDigital.repository.ServiceCategoryRepository;
 

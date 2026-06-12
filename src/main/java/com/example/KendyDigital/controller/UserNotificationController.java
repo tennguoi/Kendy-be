@@ -12,10 +12,10 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.example.KendyDigital.dto.BulkReadNotificationsRequest;
-import com.example.KendyDigital.dto.UserNotificationResponse;
-import com.example.KendyDigital.dto.UserNotificationSettingsRequest;
-import com.example.KendyDigital.dto.UserNotificationSettingsResponse;
+import com.example.KendyDigital.dto.notification.request.BulkReadNotificationsRequest;
+import com.example.KendyDigital.dto.notification.response.UserNotificationResponse;
+import com.example.KendyDigital.dto.notification.request.UserNotificationSettingsRequest;
+import com.example.KendyDigital.dto.notification.response.UserNotificationSettingsResponse;
 import com.example.KendyDigital.security.CurrentUser;
 import com.example.KendyDigital.service.UserNotificationService;
 

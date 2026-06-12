@@ -6,7 +6,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.example.KendyDigital.dto.AuditLogResponse;
+import com.example.KendyDigital.dto.audit.response.AuditLogResponse;
 import com.example.KendyDigital.service.AuditService;
 
 @RestController

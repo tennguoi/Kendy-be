@@ -14,8 +14,8 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.server.ResponseStatusException;
 
-import com.example.KendyDigital.dto.AuthTokenResponse;
-import com.example.KendyDigital.dto.AuthUserResponse;
+import com.example.KendyDigital.dto.auth.response.AuthTokenResponse;
+import com.example.KendyDigital.dto.auth.response.AuthUserResponse;
 import com.example.KendyDigital.model.UserAccount;
 import com.example.KendyDigital.model.UserRole;
 import com.example.KendyDigital.model.UserStatus;

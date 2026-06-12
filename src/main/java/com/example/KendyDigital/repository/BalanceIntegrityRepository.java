@@ -1,6 +1,6 @@
 package com.example.KendyDigital.repository;
 
-import com.example.KendyDigital.dto.BalanceIntegrityIssueResponse;
+import com.example.KendyDigital.dto.finance.response.BalanceIntegrityIssueResponse;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 

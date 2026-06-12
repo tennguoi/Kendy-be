@@ -12,10 +12,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
-import com.example.KendyDigital.dto.AdminPermissionResponse;
-import com.example.KendyDigital.dto.AdminRoleResponse;
-import com.example.KendyDigital.dto.CreateAdminRoleRequest;
-import com.example.KendyDigital.dto.UpdateAdminRoleRequest;
+import com.example.KendyDigital.dto.role.response.AdminPermissionResponse;
+import com.example.KendyDigital.dto.role.response.AdminRoleResponse;
+import com.example.KendyDigital.dto.role.request.CreateAdminRoleRequest;
+import com.example.KendyDigital.dto.role.request.UpdateAdminRoleRequest;
 import com.example.KendyDigital.model.AdminPermission;
 import com.example.KendyDigital.model.AdminRole;
 import com.example.KendyDigital.model.RolePermission;

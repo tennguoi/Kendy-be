@@ -6,7 +6,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.example.KendyDigital.dto.AuditLogResponse;
+import com.example.KendyDigital.dto.audit.response.AuditLogResponse;
 import com.example.KendyDigital.model.AuditLog;
 import com.example.KendyDigital.repository.AuditLogRepository;
 
@@ -18,12 +18,35 @@ public class AuditService {
         this.auditLogRepository = auditLogRepository;
     }
 
+    private String getClientIp() {
+        try {
+            org.springframework.web.context.request.RequestAttributes attributes =
+                    org.springframework.web.context.request.RequestContextHolder.getRequestAttributes();
+            if (attributes instanceof org.springframework.web.context.request.ServletRequestAttributes) {
+                jakarta.servlet.http.HttpServletRequest request =
+                        ((org.springframework.web.context.request.ServletRequestAttributes) attributes).getRequest();
+                String forwardedFor = request.getHeader("X-Forwarded-For");
+                if (forwardedFor != null && !forwardedFor.isBlank()) {
+                    return forwardedFor.split(",")[0].trim();
+                }
+                return request.getRemoteAddr();
+            }
+        } catch (Exception e) {
+            // Ignore when not in request context
+        }
+        return null;
+    }
+
     public void recordSystem(String action, String targetType, Long targetId, String metadata) {
-        auditLogRepository.save(new AuditLog(null, "SYSTEM", action, targetType, targetId, metadata));
+        AuditLog log = new AuditLog(null, "SYSTEM", action, targetType, targetId, metadata);
+        log.setIpAddress(getClientIp());
+        auditLogRepository.save(log);
     }
 
     public void recordAdmin(Long adminUserId, String action, String targetType, Long targetId, String metadata) {
-        auditLogRepository.save(new AuditLog(adminUserId, "ADMIN", action, targetType, targetId, metadata));
+        AuditLog log = new AuditLog(adminUserId, "ADMIN", action, targetType, targetId, metadata);
+        log.setIpAddress(getClientIp());
+        auditLogRepository.save(log);
     }
 
     @Transactional(readOnly = true)

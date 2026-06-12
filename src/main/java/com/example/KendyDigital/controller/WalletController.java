@@ -9,8 +9,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.example.KendyDigital.dto.WalletSummaryResponse;
-import com.example.KendyDigital.dto.WalletTransactionResponse;
+import com.example.KendyDigital.dto.wallet.response.WalletSummaryResponse;
+import com.example.KendyDigital.dto.wallet.response.WalletTransactionResponse;
 import com.example.KendyDigital.model.WalletTransactionDirection;
 import com.example.KendyDigital.model.WalletTransactionType;
 import com.example.KendyDigital.security.CurrentUser;

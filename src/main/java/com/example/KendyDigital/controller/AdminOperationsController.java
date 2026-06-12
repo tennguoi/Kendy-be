@@ -1,4 +1,6 @@
 package com.example.KendyDigital.controller;
+import com.example.KendyDigital.dto.audit.response.AuditLogResponse;
+
 
 import java.time.Instant;
 import java.util.LinkedHashMap;
@@ -22,26 +24,26 @@ import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
-import com.example.KendyDigital.dto.AdminNotificationResponse;
-import com.example.KendyDigital.dto.AdminPermissionsRequest;
-import com.example.KendyDigital.dto.AdminRolesRequest;
-import com.example.KendyDigital.dto.AdminUserResponse;
-import com.example.KendyDigital.dto.AuthSessionResponse;
-import com.example.KendyDigital.dto.BulkReadNotificationsRequest;
-import com.example.KendyDigital.dto.IdsRequest;
-import com.example.KendyDigital.dto.JobRecordResponse;
-import com.example.KendyDigital.dto.OrderResponse;
-import com.example.KendyDigital.dto.StoredFileResponse;
-import com.example.KendyDigital.dto.SystemSettingHistoryResponse;
-import com.example.KendyDigital.dto.SystemSettingResponse;
-import com.example.KendyDigital.dto.SystemSettingUpdateRequest;
-import com.example.KendyDigital.dto.SystemSettingsBulkUpdateRequest;
-import com.example.KendyDigital.dto.TicketResponse;
-import com.example.KendyDigital.dto.TotpSetupResponse;
-import com.example.KendyDigital.dto.TwoFactorVerifyRequest;
-import com.example.KendyDigital.dto.WebhookConfigRequest;
-import com.example.KendyDigital.dto.WebhookRetryRequest;
-import com.example.KendyDigital.dto.WalletTransactionResponse;
+import com.example.KendyDigital.dto.notification.response.AdminNotificationResponse;
+import com.example.KendyDigital.dto.role.request.AdminPermissionsRequest;
+import com.example.KendyDigital.dto.role.request.AdminRolesRequest;
+import com.example.KendyDigital.dto.user.response.AdminUserResponse;
+import com.example.KendyDigital.dto.auth.response.AuthSessionResponse;
+import com.example.KendyDigital.dto.notification.request.BulkReadNotificationsRequest;
+import com.example.KendyDigital.dto.catalog.request.IdsRequest;
+import com.example.KendyDigital.dto.monitoring.response.JobRecordResponse;
+import com.example.KendyDigital.dto.order.response.OrderResponse;
+import com.example.KendyDigital.dto.file.response.StoredFileResponse;
+import com.example.KendyDigital.dto.setting.response.SystemSettingHistoryResponse;
+import com.example.KendyDigital.dto.setting.response.SystemSettingResponse;
+import com.example.KendyDigital.dto.setting.request.SystemSettingUpdateRequest;
+import com.example.KendyDigital.dto.setting.request.SystemSettingsBulkUpdateRequest;
+import com.example.KendyDigital.dto.ticket.response.TicketResponse;
+import com.example.KendyDigital.dto.auth.response.TotpSetupResponse;
+import com.example.KendyDigital.dto.auth.request.TwoFactorVerifyRequest;
+import com.example.KendyDigital.dto.setting.request.WebhookConfigRequest;
+import com.example.KendyDigital.dto.setting.request.WebhookRetryRequest;
+import com.example.KendyDigital.dto.wallet.response.WalletTransactionResponse;
 import com.example.KendyDigital.model.StoredFile;
 import com.example.KendyDigital.model.UserStatus;
 import com.example.KendyDigital.security.CurrentUser;
@@ -211,7 +213,7 @@ public class AdminOperationsController {
     // ── Audit Logs ────────────────────────────────────────────────────────────
 
     @GetMapping("/api/admin/audit-logs/search")
-    public List<com.example.KendyDigital.dto.AuditLogResponse> searchAudit(
+    public List<com.example.KendyDigital.dto.audit.response.AuditLogResponse> searchAudit(
             @RequestParam(required = false) String query,
             @RequestParam(required = false) String action,
             @RequestParam(required = false) Long actorUserId,
@@ -222,7 +224,7 @@ public class AdminOperationsController {
     }
 
     @GetMapping("/api/admin/audit-logs/{id}/details")
-    public com.example.KendyDigital.dto.AuditLogResponse auditDetail(@PathVariable Long id) {
+    public com.example.KendyDigital.dto.audit.response.AuditLogResponse auditDetail(@PathVariable Long id) {
         return monitoringService.auditDetail(id);
     }
 
@@ -239,7 +241,7 @@ public class AdminOperationsController {
     }
 
     @GetMapping("/api/admin/audit-logs/admin-actions")
-    public List<com.example.KendyDigital.dto.AuditLogResponse> adminActions(@RequestParam Long adminId,
+    public List<com.example.KendyDigital.dto.audit.response.AuditLogResponse> adminActions(@RequestParam Long adminId,
             @RequestParam(required = false) Integer limit) {
         return monitoringService.adminActions(adminId, limit);
     }
@@ -288,7 +290,7 @@ public class AdminOperationsController {
     }
 
     @GetMapping("/api/admin/webhooks/sepay/logs")
-    public List<com.example.KendyDigital.dto.AuditLogResponse> sepayLogs(
+    public List<com.example.KendyDigital.dto.audit.response.AuditLogResponse> sepayLogs(
             @RequestParam(required = false) Integer limit) {
         return monitoringService.sepayLogs(limit);
     }

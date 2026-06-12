@@ -12,10 +12,10 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.example.KendyDigital.dto.AdminPermissionResponse;
-import com.example.KendyDigital.dto.AdminRoleResponse;
-import com.example.KendyDigital.dto.CreateAdminRoleRequest;
-import com.example.KendyDigital.dto.UpdateAdminRoleRequest;
+import com.example.KendyDigital.dto.role.response.AdminPermissionResponse;
+import com.example.KendyDigital.dto.role.response.AdminRoleResponse;
+import com.example.KendyDigital.dto.role.request.CreateAdminRoleRequest;
+import com.example.KendyDigital.dto.role.request.UpdateAdminRoleRequest;
 import com.example.KendyDigital.security.CurrentUser;
 import com.example.KendyDigital.service.AdminRoleService;
 

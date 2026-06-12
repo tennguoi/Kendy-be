@@ -10,10 +10,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
-import com.example.KendyDigital.dto.AdminDepositCancelRequest;
-import com.example.KendyDigital.dto.AdminDepositExtendRequest;
-import com.example.KendyDigital.dto.DepositResponse;
-import com.example.KendyDigital.dto.ManualCreditDepositRequest;
+import com.example.KendyDigital.dto.finance.request.AdminDepositCancelRequest;
+import com.example.KendyDigital.dto.finance.request.AdminDepositExtendRequest;
+import com.example.KendyDigital.dto.deposit.response.DepositResponse;
+import com.example.KendyDigital.dto.finance.request.ManualCreditDepositRequest;
 import com.example.KendyDigital.model.DepositRequest;
 import com.example.KendyDigital.model.DepositStatus;
 import com.example.KendyDigital.model.UserAccount;

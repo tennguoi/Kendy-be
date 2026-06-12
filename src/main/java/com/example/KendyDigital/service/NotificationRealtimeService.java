@@ -15,7 +15,7 @@ import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
 
-import com.example.KendyDigital.dto.UserNotificationResponse;
+import com.example.KendyDigital.dto.notification.response.UserNotificationResponse;
 import com.example.KendyDigital.model.UserAccount;
 import com.fasterxml.jackson.databind.ObjectMapper;
 

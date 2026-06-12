@@ -11,11 +11,11 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.example.KendyDigital.dto.CancelDepositRequest;
-import com.example.KendyDigital.dto.CreateDepositRequest;
-import com.example.KendyDigital.dto.DepositResponse;
-import com.example.KendyDigital.dto.DepositQrResponse;
-import com.example.KendyDigital.dto.DepositStatusResponse;
+import com.example.KendyDigital.dto.deposit.request.CancelDepositRequest;
+import com.example.KendyDigital.dto.deposit.request.CreateDepositRequest;
+import com.example.KendyDigital.dto.deposit.response.DepositResponse;
+import com.example.KendyDigital.dto.deposit.response.DepositQrResponse;
+import com.example.KendyDigital.dto.deposit.response.DepositStatusResponse;
 import com.example.KendyDigital.model.DepositStatus;
 import com.example.KendyDigital.security.CurrentUser;
 import com.example.KendyDigital.service.DepositService;

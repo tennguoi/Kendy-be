@@ -1,4 +1,6 @@
 package com.example.KendyDigital.service;
+import com.example.KendyDigital.dto.audit.response.AuditLogResponse;
+
 
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -11,11 +13,11 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import com.example.KendyDigital.config.SePayWebhookProperties;
-import com.example.KendyDigital.dto.AdminNotificationResponse;
-import com.example.KendyDigital.dto.SystemSettingHistoryResponse;
-import com.example.KendyDigital.dto.SystemSettingResponse;
-import com.example.KendyDigital.dto.SystemSettingsBulkUpdateRequest;
-import com.example.KendyDigital.dto.WebhookConfigRequest;
+import com.example.KendyDigital.dto.notification.response.AdminNotificationResponse;
+import com.example.KendyDigital.dto.setting.response.SystemSettingHistoryResponse;
+import com.example.KendyDigital.dto.setting.response.SystemSettingResponse;
+import com.example.KendyDigital.dto.setting.request.SystemSettingsBulkUpdateRequest;
+import com.example.KendyDigital.dto.setting.request.WebhookConfigRequest;
 import com.example.KendyDigital.model.AdminNotification;
 import com.example.KendyDigital.model.SystemSetting;
 import com.example.KendyDigital.model.SystemSettingHistory;
@@ -95,7 +97,7 @@ public class AdminSystemConfigService {
         response.put("signatureHeader", sePayWebhookProperties.getSignatureHeader());
         response.put("recentWebhookLogs", auditLogRepository.searchAdmin(likePattern("SEPAY"), null, null, null, null, PageRequest.of(0, 10))
                 .stream()
-                .map(com.example.KendyDigital.dto.AuditLogResponse::from)
+                .map(com.example.KendyDigital.dto.audit.response.AuditLogResponse::from)
                 .toList());
         return response;
     }

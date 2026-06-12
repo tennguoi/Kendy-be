@@ -1,4 +1,11 @@
 package com.example.KendyDigital.service;
+import com.example.KendyDigital.dto.ticket.request.AdminTicketUpdateRequest;
+import com.example.KendyDigital.dto.ticket.request.CreateTicketMessageRequest;
+import com.example.KendyDigital.dto.ticket.request.CreateTicketRequest;
+import com.example.KendyDigital.dto.ticket.response.TicketAttachmentResponse;
+import com.example.KendyDigital.dto.ticket.response.TicketMessageResponse;
+import com.example.KendyDigital.dto.ticket.response.TicketResponse;
+
 
 import java.util.List;
 import java.util.Locale;
@@ -11,7 +18,6 @@ import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
 import com.example.KendyDigital.common.CodeGenerator;
-import com.example.KendyDigital.dto.*;
 import com.example.KendyDigital.model.*;
 import com.example.KendyDigital.repository.*;
 

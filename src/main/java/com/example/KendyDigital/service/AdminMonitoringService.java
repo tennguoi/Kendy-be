@@ -1,4 +1,6 @@
 package com.example.KendyDigital.service;
+import com.example.KendyDigital.dto.audit.response.AuditLogResponse;
+
 
 import java.util.List;
 
@@ -8,12 +10,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
-import com.example.KendyDigital.dto.JobRecordResponse;
-import com.example.KendyDigital.dto.OrderResponse;
-import com.example.KendyDigital.dto.ReprocessBankTransactionRequest;
-import com.example.KendyDigital.dto.TicketResponse;
-import com.example.KendyDigital.dto.WalletTransactionResponse;
-import com.example.KendyDigital.dto.WebhookRetryRequest;
+import com.example.KendyDigital.dto.monitoring.response.JobRecordResponse;
+import com.example.KendyDigital.dto.order.response.OrderResponse;
+import com.example.KendyDigital.dto.finance.request.ReprocessBankTransactionRequest;
+import com.example.KendyDigital.dto.ticket.response.TicketResponse;
+import com.example.KendyDigital.dto.wallet.response.WalletTransactionResponse;
+import com.example.KendyDigital.dto.setting.request.WebhookRetryRequest;
 import com.example.KendyDigital.model.JobRecord;
 import com.example.KendyDigital.repository.AuditLogRepository;
 import com.example.KendyDigital.repository.JobRecordRepository;
@@ -122,35 +124,35 @@ public class AdminMonitoringService {
     }
 
     @Transactional(readOnly = true)
-    public List<com.example.KendyDigital.dto.AuditLogResponse> sepayLogs(Integer limit) {
+    public List<com.example.KendyDigital.dto.audit.response.AuditLogResponse> sepayLogs(Integer limit) {
         return auditLogRepository.searchAdmin(likePattern("SEPAY"), null, null, null, null, page(limit))
                 .stream()
-                .map(com.example.KendyDigital.dto.AuditLogResponse::from)
+                .map(com.example.KendyDigital.dto.audit.response.AuditLogResponse::from)
                 .toList();
     }
 
     @Transactional(readOnly = true)
-    public List<com.example.KendyDigital.dto.AuditLogResponse> searchAudit(String query, String action,
+    public List<com.example.KendyDigital.dto.audit.response.AuditLogResponse> searchAudit(String query, String action,
             Long actorUserId, String targetType, Long targetId, Integer limit) {
         return auditLogRepository.searchAdmin(likePattern(normalizeQuery(query)), blankToNull(action), actorUserId,
                         blankToNull(targetType), targetId, page(limit))
                 .stream()
-                .map(com.example.KendyDigital.dto.AuditLogResponse::from)
+                .map(com.example.KendyDigital.dto.audit.response.AuditLogResponse::from)
                 .toList();
     }
 
     @Transactional(readOnly = true)
-    public com.example.KendyDigital.dto.AuditLogResponse auditDetail(Long id) {
+    public com.example.KendyDigital.dto.audit.response.AuditLogResponse auditDetail(Long id) {
         return auditLogRepository.findById(id)
-                .map(com.example.KendyDigital.dto.AuditLogResponse::from)
+                .map(com.example.KendyDigital.dto.audit.response.AuditLogResponse::from)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Audit log not found"));
     }
 
     @Transactional(readOnly = true)
-    public List<com.example.KendyDigital.dto.AuditLogResponse> adminActions(Long adminId, Integer limit) {
+    public List<com.example.KendyDigital.dto.audit.response.AuditLogResponse> adminActions(Long adminId, Integer limit) {
         return auditLogRepository.findAllByActorUserIdOrderByCreatedAtDesc(adminId, page(limit))
                 .stream()
-                .map(com.example.KendyDigital.dto.AuditLogResponse::from)
+                .map(com.example.KendyDigital.dto.audit.response.AuditLogResponse::from)
                 .toList();
     }
 

@@ -15,12 +15,12 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import com.example.KendyDigital.config.BankProperties;
-import com.example.KendyDigital.dto.AdminBankTransactionResponse;
-import com.example.KendyDigital.dto.BulkManualCreditBankTransactionsRequest;
-import com.example.KendyDigital.dto.IgnoreBankTransactionRequest;
-import com.example.KendyDigital.dto.ManualCreditBankTransactionRequest;
-import com.example.KendyDigital.dto.MatchBankTransactionRequest;
-import com.example.KendyDigital.dto.ReprocessBankTransactionRequest;
+import com.example.KendyDigital.dto.finance.response.AdminBankTransactionResponse;
+import com.example.KendyDigital.dto.finance.request.BulkManualCreditBankTransactionsRequest;
+import com.example.KendyDigital.dto.finance.request.IgnoreBankTransactionRequest;
+import com.example.KendyDigital.dto.finance.request.ManualCreditBankTransactionRequest;
+import com.example.KendyDigital.dto.finance.request.MatchBankTransactionRequest;
+import com.example.KendyDigital.dto.finance.request.ReprocessBankTransactionRequest;
 import com.example.KendyDigital.model.BankTransaction;
 import com.example.KendyDigital.model.BankTransactionStatus;
 import com.example.KendyDigital.model.DepositRequest;

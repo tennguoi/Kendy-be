@@ -3,7 +3,6 @@ package com.example.KendyDigital.service;
 
 
 
-import com.example.KendyDigital.dto.*;
 import com.example.KendyDigital.repository.*;
 import com.example.KendyDigital.model.*;
 import java.math.BigDecimal;
@@ -26,7 +25,7 @@ import com.example.KendyDigital.service.AuditService;
 import com.example.KendyDigital.model.UserAccount;
 import com.example.KendyDigital.repository.UserAccountRepository;
 import com.example.KendyDigital.config.BankProperties;
-import com.example.KendyDigital.dto.SePayWebhookPayload;
+import com.example.KendyDigital.dto.webhook.request.SePayWebhookPayload;
 
 @Service
 public class SePayWebhookService {

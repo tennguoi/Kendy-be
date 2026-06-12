@@ -12,12 +12,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
-import com.example.KendyDigital.dto.AdminPermissionsRequest;
-import com.example.KendyDigital.dto.AdminRolesRequest;
-import com.example.KendyDigital.dto.AdminUserResponse;
-import com.example.KendyDigital.dto.AuthSessionResponse;
-import com.example.KendyDigital.dto.TotpSetupResponse;
-import com.example.KendyDigital.dto.TwoFactorVerifyRequest;
+import com.example.KendyDigital.dto.role.request.AdminPermissionsRequest;
+import com.example.KendyDigital.dto.role.request.AdminRolesRequest;
+import com.example.KendyDigital.dto.user.response.AdminUserResponse;
+import com.example.KendyDigital.dto.auth.response.AuthSessionResponse;
+import com.example.KendyDigital.dto.auth.response.TotpSetupResponse;
+import com.example.KendyDigital.dto.auth.request.TwoFactorVerifyRequest;
 import com.example.KendyDigital.model.AuthSession;
 import com.example.KendyDigital.model.UserAccount;
 import com.example.KendyDigital.model.UserRole;

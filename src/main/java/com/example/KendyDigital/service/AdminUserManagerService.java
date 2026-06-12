@@ -9,10 +9,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
-import com.example.KendyDigital.dto.AdminUserDetailResponse;
-import com.example.KendyDigital.dto.AdminUserResponse;
-import com.example.KendyDigital.dto.AdminUserRoleUpdateRequest;
-import com.example.KendyDigital.dto.AdminUserStatusUpdateRequest;
+import com.example.KendyDigital.dto.user.response.AdminUserDetailResponse;
+import com.example.KendyDigital.dto.user.response.AdminUserResponse;
+import com.example.KendyDigital.dto.user.request.AdminUserRoleUpdateRequest;
+import com.example.KendyDigital.dto.user.request.AdminUserStatusUpdateRequest;
 import com.example.KendyDigital.model.DepositStatus;
 import com.example.KendyDigital.model.UserAccount;
 import com.example.KendyDigital.model.UserStatus;

@@ -1,4 +1,16 @@
 package com.example.KendyDigital.controller;
+import com.example.KendyDigital.dto.auth.request.AuthEmailRequest;
+import com.example.KendyDigital.dto.auth.request.AuthForgotPasswordRequest;
+import com.example.KendyDigital.dto.auth.request.AuthLoginRequest;
+import com.example.KendyDigital.dto.auth.request.AuthRegisterRequest;
+import com.example.KendyDigital.dto.auth.request.AuthResetPasswordRequest;
+import com.example.KendyDigital.dto.auth.request.AuthTwoFactorEmailRequest;
+import com.example.KendyDigital.dto.auth.request.AuthVerifyEmailRequest;
+import com.example.KendyDigital.dto.auth.request.OAuthTwoFactorVerifyRequest;
+import com.example.KendyDigital.dto.auth.response.AuthTokenResponse;
+import com.example.KendyDigital.dto.auth.response.AuthUserResponse;
+import com.example.KendyDigital.dto.auth.response.SecurityTokenResponse;
+
 
 
 
@@ -14,7 +26,6 @@ import com.example.KendyDigital.service.*;
 import com.example.KendyDigital.security.*;
 import com.example.KendyDigital.repository.*;
 import com.example.KendyDigital.model.*;
-import com.example.KendyDigital.dto.*;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;

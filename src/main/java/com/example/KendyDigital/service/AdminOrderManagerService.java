@@ -8,7 +8,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.example.KendyDigital.dto.OrderResponse;
+import com.example.KendyDigital.dto.order.response.OrderResponse;
 import com.example.KendyDigital.model.OrderRecord;
 import com.example.KendyDigital.model.OrderStatus;
 import com.example.KendyDigital.repository.OrderRepository;

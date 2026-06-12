@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.example.KendyDigital.dto.ServiceResponse;
+import com.example.KendyDigital.dto.catalog.response.ServiceResponse;
 import com.example.KendyDigital.security.CurrentUser;
 import com.example.KendyDigital.service.UserServicePreferenceService;
 
