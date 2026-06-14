@@ -30,7 +30,6 @@ public class OAuth2AuthService {
     private final UserSecurityService userSecurityService;
     private final SystemSettingRepository systemSettingRepository;
     private final AuditService auditService;
-    private final UserNotificationService userNotificationService;
     private final RestClient restClient = RestClient.create();
     private final SecureRandom secureRandom = new SecureRandom();
 
@@ -39,15 +38,13 @@ public class OAuth2AuthService {
             AuthTokenService authTokenService,
             UserSecurityService userSecurityService,
             SystemSettingRepository systemSettingRepository,
-            AuditService auditService,
-            UserNotificationService userNotificationService) {
+            AuditService auditService) {
         this.userAccountRepository = userAccountRepository;
         this.passwordEncoder = passwordEncoder;
         this.authTokenService = authTokenService;
         this.userSecurityService = userSecurityService;
         this.systemSettingRepository = systemSettingRepository;
         this.auditService = auditService;
-        this.userNotificationService = userNotificationService;
     }
 
     @Transactional(noRollbackFor = OAuthTwoFactorRequiredException.class)
@@ -81,11 +78,6 @@ public class OAuth2AuthService {
 
         AuthTokenService.IssuedToken issuedToken = authTokenService.issue(user);
         auditService.recordSystem("USER_OAUTH_LOGIN", "USER", user.getId(), "provider=" + profile.provider());
-        userNotificationService.create(user.getId(),
-                "New " + profile.providerDisplayName() + " login",
-                "Your account signed in with " + profile.providerDisplayName() + ".",
-                "SECURITY",
-                "/account/security");
         return new AuthTokenResponse(issuedToken.token(), issuedToken.expiresAt(), AuthUserResponse.from(user));
     }
 
