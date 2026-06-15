@@ -1,7 +1,6 @@
 package com.example.KendyDigital.dto.user.response;
+
 import com.example.KendyDigital.dto.auth.response.AuthUserResponse;
-
-
 import java.math.BigDecimal;
 
 public record UserDashboardResponse(

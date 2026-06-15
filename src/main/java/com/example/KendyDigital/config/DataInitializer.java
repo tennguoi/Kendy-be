@@ -1,14 +1,15 @@
 // package com.example.KendyDigital.config;
 
+
 // import org.springframework.boot.CommandLineRunner;
 // import org.springframework.security.crypto.password.PasswordEncoder;
 // import org.springframework.stereotype.Component;
 // import org.springframework.transaction.annotation.Transactional;
 
-// import com.example.KendyDigital.model.AdminRole;
-// import com.example.KendyDigital.model.UserAccount;
-// import com.example.KendyDigital.model.UserAdminRole;
-// import com.example.KendyDigital.model.UserRole;
+// import com.example.KendyDigital.model.admin.AdminRole;
+// import com.example.KendyDigital.model.user.UserAccount;
+// import com.example.KendyDigital.model.user.UserAdminRole;
+// import com.example.KendyDigital.model.user.UserRole;
 // import com.example.KendyDigital.repository.AdminRoleRepository;
 // import com.example.KendyDigital.repository.UserAccountRepository;
 // import com.example.KendyDigital.repository.UserAdminRoleRepository;

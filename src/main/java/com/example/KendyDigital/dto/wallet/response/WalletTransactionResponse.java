@@ -1,13 +1,10 @@
 package com.example.KendyDigital.dto.wallet.response;
 
-
-import com.example.KendyDigital.model.*;
+import com.example.KendyDigital.model.wallet.WalletTransaction;
+import com.example.KendyDigital.model.wallet.WalletTransactionDirection;
+import com.example.KendyDigital.model.wallet.WalletTransactionType;
 import java.math.BigDecimal;
 import java.time.Instant;
-
-import com.example.KendyDigital.model.WalletTransaction;
-import com.example.KendyDigital.model.WalletTransactionDirection;
-import com.example.KendyDigital.model.WalletTransactionType;
 
 public record WalletTransactionResponse(
         Long id,

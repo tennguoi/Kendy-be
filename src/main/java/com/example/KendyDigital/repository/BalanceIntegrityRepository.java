@@ -1,11 +1,10 @@
 package com.example.KendyDigital.repository;
 
 import com.example.KendyDigital.dto.finance.response.BalanceIntegrityIssueResponse;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.stereotype.Repository;
-
 import java.math.BigDecimal;
 import java.util.List;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.stereotype.Repository;
 
 @Repository
 public class BalanceIntegrityRepository {

@@ -1,11 +1,9 @@
 package com.example.KendyDigital.repository;
 
+import com.example.KendyDigital.model.user.UserSecurityToken;
+import com.example.KendyDigital.model.user.UserSecurityTokenType;
 import java.util.Optional;
-
 import org.springframework.data.jpa.repository.JpaRepository;
-
-import com.example.KendyDigital.model.UserSecurityToken;
-import com.example.KendyDigital.model.UserSecurityTokenType;
 
 public interface UserSecurityTokenRepository extends JpaRepository<UserSecurityToken, Long> {
     Optional<UserSecurityToken> findByTokenHashAndTypeAndUsedAtIsNull(String tokenHash, UserSecurityTokenType type);

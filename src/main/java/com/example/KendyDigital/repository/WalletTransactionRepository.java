@@ -1,17 +1,15 @@
 package com.example.KendyDigital.repository;
 
+import com.example.KendyDigital.model.wallet.WalletTransaction;
+import com.example.KendyDigital.model.wallet.WalletTransactionDirection;
+import com.example.KendyDigital.model.wallet.WalletTransactionType;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
-
-import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
-
-import com.example.KendyDigital.model.WalletTransaction;
-import com.example.KendyDigital.model.WalletTransactionDirection;
-import com.example.KendyDigital.model.WalletTransactionType;
 
 public interface WalletTransactionRepository extends JpaRepository<WalletTransaction, Long> {
     boolean existsByTransactionCode(String transactionCode);

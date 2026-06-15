@@ -1,7 +1,5 @@
 package com.example.KendyDigital.dto.wallet.response;
 
-
-import com.example.KendyDigital.model.*;
 import java.math.BigDecimal;
 import java.util.List;
 

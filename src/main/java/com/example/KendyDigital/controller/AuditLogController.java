@@ -1,13 +1,11 @@
 package com.example.KendyDigital.controller;
 
+import com.example.KendyDigital.dto.audit.response.AuditLogResponse;
+import com.example.KendyDigital.service.audit.AuditService;
 import java.util.List;
-
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-
-import com.example.KendyDigital.dto.audit.response.AuditLogResponse;
-import com.example.KendyDigital.service.AuditService;
 
 @RestController
 public class AuditLogController {

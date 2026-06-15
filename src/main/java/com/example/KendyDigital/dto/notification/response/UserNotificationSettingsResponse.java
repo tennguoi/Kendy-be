@@ -1,6 +1,6 @@
 package com.example.KendyDigital.dto.notification.response;
 
-import com.example.KendyDigital.model.UserNotificationSettings;
+import com.example.KendyDigital.model.user.UserNotificationSettings;
 
 public record UserNotificationSettingsResponse(
         boolean orderUpdates,

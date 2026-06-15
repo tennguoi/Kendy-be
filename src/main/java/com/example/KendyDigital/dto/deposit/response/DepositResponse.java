@@ -1,14 +1,11 @@
 package com.example.KendyDigital.dto.deposit.response;
 
-
-import com.example.KendyDigital.model.*;
+import com.example.KendyDigital.model.deposit.DepositRequest;
+import com.example.KendyDigital.model.deposit.DepositStatus;
 import java.math.BigDecimal;
-import java.time.Instant;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
-
-import com.example.KendyDigital.model.DepositRequest;
-import com.example.KendyDigital.model.DepositStatus;
+import java.time.Instant;
 
 public record DepositResponse(
         Long id,

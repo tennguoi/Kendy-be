@@ -1,9 +1,8 @@
 package com.example.KendyDigital.dto.role.response;
 
+import com.example.KendyDigital.model.admin.AdminRole;
 import java.time.Instant;
 import java.util.List;
-
-import com.example.KendyDigital.model.AdminRole;
 
 public record AdminRoleResponse(
         Long id,

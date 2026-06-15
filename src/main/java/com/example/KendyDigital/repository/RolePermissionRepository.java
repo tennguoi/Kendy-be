@@ -1,10 +1,8 @@
 package com.example.KendyDigital.repository;
 
+import com.example.KendyDigital.model.admin.RolePermission;
 import java.util.List;
-
 import org.springframework.data.jpa.repository.JpaRepository;
-
-import com.example.KendyDigital.model.RolePermission;
 
 public interface RolePermissionRepository extends JpaRepository<RolePermission, Long> {
     List<RolePermission> findAllByRole_Id(Long roleId);

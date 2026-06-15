@@ -1,7 +1,6 @@
 package com.example.KendyDigital.common;
 
 import java.security.SecureRandom;
-
 import org.springframework.stereotype.Component;
 
 @Component

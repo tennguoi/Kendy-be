@@ -1,8 +1,7 @@
 package com.example.KendyDigital.dto.monitoring.response;
 
+import com.example.KendyDigital.model.job.JobRecord;
 import java.time.Instant;
-
-import com.example.KendyDigital.model.JobRecord;
 
 public record JobRecordResponse(
         Long id,

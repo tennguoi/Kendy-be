@@ -1,19 +1,16 @@
 package com.example.KendyDigital.repository;
 
+import com.example.KendyDigital.model.order.OrderRecord;
+import com.example.KendyDigital.model.order.OrderStatus;
+import jakarta.persistence.LockModeType;
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
-import java.math.BigDecimal;
-
-import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
-
-import jakarta.persistence.LockModeType;
-
-import com.example.KendyDigital.model.OrderRecord;
-import com.example.KendyDigital.model.OrderStatus;
 
 public interface OrderRepository extends JpaRepository<OrderRecord, Long> {
     boolean existsByOrderCode(String orderCode);

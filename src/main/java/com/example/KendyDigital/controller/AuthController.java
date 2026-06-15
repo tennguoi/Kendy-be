@@ -1,4 +1,6 @@
 package com.example.KendyDigital.controller;
+
+import com.example.KendyDigital.config.AppOAuth2Properties;
 import com.example.KendyDigital.dto.auth.request.AuthEmailRequest;
 import com.example.KendyDigital.dto.auth.request.AuthForgotPasswordRequest;
 import com.example.KendyDigital.dto.auth.request.AuthLoginRequest;
@@ -10,22 +12,14 @@ import com.example.KendyDigital.dto.auth.request.OAuthTwoFactorVerifyRequest;
 import com.example.KendyDigital.dto.auth.response.AuthTokenResponse;
 import com.example.KendyDigital.dto.auth.response.AuthUserResponse;
 import com.example.KendyDigital.dto.auth.response.SecurityTokenResponse;
-
-
-
-
-
-
-
+import com.example.KendyDigital.repository.*;
+import com.example.KendyDigital.security.*;
+import com.example.KendyDigital.service.auth.AuthService;
+import com.example.KendyDigital.service.security.UserSecurityService;
+import jakarta.validation.Valid;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-
-import com.example.KendyDigital.config.AppOAuth2Properties;
-import com.example.KendyDigital.service.*;
-import com.example.KendyDigital.security.*;
-import com.example.KendyDigital.repository.*;
-import com.example.KendyDigital.model.*;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -35,8 +29,6 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
-
-import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/auth")

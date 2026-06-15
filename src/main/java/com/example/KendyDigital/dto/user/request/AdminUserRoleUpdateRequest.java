@@ -1,7 +1,6 @@
 package com.example.KendyDigital.dto.user.request;
 
-import com.example.KendyDigital.model.UserRole;
-
+import com.example.KendyDigital.model.user.UserRole;
 import jakarta.validation.constraints.NotNull;
 
 public record AdminUserRoleUpdateRequest(

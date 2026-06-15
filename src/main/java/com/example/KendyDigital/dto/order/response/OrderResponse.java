@@ -1,10 +1,9 @@
 package com.example.KendyDigital.dto.order.response;
 
+import com.example.KendyDigital.model.order.OrderRecord;
+import com.example.KendyDigital.model.order.OrderStatus;
 import java.math.BigDecimal;
 import java.time.Instant;
-
-import com.example.KendyDigital.model.OrderRecord;
-import com.example.KendyDigital.model.OrderStatus;
 
 public record OrderResponse(
         Long id,

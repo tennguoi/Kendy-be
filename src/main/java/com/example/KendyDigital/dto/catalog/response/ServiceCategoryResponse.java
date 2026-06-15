@@ -1,8 +1,7 @@
 package com.example.KendyDigital.dto.catalog.response;
 
+import com.example.KendyDigital.model.catalog.ServiceCategory;
 import java.time.Instant;
-
-import com.example.KendyDigital.model.ServiceCategory;
 
 public record ServiceCategoryResponse(
         Long id,

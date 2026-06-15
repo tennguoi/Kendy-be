@@ -1,8 +1,7 @@
 package com.example.KendyDigital.dto.deposit.response;
 
+import com.example.KendyDigital.model.deposit.DepositStatus;
 import java.time.Instant;
-
-import com.example.KendyDigital.model.DepositStatus;
 
 public record DepositStatusResponse(
         String depositCode,

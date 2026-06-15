@@ -1,8 +1,7 @@
 package com.example.KendyDigital.dto.ticket.request;
 
-import com.example.KendyDigital.model.TicketCategory;
-import com.example.KendyDigital.model.TicketPriority;
-
+import com.example.KendyDigital.model.ticket.TicketCategory;
+import com.example.KendyDigital.model.ticket.TicketPriority;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 

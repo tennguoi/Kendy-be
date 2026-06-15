@@ -1,25 +1,22 @@
 package com.example.KendyDigital.security;
 
+import com.example.KendyDigital.config.AppOAuth2Properties;
+import com.example.KendyDigital.dto.auth.response.AuthTokenResponse;
+import com.example.KendyDigital.service.auth.OAuth2AuthService;
+import com.example.KendyDigital.service.auth.OAuthTwoFactorRequiredException;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
-
-import org.springframework.security.core.Authentication;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.client.OAuth2AuthorizedClient;
 import org.springframework.security.oauth2.client.OAuth2AuthorizedClientService;
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.stereotype.Component;
-
-import com.example.KendyDigital.config.AppOAuth2Properties;
-import com.example.KendyDigital.dto.auth.response.AuthTokenResponse;
-import com.example.KendyDigital.service.OAuth2AuthService;
-import com.example.KendyDigital.service.OAuthTwoFactorRequiredException;
-
-import jakarta.servlet.ServletException;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
 
 @Component
 public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccessHandler {

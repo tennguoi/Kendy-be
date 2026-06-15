@@ -1,8 +1,7 @@
 package com.example.KendyDigital.dto.audit.response;
 
+import com.example.KendyDigital.model.audit.AuditLog;
 import java.time.Instant;
-
-import com.example.KendyDigital.model.AuditLog;
 
 public record AuditLogResponse(
         Long id,

@@ -1,7 +1,8 @@
 package com.example.KendyDigital.dto.auth.response;
 
-
-import com.example.KendyDigital.model.*;
+import com.example.KendyDigital.model.user.UserAccount;
+import com.example.KendyDigital.model.user.UserRole;
+import com.example.KendyDigital.model.user.UserStatus;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;

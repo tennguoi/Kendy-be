@@ -1,21 +1,18 @@
 package com.example.KendyDigital.repository;
 
+import com.example.KendyDigital.model.user.UserAccount;
+import com.example.KendyDigital.model.user.UserRole;
+import com.example.KendyDigital.model.user.UserStatus;
+import jakarta.persistence.LockModeType;
 import java.math.BigDecimal;
-import java.util.Optional;
-import java.util.List;
 import java.time.Instant;
-
-import org.springframework.data.jpa.repository.JpaRepository;
+import java.util.List;
+import java.util.Optional;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
-
-import jakarta.persistence.LockModeType;
-
-import com.example.KendyDigital.model.UserAccount;
-import com.example.KendyDigital.model.UserRole;
-import com.example.KendyDigital.model.UserStatus;
 
 public interface UserAccountRepository extends JpaRepository<UserAccount, Long> {
     Optional<UserAccount> findByEmailIgnoreCase(String email);

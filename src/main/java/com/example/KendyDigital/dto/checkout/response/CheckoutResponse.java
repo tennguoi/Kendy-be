@@ -1,12 +1,11 @@
 package com.example.KendyDigital.dto.checkout.response;
 
-import java.math.BigDecimal;
-import java.time.Instant;
-
 import com.example.KendyDigital.dto.deposit.response.DepositResponse;
 import com.example.KendyDigital.dto.order.response.OrderResponse;
-import com.example.KendyDigital.model.CheckoutSession;
-import com.example.KendyDigital.model.CheckoutStatus;
+import com.example.KendyDigital.model.checkout.CheckoutSession;
+import com.example.KendyDigital.model.checkout.CheckoutStatus;
+import java.math.BigDecimal;
+import java.time.Instant;
 
 public record CheckoutResponse(
         String checkoutCode,

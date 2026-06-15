@@ -1,7 +1,5 @@
 package com.example.KendyDigital.dto.auth.request;
 
-
-import com.example.KendyDigital.model.*;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 

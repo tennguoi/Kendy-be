@@ -1,17 +1,17 @@
 package com.example.KendyDigital.repository;
 
+import com.example.KendyDigital.model.ticket.Ticket;
+import com.example.KendyDigital.model.ticket.TicketCategory;
+import com.example.KendyDigital.model.ticket.TicketPriority;
+import com.example.KendyDigital.model.ticket.TicketStatus;
+import jakarta.persistence.LockModeType;
 import java.util.List;
 import java.util.Optional;
-
-import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
-
-import com.example.KendyDigital.model.*;
-
-import jakarta.persistence.LockModeType;
 
 public interface TicketRepository extends JpaRepository<Ticket, Long> {
     boolean existsByTicketCode(String ticketCode);

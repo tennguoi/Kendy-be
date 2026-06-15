@@ -1,17 +1,15 @@
 package com.example.KendyDigital.repository;
 
-
-import com.example.KendyDigital.model.*;
-import java.util.Optional;
+import com.example.KendyDigital.model.bank.BankTransaction;
+import com.example.KendyDigital.model.bank.BankTransactionStatus;
+import jakarta.persistence.LockModeType;
 import java.util.List;
-
-import org.springframework.data.jpa.repository.JpaRepository;
+import java.util.Optional;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
-
-import jakarta.persistence.LockModeType;
 
 public interface BankTransactionRepository extends JpaRepository<BankTransaction, Long> {
     Optional<BankTransaction> findByReferenceCode(String referenceCode);

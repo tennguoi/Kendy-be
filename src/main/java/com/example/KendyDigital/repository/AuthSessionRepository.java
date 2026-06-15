@@ -1,12 +1,10 @@
 package com.example.KendyDigital.repository;
 
-
-import com.example.KendyDigital.model.*;
-import java.util.Optional;
+import com.example.KendyDigital.model.auth.AuthSession;
 import java.util.List;
-
-import org.springframework.data.jpa.repository.JpaRepository;
+import java.util.Optional;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface AuthSessionRepository extends JpaRepository<AuthSession, Long> {
     Optional<AuthSession> findByTokenHashAndRevokedAtIsNull(String tokenHash);

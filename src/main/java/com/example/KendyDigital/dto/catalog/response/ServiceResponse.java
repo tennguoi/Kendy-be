@@ -1,13 +1,11 @@
 package com.example.KendyDigital.dto.catalog.response;
 
+import com.example.KendyDigital.model.catalog.ServiceCtaType;
+import com.example.KendyDigital.model.catalog.ServiceItem;
+import com.example.KendyDigital.model.catalog.ServiceStatus;
+import com.example.KendyDigital.model.catalog.ServiceStockStatus;
+import com.example.KendyDigital.model.catalog.ServiceType;
 import java.math.BigDecimal;
-
-import com.example.KendyDigital.model.ServiceCategory;
-import com.example.KendyDigital.model.ServiceCtaType;
-import com.example.KendyDigital.model.ServiceItem;
-import com.example.KendyDigital.model.ServiceStatus;
-import com.example.KendyDigital.model.ServiceStockStatus;
-import com.example.KendyDigital.model.ServiceType;
 
 public record ServiceResponse(
         Long id,

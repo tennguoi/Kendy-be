@@ -1,9 +1,8 @@
 package com.example.KendyDigital.dto.user.response;
 
+import com.example.KendyDigital.model.user.UserApiKey;
 import java.time.Instant;
 import java.util.List;
-
-import com.example.KendyDigital.model.UserApiKey;
 
 public record UserApiKeyResponse(
         Long id,

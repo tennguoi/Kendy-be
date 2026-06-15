@@ -1,8 +1,7 @@
 package com.example.KendyDigital.dto.role.response;
 
+import com.example.KendyDigital.model.admin.AdminPermission;
 import java.time.Instant;
-
-import com.example.KendyDigital.model.AdminPermission;
 
 public record AdminPermissionResponse(
         Long id,

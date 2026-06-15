@@ -1,15 +1,13 @@
 package com.example.KendyDigital.repository;
 
+import com.example.KendyDigital.model.catalog.ServiceItem;
+import com.example.KendyDigital.model.catalog.ServiceStatus;
 import java.util.List;
 import java.util.Optional;
-
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
-
-import com.example.KendyDigital.model.ServiceItem;
-import com.example.KendyDigital.model.ServiceStatus;
 
 public interface ServiceItemRepository extends JpaRepository<ServiceItem, Long> {
     boolean existsBySlug(String slug);
@@ -57,7 +55,7 @@ public interface ServiceItemRepository extends JpaRepository<ServiceItem, Long> 
 
     @Query("""
             select s from ServiceItem s
-            where s.status = com.example.KendyDigital.model.ServiceStatus.ACTIVE
+            where s.status = com.example.KendyDigital.model.catalog.ServiceStatus.ACTIVE
               and s.publicVisible = true
               and (:categoryId is null or s.category.id = :categoryId)
               and (:categorySlug is null or s.category.slug = :categorySlug)

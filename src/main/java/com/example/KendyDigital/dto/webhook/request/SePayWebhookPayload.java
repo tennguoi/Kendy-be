@@ -1,7 +1,5 @@
 package com.example.KendyDigital.dto.webhook.request;
 
-
-import com.example.KendyDigital.model.*;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import java.math.BigDecimal;
 

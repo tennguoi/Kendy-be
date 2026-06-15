@@ -1,8 +1,7 @@
 package com.example.KendyDigital.repository;
 
+import com.example.KendyDigital.model.user.UserNotificationSettings;
 import org.springframework.data.jpa.repository.JpaRepository;
-
-import com.example.KendyDigital.model.UserNotificationSettings;
 
 public interface UserNotificationSettingsRepository extends JpaRepository<UserNotificationSettings, Long> {
 }

@@ -1,9 +1,8 @@
 package com.example.KendyDigital.dto.ticket.response;
 
+import com.example.KendyDigital.model.ticket.TicketMessage;
+import com.example.KendyDigital.model.ticket.TicketSenderRole;
 import java.time.Instant;
-
-import com.example.KendyDigital.model.TicketMessage;
-import com.example.KendyDigital.model.TicketSenderRole;
 
 public record TicketMessageResponse(
         Long id,

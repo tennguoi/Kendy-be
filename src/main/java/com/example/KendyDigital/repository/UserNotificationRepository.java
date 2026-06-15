@@ -1,12 +1,10 @@
 package com.example.KendyDigital.repository;
 
+import com.example.KendyDigital.model.user.UserNotification;
 import java.util.List;
 import java.util.Optional;
-
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
-
-import com.example.KendyDigital.model.UserNotification;
 
 public interface UserNotificationRepository extends JpaRepository<UserNotification, Long> {
     List<UserNotification> findAllByUser_IdOrderByCreatedAtDesc(Long userId, Pageable pageable);

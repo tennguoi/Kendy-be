@@ -1,35 +1,32 @@
 package com.example.KendyDigital.controller;
 
-import java.util.List;
-
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.security.core.Authentication;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RestController;
-
-import com.example.KendyDigital.dto.auth.response.AuthUserResponse;
-import com.example.KendyDigital.dto.user.request.ChangePasswordRequest;
-import com.example.KendyDigital.dto.auth.response.TotpSetupResponse;
 import com.example.KendyDigital.dto.auth.request.TwoFactorDisableRequest;
 import com.example.KendyDigital.dto.auth.request.TwoFactorVerifyRequest;
-import com.example.KendyDigital.dto.user.request.UpdateProfileRequest;
+import com.example.KendyDigital.dto.auth.response.AuthSessionResponse;
+import com.example.KendyDigital.dto.auth.response.AuthUserResponse;
 import com.example.KendyDigital.dto.auth.response.SecurityTokenResponse;
+import com.example.KendyDigital.dto.auth.response.TotpSetupResponse;
+import com.example.KendyDigital.dto.user.request.ChangePasswordRequest;
+import com.example.KendyDigital.dto.user.request.UpdateProfileRequest;
 import com.example.KendyDigital.dto.user.request.UserApiKeyCreateRequest;
 import com.example.KendyDigital.dto.user.response.UserApiKeyCreatedResponse;
 import com.example.KendyDigital.dto.user.response.UserApiKeyResponse;
 import com.example.KendyDigital.dto.user.response.UserDashboardResponse;
 import com.example.KendyDigital.dto.user.response.UserSecurityOverviewResponse;
-import com.example.KendyDigital.dto.auth.response.AuthSessionResponse;
 import com.example.KendyDigital.security.CurrentUser;
-import com.example.KendyDigital.service.UserSecurityService;
-import com.example.KendyDigital.service.UserProfileService;
-
+import com.example.KendyDigital.service.security.UserSecurityService;
+import com.example.KendyDigital.service.user.UserProfileService;
 import jakarta.validation.Valid;
+import java.util.List;
+import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 public class MeController {

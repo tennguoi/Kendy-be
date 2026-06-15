@@ -1,7 +1,8 @@
 package com.example.KendyDigital.dto.user.response;
 
-
-import com.example.KendyDigital.model.*;
+import com.example.KendyDigital.model.user.UserAccount;
+import com.example.KendyDigital.model.user.UserRole;
+import com.example.KendyDigital.model.user.UserStatus;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
@@ -17,7 +18,9 @@ public record AdminUserResponse(
         BigDecimal balance,
         boolean twoFactorEnabled,
         Instant createdAt,
-        Instant updatedAt) {
+        Instant updatedAt,
+        String avatarUrl
+        ) {
     public static AdminUserResponse from(UserAccount user) {
         return new AdminUserResponse(
                 user.getId(),
@@ -30,6 +33,8 @@ public record AdminUserResponse(
                 user.getBalance(),
                 user.isTwoFactorEnabled(),
                 user.getCreatedAt(),
-                user.getUpdatedAt());
+                user.getUpdatedAt(),
+                user.getAvatarUrl()
+        );
     }
 }

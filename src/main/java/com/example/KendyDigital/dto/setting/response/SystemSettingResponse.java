@@ -1,8 +1,7 @@
 package com.example.KendyDigital.dto.setting.response;
 
+import com.example.KendyDigital.model.setting.SystemSetting;
 import java.time.Instant;
-
-import com.example.KendyDigital.model.SystemSetting;
 
 public record SystemSettingResponse(
         String key,

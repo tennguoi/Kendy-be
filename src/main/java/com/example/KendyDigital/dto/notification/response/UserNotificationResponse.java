@@ -1,8 +1,7 @@
 package com.example.KendyDigital.dto.notification.response;
 
+import com.example.KendyDigital.model.user.UserNotification;
 import java.time.Instant;
-
-import com.example.KendyDigital.model.UserNotification;
 
 public record UserNotificationResponse(
         Long id,

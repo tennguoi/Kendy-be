@@ -1,12 +1,11 @@
 package com.example.KendyDigital.dto.ticket.response;
 
+import com.example.KendyDigital.model.ticket.Ticket;
+import com.example.KendyDigital.model.ticket.TicketCategory;
+import com.example.KendyDigital.model.ticket.TicketPriority;
+import com.example.KendyDigital.model.ticket.TicketStatus;
 import java.time.Instant;
 import java.util.List;
-
-import com.example.KendyDigital.model.Ticket;
-import com.example.KendyDigital.model.TicketCategory;
-import com.example.KendyDigital.model.TicketPriority;
-import com.example.KendyDigital.model.TicketStatus;
 
 public record TicketResponse(
         Long id,

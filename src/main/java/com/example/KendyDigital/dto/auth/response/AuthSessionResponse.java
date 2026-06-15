@@ -1,8 +1,7 @@
 package com.example.KendyDigital.dto.auth.response;
 
+import com.example.KendyDigital.model.auth.AuthSession;
 import java.time.Instant;
-
-import com.example.KendyDigital.model.AuthSession;
 
 public record AuthSessionResponse(
         Long id,

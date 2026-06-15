@@ -1,5 +1,11 @@
 package com.example.KendyDigital.config;
 
+import com.example.KendyDigital.common.RateLimitFilter;
+import com.example.KendyDigital.common.RequestIdFilter;
+import com.example.KendyDigital.security.ApiKeyAuthenticationFilter;
+import com.example.KendyDigital.security.BearerTokenAuthenticationFilter;
+import com.example.KendyDigital.security.OAuth2AuthenticationFailureHandler;
+import com.example.KendyDigital.security.OAuth2AuthenticationSuccessHandler;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -14,13 +20,6 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
-
-import com.example.KendyDigital.security.BearerTokenAuthenticationFilter;
-import com.example.KendyDigital.security.ApiKeyAuthenticationFilter;
-import com.example.KendyDigital.security.OAuth2AuthenticationFailureHandler;
-import com.example.KendyDigital.security.OAuth2AuthenticationSuccessHandler;
-import com.example.KendyDigital.common.RateLimitFilter;
-import com.example.KendyDigital.common.RequestIdFilter;
 
 @Configuration
 @EnableWebSecurity

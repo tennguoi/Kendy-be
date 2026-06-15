@@ -1,14 +1,12 @@
 package com.example.KendyDigital.dto.catalog.request;
 
-import java.math.BigDecimal;
-
-import com.example.KendyDigital.model.ServiceCtaType;
-import com.example.KendyDigital.model.ServiceStatus;
-import com.example.KendyDigital.model.ServiceStockStatus;
-import com.example.KendyDigital.model.ServiceType;
-
+import com.example.KendyDigital.model.catalog.ServiceCtaType;
+import com.example.KendyDigital.model.catalog.ServiceStatus;
+import com.example.KendyDigital.model.catalog.ServiceStockStatus;
+import com.example.KendyDigital.model.catalog.ServiceType;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Min;
+import java.math.BigDecimal;
 
 public record UpdateServiceRequest(
         String name,

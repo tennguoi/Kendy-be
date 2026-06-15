@@ -1,15 +1,12 @@
 package com.example.KendyDigital.repository;
 
+import com.example.KendyDigital.model.checkout.CheckoutSession;
+import jakarta.persistence.LockModeType;
 import java.util.Optional;
-
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
-
-import com.example.KendyDigital.model.CheckoutSession;
-
-import jakarta.persistence.LockModeType;
 
 public interface CheckoutSessionRepository extends JpaRepository<CheckoutSession, Long> {
     boolean existsByCheckoutCode(String checkoutCode);

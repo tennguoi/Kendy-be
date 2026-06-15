@@ -1,8 +1,7 @@
 package com.example.KendyDigital.dto.file.response;
 
+import com.example.KendyDigital.model.file.StoredFile;
 import java.time.Instant;
-
-import com.example.KendyDigital.model.StoredFile;
 
 public record StoredFileResponse(
         Long id,

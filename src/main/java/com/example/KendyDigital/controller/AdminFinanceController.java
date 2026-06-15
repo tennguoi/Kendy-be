@@ -1,13 +1,45 @@
 package com.example.KendyDigital.controller;
+
+import com.example.KendyDigital.dto.deposit.response.DepositResponse;
+import com.example.KendyDigital.dto.finance.request.AdminDepositCancelRequest;
+import com.example.KendyDigital.dto.finance.request.AdminDepositExtendRequest;
+import com.example.KendyDigital.dto.finance.request.BulkManualCreditBankTransactionsRequest;
+import com.example.KendyDigital.dto.finance.request.IgnoreBankTransactionRequest;
+import com.example.KendyDigital.dto.finance.request.ManualCreditBankTransactionRequest;
+import com.example.KendyDigital.dto.finance.request.ManualCreditDepositRequest;
+import com.example.KendyDigital.dto.finance.request.MatchBankTransactionRequest;
+import com.example.KendyDigital.dto.finance.request.ReprocessBankTransactionRequest;
+import com.example.KendyDigital.dto.finance.response.AdminBankTransactionResponse;
+import com.example.KendyDigital.dto.finance.response.AdminDashboardResponse;
+import com.example.KendyDigital.dto.finance.response.BalanceIntegrityIssueResponse;
 import com.example.KendyDigital.dto.finance.response.RevenueReportResponse;
-
-
+import com.example.KendyDigital.dto.order.response.OrderResponse;
+import com.example.KendyDigital.dto.user.request.AdminUserRoleUpdateRequest;
+import com.example.KendyDigital.dto.user.request.AdminUserStatusUpdateRequest;
+import com.example.KendyDigital.dto.user.request.AdminWalletAdjustmentRequest;
+import com.example.KendyDigital.dto.user.response.AdminUserDetailResponse;
+import com.example.KendyDigital.dto.user.response.AdminUserResponse;
+import com.example.KendyDigital.dto.wallet.response.WalletTransactionResponse;
+import com.example.KendyDigital.model.bank.BankTransactionStatus;
+import com.example.KendyDigital.model.deposit.DepositStatus;
+import com.example.KendyDigital.model.order.OrderStatus;
+import com.example.KendyDigital.model.user.UserStatus;
+import com.example.KendyDigital.model.wallet.WalletTransactionDirection;
+import com.example.KendyDigital.model.wallet.WalletTransactionType;
+import com.example.KendyDigital.security.CurrentUser;
+import com.example.KendyDigital.service.bank.AdminBankTxManagerService;
+import com.example.KendyDigital.service.deposit.AdminDepositManagerService;
+import com.example.KendyDigital.service.finance.AdminFinanceReportService;
+import com.example.KendyDigital.service.finance.BalanceIntegrityService;
+import com.example.KendyDigital.service.order.AdminOrderManagerService;
+import com.example.KendyDigital.service.user.AdminUserManagerService;
+import com.example.KendyDigital.service.wallet.AdminWalletManagerService;
+import jakarta.validation.Valid;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
-
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -16,41 +48,6 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-
-import com.example.KendyDigital.dto.finance.response.AdminBankTransactionResponse;
-import com.example.KendyDigital.dto.finance.response.AdminDashboardResponse;
-import com.example.KendyDigital.dto.finance.request.AdminDepositCancelRequest;
-import com.example.KendyDigital.dto.finance.request.AdminDepositExtendRequest;
-import com.example.KendyDigital.dto.user.response.AdminUserDetailResponse;
-import com.example.KendyDigital.dto.user.response.AdminUserResponse;
-import com.example.KendyDigital.dto.user.request.AdminUserRoleUpdateRequest;
-import com.example.KendyDigital.dto.user.request.AdminUserStatusUpdateRequest;
-import com.example.KendyDigital.dto.user.request.AdminWalletAdjustmentRequest;
-import com.example.KendyDigital.dto.finance.response.BalanceIntegrityIssueResponse;
-import com.example.KendyDigital.dto.finance.request.BulkManualCreditBankTransactionsRequest;
-import com.example.KendyDigital.dto.deposit.response.DepositResponse;
-import com.example.KendyDigital.dto.finance.request.IgnoreBankTransactionRequest;
-import com.example.KendyDigital.dto.finance.request.ManualCreditBankTransactionRequest;
-import com.example.KendyDigital.dto.finance.request.ManualCreditDepositRequest;
-import com.example.KendyDigital.dto.finance.request.MatchBankTransactionRequest;
-import com.example.KendyDigital.dto.order.response.OrderResponse;
-import com.example.KendyDigital.dto.finance.request.ReprocessBankTransactionRequest;
-import com.example.KendyDigital.dto.wallet.response.WalletTransactionResponse;
-import com.example.KendyDigital.model.BankTransactionStatus;
-import com.example.KendyDigital.model.DepositStatus;
-import com.example.KendyDigital.model.UserStatus;
-import com.example.KendyDigital.model.WalletTransactionDirection;
-import com.example.KendyDigital.model.WalletTransactionType;
-import com.example.KendyDigital.security.CurrentUser;
-import com.example.KendyDigital.service.AdminUserManagerService;
-import com.example.KendyDigital.service.AdminDepositManagerService;
-import com.example.KendyDigital.service.AdminBankTxManagerService;
-import com.example.KendyDigital.service.AdminWalletManagerService;
-import com.example.KendyDigital.service.AdminOrderManagerService;
-import com.example.KendyDigital.service.AdminFinanceReportService;
-import com.example.KendyDigital.service.BalanceIntegrityService;
-
-import jakarta.validation.Valid;
 
 @RestController
 public class AdminFinanceController {
@@ -297,7 +294,7 @@ public class AdminFinanceController {
     }
 
     @GetMapping("/api/admin/orders")
-    public List<OrderResponse> listOrders(@RequestParam(required = false) com.example.KendyDigital.model.OrderStatus status,
+    public List<OrderResponse> listOrders(@RequestParam(required = false) com.example.KendyDigital.model.order.OrderStatus status,
             @RequestParam(required = false) Long userId,
             @RequestParam(required = false) String fromDate,
             @RequestParam(required = false) String toDate,
@@ -308,7 +305,7 @@ public class AdminFinanceController {
 
     @GetMapping("/api/admin/orders/search")
     public List<OrderResponse> searchOrders(@RequestParam(required = false) String query,
-            @RequestParam(required = false) com.example.KendyDigital.model.OrderStatus status,
+            @RequestParam(required = false) com.example.KendyDigital.model.order.OrderStatus status,
             @RequestParam(required = false) Long userId,
             @RequestParam(required = false) String fromDate,
             @RequestParam(required = false) String toDate,

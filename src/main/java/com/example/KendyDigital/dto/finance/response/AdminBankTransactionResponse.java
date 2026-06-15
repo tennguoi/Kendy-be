@@ -1,12 +1,9 @@
 package com.example.KendyDigital.dto.finance.response;
 
-
-import com.example.KendyDigital.model.*;
+import com.example.KendyDigital.model.bank.BankTransaction;
+import com.example.KendyDigital.model.bank.BankTransactionStatus;
 import java.math.BigDecimal;
 import java.time.Instant;
-
-import com.example.KendyDigital.model.BankTransaction;
-import com.example.KendyDigital.model.BankTransactionStatus;
 
 public record AdminBankTransactionResponse(
         Long id,
