@@ -94,7 +94,7 @@ class OrderRaceConditionIntegrationTest {
             buyer3 = createUser("buyer3_" + counter, "buyer3_" + counter + "@test.com");
             adminUser = createAdmin("admin_" + counter, "admin_" + counter + "@test.com");
 
-            var catReq = new CreateServiceCategoryRequest("Cat " + counter, "cat-" + counter, null, 0, null);
+            var catReq = new CreateServiceCategoryRequest("Cat " + counter, "cat-" + counter, null, 0, null, null, null, null, null, null, null);
             var cat = categoryService.create(adminUser.getId(), catReq);
 
             var svcReq = new CreateServiceRequest(

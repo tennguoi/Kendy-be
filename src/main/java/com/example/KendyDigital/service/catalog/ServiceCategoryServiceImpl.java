@@ -71,6 +71,12 @@ public class ServiceCategoryServiceImpl  implements ServiceCategoryService{
         if (parent != null) {
             category.setParent(parent);
         }
+        category.setMicrocopy(request.microcopy());
+        category.setPriceFrom(request.priceFrom());
+        category.setProcessingTime(request.processingTime());
+        category.setWarranty(request.warranty());
+        category.setRequirements(request.requirements());
+        category.setCta(request.cta());
 
         ServiceCategory saved = serviceCategoryRepository.save(category);
         auditService.recordAdmin(adminUserId, "SERVICE_CATEGORY_CREATED", "SERVICE_CATEGORY", saved.getId(),
@@ -97,6 +103,24 @@ public class ServiceCategoryServiceImpl  implements ServiceCategoryService{
         }
         if (request.sortOrder() != null) {
             category.setSortOrder(request.sortOrder());
+        }
+        if (request.microcopy() != null) {
+            category.setMicrocopy(request.microcopy());
+        }
+        if (request.priceFrom() != null) {
+            category.setPriceFrom(request.priceFrom());
+        }
+        if (request.processingTime() != null) {
+            category.setProcessingTime(request.processingTime());
+        }
+        if (request.warranty() != null) {
+            category.setWarranty(request.warranty());
+        }
+        if (request.requirements() != null) {
+            category.setRequirements(request.requirements());
+        }
+        if (request.cta() != null) {
+            category.setCta(request.cta());
         }
         if (request.parentId() != null) {
             if (request.parentId().equals(category.getId())) {

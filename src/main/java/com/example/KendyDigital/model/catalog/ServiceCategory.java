@@ -46,6 +46,24 @@ public class ServiceCategory extends TimestampedEntity {
     @Column(name = "sort_order", nullable = false)
     private int sortOrder = 0;
 
+    @Column(name = "microcopy")
+    private String microcopy;
+
+    @Column(name = "price_from")
+    private String priceFrom;
+
+    @Column(name = "processing_time")
+    private String processingTime;
+
+    @Column(name = "warranty")
+    private String warranty;
+
+    @Column(name = "requirements", columnDefinition = "TEXT")
+    private String requirements;
+
+    @Column(name = "cta")
+    private String cta;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "parent_id")
     private ServiceCategory parent;

@@ -7,5 +7,11 @@ public record CreateServiceCategoryRequest(
         @NotBlank String slug,
         String description,
         Integer sortOrder,
-        Long parentId) {
+        Long parentId,
+        String microcopy,
+        String priceFrom,
+        String processingTime,
+        String warranty,
+        String requirements,
+        String cta) {
 }

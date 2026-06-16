@@ -121,9 +121,13 @@ public class ServiceCatalogServiceImpl  implements ServiceCatalogService{
                 normalizeOptionalSlug(categorySlug),
                 null,
                 page(200));
+        java.util.Map<Long, Long> orderCounts = new java.util.HashMap<>();
+        if ("popular".equalsIgnoreCase(sort) || "most_purchased".equalsIgnoreCase(sort)) {
+            orderCounts = getServiceOrderCounts();
+        }
         return services
                 .stream()
-                .sorted(comparator(sort))
+                .sorted(comparator(sort, orderCounts))
                 .limit(normalizedLimit)
                 .map(ServiceResponse::from)
                 .toList();
@@ -170,6 +174,10 @@ public class ServiceCatalogServiceImpl  implements ServiceCatalogService{
         String normalizedQuery = query == null || query.isBlank() ? null : query.trim();
         String queryPattern = likePattern(normalizedQuery);
         int normalizedLimit = normalizedLimit(limit);
+        java.util.Map<Long, Long> orderCounts = new java.util.HashMap<>();
+        if ("popular".equalsIgnoreCase(sort) || "most_purchased".equalsIgnoreCase(sort)) {
+            orderCounts = getServiceOrderCounts();
+        }
         return serviceItemRepository.searchPublic(
                 queryPattern,
                 parseLongOrNull(normalizedQuery),
@@ -178,7 +186,7 @@ public class ServiceCatalogServiceImpl  implements ServiceCatalogService{
                 featured,
                 page(200))
                 .stream()
-                .sorted(comparator(sort))
+                .sorted(comparator(sort, orderCounts))
                 .limit(normalizedLimit)
                 .map(ServicePricingResponse::from)
                 .toList();
@@ -404,7 +412,26 @@ public class ServiceCatalogServiceImpl  implements ServiceCatalogService{
         return query == null ? null : "%" + query.toLowerCase(Locale.ROOT) + "%";
     }
 
+    private java.util.Map<Long, Long> getServiceOrderCounts() {
+        java.util.Map<Long, Long> counts = new java.util.HashMap<>();
+        try {
+            List<Object[]> performance = orderRepository.servicePerformance(PageRequest.of(0, 1000));
+            for (Object[] row : performance) {
+                if (row.length >= 3 && row[0] instanceof Long serviceId && row[2] instanceof Long count) {
+                    counts.put(serviceId, count);
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("Failed to fetch service performance: " + e.getMessage());
+        }
+        return counts;
+    }
+
     private Comparator<ServiceItem> comparator(String sort) {
+        return comparator(sort, java.util.Collections.emptyMap());
+    }
+
+    private Comparator<ServiceItem> comparator(String sort, java.util.Map<Long, Long> orderCounts) {
         String normalized = sort == null || sort.isBlank()
                 ? "sort_order"
                 : sort.trim().toLowerCase(Locale.ROOT).replace("-", "_");
@@ -418,6 +445,11 @@ public class ServiceCatalogServiceImpl  implements ServiceCatalogService{
             case "price_desc" -> Comparator.comparing(ServiceItem::getPrice).reversed().thenComparing(defaultComparator);
             case "newest", "created_desc" -> Comparator.comparing(ServiceItem::getCreatedAt).reversed();
             case "featured" -> Comparator.comparing(ServiceItem::isFeatured).reversed().thenComparing(defaultComparator);
+            case "popular", "most_purchased" -> {
+                yield Comparator.<ServiceItem, Long>comparing(s -> orderCounts.getOrDefault(s.getId(), 0L))
+                        .reversed()
+                        .thenComparing(defaultComparator);
+            }
             default -> defaultComparator;
         };
     }

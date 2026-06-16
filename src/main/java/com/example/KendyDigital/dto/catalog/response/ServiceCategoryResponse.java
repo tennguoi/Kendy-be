@@ -11,7 +11,13 @@ public record ServiceCategoryResponse(
         int sortOrder,
         Long parentId,
         Instant createdAt,
-        Instant updatedAt) {
+        Instant updatedAt,
+        String microcopy,
+        String priceFrom,
+        String processingTime,
+        String warranty,
+        String requirements,
+        String cta) {
     public static ServiceCategoryResponse from(ServiceCategory category) {
         return new ServiceCategoryResponse(
                 category.getId(),
@@ -21,6 +27,12 @@ public record ServiceCategoryResponse(
                 category.getSortOrder(),
                 category.getParent() == null ? null : category.getParent().getId(),
                 category.getCreatedAt(),
-                category.getUpdatedAt());
+                category.getUpdatedAt(),
+                category.getMicrocopy(),
+                category.getPriceFrom(),
+                category.getProcessingTime(),
+                category.getWarranty(),
+                category.getRequirements(),
+                category.getCta());
     }
 }
