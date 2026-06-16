@@ -18,6 +18,7 @@ import com.example.KendyDigital.service.security.UserSecurityService;
 import com.example.KendyDigital.service.user.UserProfileService;
 import jakarta.validation.Valid;
 import java.util.List;
+import java.util.Map;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -58,6 +59,16 @@ public class MeController {
     @GetMapping("/api/me/dashboard")
     public UserDashboardResponse dashboard(Authentication authentication) {
         return userProfileService.dashboard(CurrentUser.require(authentication).userId());
+    }
+
+    @GetMapping("/api/me/export")
+    public Map<String, Object> exportPersonalData(Authentication authentication) {
+        return userProfileService.exportPersonalData(CurrentUser.require(authentication).userId());
+    }
+
+    @DeleteMapping("/api/me")
+    public Map<String, Object> deleteAccount(Authentication authentication) {
+        return userProfileService.deleteAccount(CurrentUser.require(authentication).userId());
     }
 
     @GetMapping("/api/me/security")

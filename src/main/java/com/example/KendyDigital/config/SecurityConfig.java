@@ -1,5 +1,6 @@
 package com.example.KendyDigital.config;
 
+import com.example.KendyDigital.common.MaintenanceModeFilter;
 import com.example.KendyDigital.common.RateLimitFilter;
 import com.example.KendyDigital.common.RequestIdFilter;
 import com.example.KendyDigital.security.ApiKeyAuthenticationFilter;
@@ -30,7 +31,8 @@ public class SecurityConfig {
                         ApiKeyAuthenticationFilter apiKeyAuthenticationFilter,
                         OAuth2AuthenticationSuccessHandler oAuth2AuthenticationSuccessHandler,
                         OAuth2AuthenticationFailureHandler oAuth2AuthenticationFailureHandler,
-                        RequestIdFilter requestIdFilter, RateLimitFilter rateLimitFilter)
+                        RequestIdFilter requestIdFilter, RateLimitFilter rateLimitFilter,
+                        MaintenanceModeFilter maintenanceModeFilter)
                         throws Exception {
                 http.csrf(csrf -> csrf.disable())
                                 .cors(Customizer.withDefaults())
@@ -57,7 +59,8 @@ public class SecurityConfig {
                                                 .requestMatchers("/api/webhooks/sepay/**").permitAll()
                                                 .requestMatchers("/api/services", "/api/services/**",
                                                                 "/api/pricing", "/api/pricing/**",
-                                                                "/api/service-categories", "/api/service-categories/**")
+                                                                "/api/service-categories", "/api/service-categories/**",
+                                                                "/api/content", "/api/content/**")
                                                 .permitAll()
                                                 .requestMatchers("/api/admin/files/**").authenticated()
                                                 .requestMatchers("/api/admin/**").hasAnyRole("ADMIN", "SUPER_ADMIN")
@@ -70,6 +73,7 @@ public class SecurityConfig {
                                                 .httpStrictTransportSecurity(
                                                                 hsts -> hsts.includeSubDomains(true).preload(true)))
                                 .addFilterBefore(requestIdFilter, UsernamePasswordAuthenticationFilter.class)
+                                .addFilterBefore(maintenanceModeFilter, UsernamePasswordAuthenticationFilter.class)
                                 .addFilterBefore(rateLimitFilter, UsernamePasswordAuthenticationFilter.class)
                                 .addFilterBefore(apiKeyAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
                                 .addFilterBefore(bearerTokenAuthenticationFilter,

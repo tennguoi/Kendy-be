@@ -4,6 +4,7 @@ import com.example.KendyDigital.config.AppEmailProperties;
 import com.example.KendyDigital.model.notification.EmailLog;
 import com.example.KendyDigital.model.user.UserAccount;
 import com.example.KendyDigital.repository.EmailLogRepository;
+import com.example.KendyDigital.repository.SystemSettingRepository;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
@@ -23,37 +24,48 @@ public class EmailNotificationServiceImpl  implements EmailNotificationService{
     private final ObjectProvider<JavaMailSender> mailSenderProvider;
     private final AppEmailProperties properties;
     private final EmailLogRepository emailLogRepository;
+    private final SystemSettingRepository systemSettingRepository;
 
     public EmailNotificationServiceImpl(ObjectProvider<JavaMailSender> mailSenderProvider,
             AppEmailProperties properties,
-            EmailLogRepository emailLogRepository) {
+            EmailLogRepository emailLogRepository,
+            SystemSettingRepository systemSettingRepository) {
         this.mailSenderProvider = mailSenderProvider;
         this.properties = properties;
         this.emailLogRepository = emailLogRepository;
+        this.systemSettingRepository = systemSettingRepository;
     }
 
     @Async("jobExecutor")
     public void sendPasswordReset(UserAccount user, String token, Instant expiresAt) {
         String link = frontendUrl("/reset-password?token=" + encode(token));
-        send(user.getEmail(), "Reset your KendyDigital password",
-                "Use this link to reset your password:\n" + link
-                        + "\n\nThis token expires at: " + expiresAt);
+        send(user.getEmail(),
+                template("email.template.password_reset.subject", "Reset your KendyDigital password", user, link,
+                        token, expiresAt, null),
+                template("email.template.password_reset.body",
+                        "Use this link to reset your password:\n{{link}}\n\nThis token expires at: {{expiresAt}}",
+                        user, link, token, expiresAt, null));
     }
 
     @Async("jobExecutor")
     public void sendEmailVerification(UserAccount user, String token, Instant expiresAt) {
         String link = frontendUrl("/verify-email?token=" + encode(token));
-        send(user.getEmail(), "Verify your KendyDigital email",
-                "Use this link to verify your email:\n" + link
-                        + "\n\nThis token expires at: " + expiresAt);
+        send(user.getEmail(),
+                template("email.template.email_verification.subject", "Verify your KendyDigital email", user, link,
+                        token, expiresAt, null),
+                template("email.template.email_verification.body",
+                        "Use this link to verify your email:\n{{link}}\n\nThis token expires at: {{expiresAt}}",
+                        user, link, token, expiresAt, null));
     }
 
     @Async("jobExecutor")
     public void sendTwoFactorCode(UserAccount user, String code, Instant expiresAt) {
-        send(user.getEmail(), "Your KendyDigital 2FA code",
-                "Your 2FA email code is: " + code
-                        + "\n\nThis code expires at: " + expiresAt
-                        + "\nIf you did not try to sign in, change your password immediately.");
+        send(user.getEmail(),
+                template("email.template.two_factor.subject", "Your KendyDigital 2FA code", user, null, null,
+                        expiresAt, code),
+                template("email.template.two_factor.body",
+                        "Your 2FA email code is: {{code}}\n\nThis code expires at: {{expiresAt}}\nIf you did not try to sign in, change your password immediately.",
+                        user, null, null, expiresAt, code));
     }
 
     @Async("jobExecutor")
@@ -111,6 +123,22 @@ public class EmailNotificationServiceImpl  implements EmailNotificationService{
             return base + "/" + path;
         }
         return base + path;
+    }
+
+    private String template(String key, String fallback, UserAccount user, String link, String token, Instant expiresAt,
+            String code) {
+        String value = systemSettingRepository.findById(key).map(setting -> setting.getValue()).orElse(fallback);
+        return value
+                .replace("{{name}}", nullToBlank(user.getName()))
+                .replace("{{email}}", nullToBlank(user.getEmail()))
+                .replace("{{link}}", nullToBlank(link))
+                .replace("{{token}}", nullToBlank(token))
+                .replace("{{code}}", nullToBlank(code))
+                .replace("{{expiresAt}}", expiresAt == null ? "" : expiresAt.toString());
+    }
+
+    private String nullToBlank(String value) {
+        return value == null ? "" : value;
     }
 
     private String encode(String value) {

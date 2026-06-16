@@ -1,6 +1,7 @@
 package com.example.KendyDigital.common;
 
 import com.example.KendyDigital.config.RateLimitProperties;
+import com.example.KendyDigital.repository.SystemSettingRepository;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -21,10 +22,12 @@ public class RateLimitFilter extends OncePerRequestFilter {
     private static final long WINDOW_SECONDS = 60;
 
     private final RateLimitProperties properties;
+    private final SystemSettingRepository systemSettingRepository;
     private final Map<String, WindowCounter> counters = new ConcurrentHashMap<>();
 
-    public RateLimitFilter(RateLimitProperties properties) {
+    public RateLimitFilter(RateLimitProperties properties, SystemSettingRepository systemSettingRepository) {
         this.properties = properties;
+        this.systemSettingRepository = systemSettingRepository;
     }
 
     @Scheduled(fixedDelay = 60000)
@@ -37,7 +40,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
         int limit = limitFor(request);
-        if (!properties.isEnabled() || limit <= 0) {
+        if (!isEnabled() || limit <= 0) {
             filterChain.doFilter(request, response);
             return;
         }
@@ -79,22 +82,42 @@ public class RateLimitFilter extends OncePerRequestFilter {
         if ("POST".equals(method) && ("/api/auth/login".equals(path) || "/api/auth/register".equals(path)
                 || "/api/auth/forgot-password".equals(path) || "/api/auth/reset-password".equals(path)
                 || "/api/auth/resend-verification".equals(path))) {
-            return properties.getAuthPerMinute();
+            return configuredLimit("rate_limit.auth_per_minute", properties.getAuthPerMinute());
         }
         if ("POST".equals(method) && "/api/webhooks/sepay".equals(path)) {
-            return properties.getWebhookPerMinute();
+            return configuredLimit("rate_limit.webhook_per_minute", properties.getWebhookPerMinute());
         }
         if ("POST".equals(method) && ("/api/deposits".equals(path) || "/api/orders".equals(path)
                 || "/api/auth/2fa/email-code".equals(path))) {
-            return properties.getFinancePerMinute();
+            return configuredLimit("rate_limit.finance_per_minute", properties.getFinancePerMinute());
         }
         if (path.startsWith("/api/tickets") || path.startsWith("/api/warranty-requests")) {
-            return properties.getAuthPerMinute();
+            return configuredLimit("rate_limit.auth_per_minute", properties.getAuthPerMinute());
         }
         if ("POST".equals(method) && path.startsWith("/api/admin/credentials/") && path.endsWith("/reveal")) {
-            return properties.getFinancePerMinute();
+            return configuredLimit("rate_limit.finance_per_minute", properties.getFinancePerMinute());
         }
         return 0;
+    }
+
+    private boolean isEnabled() {
+        return systemSettingRepository.findById("rate_limit.enabled")
+                .map(setting -> Boolean.parseBoolean(setting.getValue()))
+                .orElse(properties.isEnabled());
+    }
+
+    private int configuredLimit(String key, int fallback) {
+        return systemSettingRepository.findById(key)
+                .map(setting -> parsePositiveInt(setting.getValue(), fallback))
+                .orElse(fallback);
+    }
+
+    private int parsePositiveInt(String value, int fallback) {
+        try {
+            return Math.max(0, Integer.parseInt(value));
+        } catch (RuntimeException exception) {
+            return fallback;
+        }
     }
 
     private String clientIp(HttpServletRequest request) {
