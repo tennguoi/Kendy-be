@@ -63,9 +63,17 @@ public class AuthServiceImpl  implements AuthService{
         UserAccount user = userAccountRepository.findByEmailIgnoreCase(normalizeEmail(request.email()))
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid credentials"));
 
+        if (user.isLocked()) {
+            throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS,
+                    "Tài khoản đã bị khóa tạm thời do nhập sai mật khẩu nhiều lần. Vui lòng thử lại sau 15 phút.");
+        }
+
         if (!passwordEncoder.matches(request.password(), user.getPasswordHash())) {
+            user.recordFailedLogin();
+            userAccountRepository.save(user);
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid credentials");
         }
+
         if (user.getStatus() != UserStatus.ACTIVE) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Account is not active");
         }
@@ -98,7 +106,13 @@ public class AuthServiceImpl  implements AuthService{
     public SecurityTokenResponse sendLoginTwoFactorEmailCode(AuthTwoFactorEmailRequest request) {
         UserAccount user = userAccountRepository.findByEmailIgnoreCase(normalizeEmail(request.email()))
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid credentials"));
+        if (user.isLocked()) {
+            throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS,
+                    "Tài khoản đã bị khóa tạm thời do nhập sai mật khẩu nhiều lần. Vui lòng thử lại sau 15 phút.");
+        }
         if (!passwordEncoder.matches(request.password(), user.getPasswordHash())) {
+            user.recordFailedLogin();
+            userAccountRepository.save(user);
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid credentials");
         }
         if (user.getStatus() != UserStatus.ACTIVE) {
@@ -123,6 +137,8 @@ public class AuthServiceImpl  implements AuthService{
     }
 
     private AuthTokenResponse issueToken(UserAccount user) {
+        user.recordSuccessfulLogin();
+        userAccountRepository.save(user);
         AuthTokenService.IssuedToken issuedToken = authTokenService.issue(user);
         return new AuthTokenResponse(issuedToken.token(), issuedToken.expiresAt(), AuthUserResponse.from(user));
     }

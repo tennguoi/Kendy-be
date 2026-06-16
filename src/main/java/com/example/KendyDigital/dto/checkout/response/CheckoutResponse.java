@@ -13,6 +13,10 @@ public record CheckoutResponse(
         Long serviceId,
         String serviceName,
         BigDecimal amount,
+        BigDecimal originalAmount,
+        BigDecimal discountAmount,
+        String couponCode,
+        String statusMessage,
         DepositResponse deposit,
         OrderResponse order,
         Instant checkedAt) {
@@ -23,6 +27,10 @@ public record CheckoutResponse(
                 checkout.getService().getId(),
                 checkout.getService().getName(),
                 checkout.getDepositRequest().getAmount(),
+                checkout.getOriginalAmount(),
+                checkout.getDiscountAmount(),
+                checkout.getCouponCode(),
+                checkout.getStatusMessage(),
                 DepositResponse.from(checkout.getDepositRequest()),
                 checkout.getOrder() == null ? null : OrderResponse.from(checkout.getOrder()),
                 Instant.now());

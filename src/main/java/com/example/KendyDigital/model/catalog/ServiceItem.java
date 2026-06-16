@@ -15,6 +15,7 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 import java.math.BigDecimal;
+import java.time.Instant;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -30,7 +31,8 @@ import lombok.Setter;
                 @Index(name = "idx_services_status", columnList = "status"),
                 @Index(name = "idx_services_sort_order", columnList = "sort_order"),
                 @Index(name = "idx_services_featured", columnList = "featured"),
-                @Index(name = "idx_services_public_visible", columnList = "public_visible")
+                @Index(name = "idx_services_public_visible", columnList = "public_visible"),
+                @Index(name = "idx_services_category_id", columnList = "category_id")
         },
         uniqueConstraints = {
                 @UniqueConstraint(name = "uk_services_slug", columnNames = "slug")
@@ -103,6 +105,22 @@ public class ServiceItem extends TimestampedEntity {
 
     @Column(name = "warranty_policy", columnDefinition = "TEXT")
     private String warrantyPolicy;
+
+    @Column(name = "refund_policy", columnDefinition = "TEXT")
+    private String refundPolicy;
+
+    @Column(name = "non_warranty_cases", columnDefinition = "TEXT")
+    private String nonWarrantyCases;
+
+    @Column(name = "usage_rules", columnDefinition = "TEXT")
+    private String usageRules;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "risk_level", length = 16)
+    private RiskLevel riskLevel = RiskLevel.LOW;
+
+    @Column(name = "warranty_days")
+    private Integer warrantyDays;
 
     @Column(name = "sort_order", nullable = false)
     private int sortOrder = 0;
@@ -196,6 +214,26 @@ public class ServiceItem extends TimestampedEntity {
 
     public void updateWarrantyPolicy(String warrantyPolicy) {
         this.warrantyPolicy = warrantyPolicy;
+    }
+
+    public void updateRefundPolicy(String refundPolicy) {
+        this.refundPolicy = refundPolicy;
+    }
+
+    public void updateNonWarrantyCases(String nonWarrantyCases) {
+        this.nonWarrantyCases = nonWarrantyCases;
+    }
+
+    public void updateUsageRules(String usageRules) {
+        this.usageRules = usageRules;
+    }
+
+    public void updateRiskLevel(RiskLevel riskLevel) {
+        this.riskLevel = riskLevel;
+    }
+
+    public void updateWarrantyDays(Integer warrantyDays) {
+        this.warrantyDays = warrantyDays;
     }
 
     public void updateSortOrder(int sortOrder) {

@@ -59,8 +59,15 @@ public class UserNotificationServiceImpl  implements UserNotificationService{
 
     @Transactional
     public List<UserNotificationResponse> bulkRead(Long userId, List<Long> ids) {
-        return ids.stream()
-                .map(id -> markRead(userId, id))
+        List<UserNotification> notifications = userNotificationRepository.findAllById(ids);
+        return notifications.stream()
+                .peek(n -> {
+                    if (!n.getUser().getId().equals(userId)) {
+                        throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Notification not found");
+                    }
+                    n.markRead();
+                })
+                .map(UserNotificationResponse::from)
                 .toList();
     }
 

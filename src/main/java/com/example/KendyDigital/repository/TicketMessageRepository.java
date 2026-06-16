@@ -6,4 +6,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface TicketMessageRepository extends JpaRepository<TicketMessage, Long> {
     List<TicketMessage> findByTicket_TicketCodeOrderByCreatedAtAsc(String ticketCode);
+
+    List<TicketMessage> findByTicket_TicketCodeInOrderByCreatedAtAsc(List<String> ticketCodes);
 }

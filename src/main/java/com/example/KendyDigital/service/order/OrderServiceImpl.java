@@ -6,6 +6,7 @@ import com.example.KendyDigital.dto.order.request.BulkRefundOrdersRequest;
 import com.example.KendyDigital.dto.order.request.CancelOrderRequest;
 import com.example.KendyDigital.dto.order.request.CreateOrderRequest;
 import com.example.KendyDigital.dto.order.request.ExtendOrderRequest;
+import com.example.KendyDigital.dto.order.request.ManualOrderWorkflowRequest;
 import com.example.KendyDigital.dto.order.request.OrderNoteRequest;
 import com.example.KendyDigital.dto.order.request.RefundOrderRequest;
 import com.example.KendyDigital.dto.order.request.ReprocessOrderRequest;
@@ -13,16 +14,35 @@ import com.example.KendyDigital.dto.order.response.OrderResponse;
 import com.example.KendyDigital.model.catalog.ServiceCtaType;
 import com.example.KendyDigital.model.catalog.ServiceItem;
 import com.example.KendyDigital.model.catalog.ServiceStatus;
+import com.example.KendyDigital.model.catalog.ServiceStockStatus;
+import com.example.KendyDigital.model.catalog.ServiceType;
+import com.example.KendyDigital.model.admin.AdminNotification;
+import com.example.KendyDigital.model.inventory.AccountCredential;
+import com.example.KendyDigital.model.order.OrderEvent;
 import com.example.KendyDigital.model.order.OrderRecord;
 import com.example.KendyDigital.model.order.OrderStatus;
+import com.example.KendyDigital.model.ticket.Ticket;
+import com.example.KendyDigital.model.ticket.TicketCategory;
+import com.example.KendyDigital.model.ticket.TicketMessage;
+import com.example.KendyDigital.model.ticket.TicketPriority;
+import com.example.KendyDigital.model.ticket.TicketSenderRole;
 import com.example.KendyDigital.model.user.UserAccount;
+import com.example.KendyDigital.model.user.UserRole;
 import com.example.KendyDigital.model.user.UserStatus;
 import com.example.KendyDigital.model.wallet.WalletTransaction;
 import com.example.KendyDigital.model.wallet.WalletTransactionType;
+import com.example.KendyDigital.repository.AdminNotificationRepository;
+import com.example.KendyDigital.repository.OrderEventRepository;
 import com.example.KendyDigital.repository.OrderRepository;
 import com.example.KendyDigital.repository.ServiceItemRepository;
+import com.example.KendyDigital.repository.TicketMessageRepository;
+import com.example.KendyDigital.repository.TicketRepository;
 import com.example.KendyDigital.repository.UserAccountRepository;
 import com.example.KendyDigital.service.audit.AuditService;
+import com.example.KendyDigital.service.coupon.AppliedCoupon;
+import com.example.KendyDigital.service.coupon.CouponService;
+import com.example.KendyDigital.service.inventory.AccountInventoryService;
+import com.example.KendyDigital.service.notification.EmailNotificationService;
 import com.example.KendyDigital.service.notification.UserNotificationService;
 import com.example.KendyDigital.service.wallet.WalletLedgerService;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -30,8 +50,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Instant;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -39,7 +61,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 @Service
-public class OrderServiceImpl  implements OrderService{
+public class OrderServiceImpl implements OrderService {
     private final OrderRepository orderRepository;
     private final UserAccountRepository userAccountRepository;
     private final ServiceItemRepository serviceItemRepository;
@@ -48,6 +70,13 @@ public class OrderServiceImpl  implements OrderService{
     private final AuditService auditService;
     private final ObjectMapper objectMapper;
     private final UserNotificationService userNotificationService;
+    private final AccountInventoryService accountInventoryService;
+    private final AdminNotificationRepository adminNotificationRepository;
+    private final EmailNotificationService emailNotificationService;
+    private final TicketRepository ticketRepository;
+    private final TicketMessageRepository ticketMessageRepository;
+    private final CouponService couponService;
+    private final OrderEventRepository orderEventRepository;
 
     public OrderServiceImpl(OrderRepository orderRepository,
             UserAccountRepository userAccountRepository,
@@ -56,7 +85,14 @@ public class OrderServiceImpl  implements OrderService{
             CodeGenerator codeGenerator,
             AuditService auditService,
             ObjectMapper objectMapper,
-            UserNotificationService userNotificationService) {
+            UserNotificationService userNotificationService,
+            AccountInventoryService accountInventoryService,
+            AdminNotificationRepository adminNotificationRepository,
+            EmailNotificationService emailNotificationService,
+            TicketRepository ticketRepository,
+            TicketMessageRepository ticketMessageRepository,
+            CouponService couponService,
+            OrderEventRepository orderEventRepository) {
         this.orderRepository = orderRepository;
         this.userAccountRepository = userAccountRepository;
         this.serviceItemRepository = serviceItemRepository;
@@ -65,10 +101,26 @@ public class OrderServiceImpl  implements OrderService{
         this.auditService = auditService;
         this.objectMapper = objectMapper;
         this.userNotificationService = userNotificationService;
+        this.accountInventoryService = accountInventoryService;
+        this.adminNotificationRepository = adminNotificationRepository;
+        this.emailNotificationService = emailNotificationService;
+        this.ticketRepository = ticketRepository;
+        this.ticketMessageRepository = ticketMessageRepository;
+        this.couponService = couponService;
+        this.orderEventRepository = orderEventRepository;
     }
 
     @Transactional
     public OrderResponse create(Long userId, CreateOrderRequest request) {
+        return createInternal(userId, request, null);
+    }
+
+    @Transactional
+    public OrderResponse createForCheckout(Long userId, CreateOrderRequest request, Long checkoutId) {
+        return createInternal(userId, request, checkoutId);
+    }
+
+    private OrderResponse createInternal(Long userId, CreateOrderRequest request, Long checkoutId) {
         String idempotencyKey = blankToNull(request.idempotencyKey());
         if (idempotencyKey != null) {
             OrderRecord existingOrder = orderRepository
@@ -90,13 +142,25 @@ public class OrderServiceImpl  implements OrderService{
         if (service.getStatus() != ServiceStatus.ACTIVE) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Service is not active");
         }
+        if (service.getType() == ServiceType.ACCOUNT_STOCK) {
+            accountInventoryService.releaseExpiredReservations(Instant.now());
+        }
+        if (service.getStockStatus() == ServiceStockStatus.OUT_OF_STOCK) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Service is out of stock");
+        }
+        if (service.getStockStatus() == ServiceStockStatus.CONSULTING_ONLY) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Service requires consultation before purchase");
+        }
         if (service.getCtaType() != null && service.getCtaType() != ServiceCtaType.BUY_NOW) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Service requires consultation before purchase");
         }
-        BigDecimal orderAmount = service.getPrice().setScale(2, RoundingMode.HALF_UP);
-        if (orderAmount.compareTo(BigDecimal.ZERO) <= 0) {
+        BigDecimal originalAmount = service.getPrice().setScale(2, RoundingMode.HALF_UP);
+        if (originalAmount.compareTo(BigDecimal.ZERO) <= 0) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Service price must be greater than zero");
         }
+        AppliedCoupon appliedCoupon = couponService.applyForPurchase(user, service, originalAmount,
+                request.couponCode());
+        BigDecimal orderAmount = appliedCoupon.payableAmount();
         BigDecimal currentBalance = user.getBalance() == null
                 ? BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP)
                 : user.getBalance().setScale(2, RoundingMode.HALF_UP);
@@ -105,6 +169,21 @@ public class OrderServiceImpl  implements OrderService{
         }
         validateInputData(service, request.inputData());
 
+        AccountCredential credential = null;
+        if (service.getType() == ServiceType.ACCOUNT_STOCK) {
+            if (checkoutId != null) {
+                credential = accountInventoryService.takeReservedForOrder(service.getId(), checkoutId, userId);
+            } else {
+                if (accountInventoryService.availableCount(service.getId()) <= 0) {
+                    service.updatePricingMetadata(ServiceStockStatus.OUT_OF_STOCK, service.getCtaType(),
+                            service.getPricingBadge(), service.isFeatured(), service.isPublicVisible());
+                    throw new ResponseStatusException(HttpStatus.CONFLICT,
+                            "No account credentials available for this service");
+                }
+                credential = accountInventoryService.takeAvailableForOrder(service.getId());
+            }
+        }
+
         OrderRecord order = orderRepository.save(new OrderRecord(
                 nextOrderCode(),
                 user,
@@ -112,6 +191,8 @@ public class OrderServiceImpl  implements OrderService{
                 orderAmount,
                 request.inputData(),
                 idempotencyKey));
+        order.applyPricing(appliedCoupon.originalAmount(), appliedCoupon.discountAmount(), appliedCoupon.code());
+        orderEventRepository.save(new OrderEvent(order, null, OrderStatus.PROCESSING, userId, "USER", "Order created"));
 
         WalletTransaction walletTransaction = walletLedgerService.debit(
                 user,
@@ -122,6 +203,39 @@ public class OrderServiceImpl  implements OrderService{
                 "Purchase order " + order.getOrderCode(),
                 null);
         order.attachPurchaseTransaction(walletTransaction);
+        couponService.redeemForOrder(user, order, appliedCoupon);
+
+        if (credential != null) {
+            credential.deliver(order, user);
+            order.setDeliveredCredential(credential);
+            OrderStatus oldStatus = order.getStatus();
+            order.complete(deliveryResultData(order, credential, service), "Auto-delivered account credential");
+            orderEventRepository.save(new OrderEvent(order, oldStatus, order.getStatus(), null, "SYSTEM", "Auto-delivered account credential"));
+            if (accountInventoryService.availableCount(service.getId()) <= 0) {
+                service.updatePricingMetadata(ServiceStockStatus.OUT_OF_STOCK, service.getCtaType(),
+                        service.getPricingBadge(), service.isFeatured(), service.isPublicVisible());
+            }
+            userNotificationService.create(userId,
+                    "Tài khoản đã được giao",
+                    "Đơn " + order.getOrderCode() + " đã hoàn thành. Vào chi tiết đơn để xem thông tin đăng nhập.",
+                    "ORDER",
+                    "/orders/" + order.getOrderCode());
+            emailNotificationService.sendUserNotification(user,
+                    "Tài khoản đã được giao",
+                    "Đơn " + order.getOrderCode()
+                            + " đã hoàn thành. Vì lý do bảo mật, thông tin đăng nhập chỉ hiển thị trong chi tiết đơn sau khi đăng nhập.",
+                    "/orders/" + order.getOrderCode());
+        } else {
+            Ticket supportTicket = createManualOrderTicket(order, user);
+            order.attachSupportTicket(supportTicket);
+            userNotificationService.create(userId,
+                    "Đơn thủ công đã được tiếp nhận",
+                    "Đơn " + order.getOrderCode() + " đã được tạo. Ticket "
+                            + supportTicket.getTicketCode() + " dùng để trao đổi yêu cầu xử lý.",
+                    "ORDER",
+                    "/orders/" + order.getOrderCode());
+            notifyAdminsManualOrder(order);
+        }
 
         auditService.recordSystem(
                 "ORDER_PURCHASED",
@@ -223,7 +337,9 @@ public class OrderServiceImpl  implements OrderService{
                 order,
                 null,
                 "Cancel order " + order.getOrderCode());
+        OrderStatus oldStatus = order.getStatus();
         order.cancelByUser(reason, refundTransaction);
+        orderEventRepository.save(new OrderEvent(order, oldStatus, order.getStatus(), userId, "USER", reason));
 
         auditService.recordSystem(
                 "ORDER_CANCELLED_BY_USER",
@@ -245,7 +361,7 @@ public class OrderServiceImpl  implements OrderService{
         if (!source.getUser().getId().equals(userId)) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found");
         }
-        return create(userId, new CreateOrderRequest(source.getService().getId(), source.getInputData(), null));
+        return create(userId, new CreateOrderRequest(source.getService().getId(), source.getInputData(), null, null));
     }
 
     @Transactional
@@ -254,7 +370,9 @@ public class OrderServiceImpl  implements OrderService{
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found"));
         requireActiveOrder(order, "Order cannot be completed");
 
+        OrderStatus oldStatus = order.getStatus();
         order.complete(blankToNull(request.resultData()), blankToNull(request.adminNote()));
+        orderEventRepository.save(new OrderEvent(order, oldStatus, order.getStatus(), adminUserId, "ADMIN", request.adminNote()));
         auditService.recordAdmin(
                 adminUserId,
                 "ORDER_COMPLETED",
@@ -271,7 +389,9 @@ public class OrderServiceImpl  implements OrderService{
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found"));
         requireActiveOrder(order, "Order cannot be failed");
 
+        OrderStatus oldStatus = order.getStatus();
         order.fail(blankToNull(request.resultData()), blankToNull(request.adminNote()));
+        orderEventRepository.save(new OrderEvent(order, oldStatus, order.getStatus(), adminUserId, "ADMIN", request.adminNote()));
         auditService.recordAdmin(
                 adminUserId,
                 "ORDER_FAILED",
@@ -293,7 +413,9 @@ public class OrderServiceImpl  implements OrderService{
                 order,
                 adminUserId,
                 "Admin cancel order " + order.getOrderCode());
+        OrderStatus oldStatus = order.getStatus();
         order.cancelByAdmin(reason, refundTransaction);
+        orderEventRepository.save(new OrderEvent(order, oldStatus, order.getStatus(), adminUserId, "ADMIN", reason));
 
         auditService.recordAdmin(
                 adminUserId,
@@ -320,7 +442,19 @@ public class OrderServiceImpl  implements OrderService{
                 order,
                 adminUserId,
                 "Refund order " + order.getOrderCode());
+        AccountCredential deliveredCredential = order.getDeliveredCredential();
+        if (deliveredCredential != null) {
+            deliveredCredential.markRefunded();
+            auditService.recordAdmin(
+                    adminUserId,
+                    "ACCOUNT_CREDENTIAL_REFUNDED",
+                    "ACCOUNT_CREDENTIAL",
+                    deliveredCredential.getId(),
+                    "orderId=" + order.getId() + ",orderCode=" + order.getOrderCode());
+        }
+        OrderStatus oldStatus = order.getStatus();
         order.refund(refundTransaction, request.reason());
+        orderEventRepository.save(new OrderEvent(order, oldStatus, order.getStatus(), adminUserId, "ADMIN", request.reason()));
 
         auditService.recordAdmin(
                 adminUserId,
@@ -354,7 +488,7 @@ public class OrderServiceImpl  implements OrderService{
     public OrderResponse extend(String orderCode, Long adminUserId, ExtendOrderRequest request) {
         OrderRecord order = orderRepository.findByOrderCodeForUpdate(orderCode)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found"));
-        if (order.getStatus() != OrderStatus.PENDING && order.getStatus() != OrderStatus.PROCESSING) {
+        if (order.getStatus() != OrderStatus.PENDING_PAYMENT && order.getStatus() != OrderStatus.PROCESSING) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Only pending/processing orders can be extended");
         }
         Instant baseTime = order.getProcessingDeadlineAt() != null && order.getProcessingDeadlineAt().isAfter(Instant.now())
@@ -373,9 +507,36 @@ public class OrderServiceImpl  implements OrderService{
         if (order.getStatus() == OrderStatus.REFUNDED || order.getRefundTransaction() != null) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Refunded order cannot be reprocessed");
         }
+        OrderStatus oldStatus = order.getStatus();
         order.reprocess(request.reason().trim());
+        orderEventRepository.save(new OrderEvent(order, oldStatus, order.getStatus(), adminUserId, "ADMIN", request.reason()));
         auditService.recordAdmin(adminUserId, "ORDER_REPROCESSED", "ORDER", order.getId(),
                 "reason=" + request.reason());
+        return OrderResponse.from(order);
+    }
+
+    @Transactional
+    public OrderResponse updateManualWorkflow(String orderCode, Long adminUserId, ManualOrderWorkflowRequest request) {
+        OrderRecord order = orderRepository.findByOrderCodeForUpdate(orderCode)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found"));
+        if (order.getService().getType() != ServiceType.MANUAL) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Only manual service orders have workflow fields");
+        }
+        UserAccount assignedAdmin = null;
+        if (request.assignedAdminId() != null) {
+            assignedAdmin = userAccountRepository.findById(request.assignedAdminId())
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Assigned admin not found"));
+            if (assignedAdmin.getRole() == UserRole.USER) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Assigned user is not an admin");
+            }
+        }
+        order.updateManualWorkflow(
+                assignedAdmin,
+                request.processingDeadlineAt(),
+                request.manualChecklist(),
+                blankToNull(request.adminNote()));
+        auditService.recordAdmin(adminUserId, "ORDER_MANUAL_WORKFLOW_UPDATED", "ORDER", order.getId(),
+                "assignedAdminId=" + request.assignedAdminId());
         return OrderResponse.from(order);
     }
 
@@ -403,7 +564,7 @@ public class OrderServiceImpl  implements OrderService{
     }
 
     private void requireActiveOrder(OrderRecord order, String message) {
-        if (order.getStatus() != OrderStatus.PENDING && order.getStatus() != OrderStatus.PROCESSING) {
+        if (order.getStatus() != OrderStatus.PENDING_PAYMENT && order.getStatus() != OrderStatus.PROCESSING) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, message + " from status " + order.getStatus());
         }
     }
@@ -451,6 +612,64 @@ public class OrderServiceImpl  implements OrderService{
     private void notifyOrderUser(OrderRecord order, String title, String message) {
         userNotificationService.create(order.getUser().getId(), title, message, "ORDER",
                 "/orders/" + order.getOrderCode());
+    }
+
+    private void notifyAdminsManualOrder(OrderRecord order) {
+        String title = "Đơn thủ công mới " + order.getOrderCode();
+        String message = "User #" + order.getUser().getId() + " đặt " + order.getService().getName()
+                + ". Cần xử lý ngoài thực tế rồi cập nhật trạng thái đơn.";
+        adminNotificationRepository.save(new AdminNotification(null, title, message));
+        userAccountRepository.findAllByRoleInOrderByCreatedAtDesc(
+                        List.of(UserRole.ADMIN, UserRole.SUPER_ADMIN),
+                        PageRequest.of(0, 50))
+                .forEach(admin -> emailNotificationService.sendUserNotification(admin, title, message,
+                        "/admin/orders"));
+    }
+
+    private Ticket createManualOrderTicket(OrderRecord order, UserAccount user) {
+        Ticket ticket = ticketRepository.save(new Ticket(
+                nextTicketCode(),
+                user,
+                order,
+                null,
+                TicketCategory.SERVICE,
+                "Trao đổi đơn thủ công " + order.getOrderCode(),
+                TicketPriority.NORMAL));
+        String message = "Brief/yêu cầu từ đơn " + order.getOrderCode() + ":\n"
+                + (order.getInputData() == null || order.getInputData().isBlank() ? "(không có brief)" : order.getInputData());
+        ticketMessageRepository.save(new TicketMessage(ticket, user, TicketSenderRole.USER, message));
+        auditService.recordSystem("MANUAL_ORDER_TICKET_CREATED", "TICKET", ticket.getId(),
+                "orderId=" + order.getId());
+        return ticket;
+    }
+
+    private String nextTicketCode() {
+        String code;
+        do {
+            code = codeGenerator.generate("TK", 10);
+        } while (ticketRepository.existsByTicketCode(code));
+        return code;
+    }
+
+    private String deliveryResultData(OrderRecord order, AccountCredential credential, ServiceItem service) {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("deliveryType", "ACCOUNT_CREDENTIAL");
+        payload.put("orderCode", order.getOrderCode());
+        payload.put("serviceName", service.getName());
+        payload.put("credentialId", credential.getId());
+        payload.put("loginIdentifier", credential.getLoginIdentifier());
+        payload.put("serviceUsageNotes", service.getUsageNotes());
+        payload.put("warrantyPolicy", service.getWarrantyPolicy());
+        payload.put("deliveredAt", Instant.now().toString());
+        payload.put("expiresAt", credential.getExpiresAt() == null ? null : credential.getExpiresAt().toString());
+        payload.put("warrantyUntil", credential.getWarrantyUntil() == null ? null : credential.getWarrantyUntil().toString());
+        try {
+            return objectMapper.writeValueAsString(payload);
+        } catch (Exception exception) {
+            return "Login: " + credential.getLoginIdentifier()
+                    + "\nCredential ID: " + credential.getId()
+                    + "\nOpen order detail to reveal delivered credential.";
+        }
     }
 
     private void validateInputData(ServiceItem service, String inputData) {

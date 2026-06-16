@@ -5,6 +5,7 @@ import com.example.KendyDigital.dto.order.request.BulkRefundOrdersRequest;
 import com.example.KendyDigital.dto.order.request.CancelOrderRequest;
 import com.example.KendyDigital.dto.order.request.CreateOrderRequest;
 import com.example.KendyDigital.dto.order.request.ExtendOrderRequest;
+import com.example.KendyDigital.dto.order.request.ManualOrderWorkflowRequest;
 import com.example.KendyDigital.dto.order.request.OrderNoteRequest;
 import com.example.KendyDigital.dto.order.request.RefundOrderRequest;
 import com.example.KendyDigital.dto.order.request.ReprocessOrderRequest;
@@ -119,6 +120,12 @@ public class OrderController {
     public OrderResponse reprocess(Authentication authentication, @PathVariable String orderCode,
             @Valid @RequestBody ReprocessOrderRequest request) {
         return orderService.reprocess(orderCode, CurrentUser.require(authentication).userId(), request);
+    }
+
+    @PostMapping("/api/admin/orders/{orderCode}/manual-workflow")
+    public OrderResponse updateManualWorkflow(Authentication authentication, @PathVariable String orderCode,
+            @RequestBody ManualOrderWorkflowRequest request) {
+        return orderService.updateManualWorkflow(orderCode, CurrentUser.require(authentication).userId(), request);
     }
 
     @PostMapping("/api/admin/orders/bulk-refund")

@@ -19,6 +19,7 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
+import java.math.BigDecimal;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -70,9 +71,21 @@ public class CheckoutSession extends TimestampedEntity {
     @Column(name = "idempotency_key")
     private String idempotencyKey;
 
+    @Column(name = "original_amount", precision = 18, scale = 2)
+    private BigDecimal originalAmount;
+
+    @Column(name = "discount_amount", precision = 18, scale = 2)
+    private BigDecimal discountAmount;
+
+    @Column(name = "coupon_code")
+    private String couponCode;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 32)
     private CheckoutStatus status = CheckoutStatus.PENDING_PAYMENT;
+
+    @Column(name = "status_message", columnDefinition = "TEXT")
+    private String statusMessage;
 
     public CheckoutSession(String checkoutCode, UserAccount user, ServiceItem service, DepositRequest depositRequest,
             String inputData, String idempotencyKey) {
@@ -84,20 +97,35 @@ public class CheckoutSession extends TimestampedEntity {
         this.idempotencyKey = idempotencyKey;
     }
 
+    public void applyPricing(BigDecimal originalAmount, BigDecimal discountAmount, String couponCode) {
+        this.originalAmount = originalAmount;
+        this.discountAmount = discountAmount;
+        this.couponCode = couponCode;
+    }
+
     public void markPaid() {
         this.status = CheckoutStatus.PAID;
+        this.statusMessage = null;
     }
 
     public void attachOrder(OrderRecord order) {
         this.order = order;
         this.status = CheckoutStatus.ORDER_CREATED;
+        this.statusMessage = null;
+    }
+
+    public void markWalletCredited(String statusMessage) {
+        this.status = CheckoutStatus.WALLET_CREDITED;
+        this.statusMessage = statusMessage;
     }
 
     public void markExpired() {
         this.status = CheckoutStatus.EXPIRED;
+        this.statusMessage = null;
     }
 
     public void markCancelled() {
         this.status = CheckoutStatus.CANCELLED;
+        this.statusMessage = null;
     }
 }

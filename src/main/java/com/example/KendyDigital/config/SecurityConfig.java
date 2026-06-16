@@ -24,68 +24,81 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
-    @Bean
-    SecurityFilterChain apiSecurity(HttpSecurity http, BearerTokenAuthenticationFilter bearerTokenAuthenticationFilter,
-            ApiKeyAuthenticationFilter apiKeyAuthenticationFilter,
-            OAuth2AuthenticationSuccessHandler oAuth2AuthenticationSuccessHandler,
-            OAuth2AuthenticationFailureHandler oAuth2AuthenticationFailureHandler,
-            RequestIdFilter requestIdFilter, RateLimitFilter rateLimitFilter)
-            throws Exception {
-        http.csrf(csrf -> csrf.disable())
-                .cors(Customizer.withDefaults())
-                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
-                .authorizeHttpRequests(auth -> auth
-                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                        .requestMatchers("/ws/**").permitAll()
-                        .requestMatchers("/oauth2/**", "/login/oauth2/**").permitAll()
-                        .requestMatchers("/api/auth/register", "/api/auth/login",
-                                "/api/auth/2fa/email-code",
-                                "/api/auth/oauth2/2fa/verify",
-                                "/api/auth/oauth2/providers",
-                                "/api/auth/forgot-password", "/api/auth/reset-password",
-                                "/api/auth/resend-verification", "/api/auth/verify-email").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/webhooks/sepay", "/api/webhooks/sepay/").permitAll()
-                        .requestMatchers("/api/webhooks/sepay/**").permitAll()
-                .requestMatchers("/api/services", "/api/services/**",
-                        "/api/pricing", "/api/pricing/**",
-                        "/api/service-categories", "/api/service-categories/**").permitAll()
-                .requestMatchers("/api/admin/files/**").authenticated()
-                .requestMatchers("/api/admin/**").hasAnyRole("ADMIN", "SUPER_ADMIN")
-                        .requestMatchers("/api/**").authenticated()
-                        .anyRequest().permitAll())
-                .headers(headers -> headers
-                        .frameOptions(frame -> frame.deny())
-                        .contentSecurityPolicy(csp -> csp.policyDirectives("default-src 'self'; frame-ancestors 'none'"))
-                        .httpStrictTransportSecurity(hsts -> hsts.includeSubDomains(true).preload(true)))
-                .addFilterBefore(requestIdFilter, UsernamePasswordAuthenticationFilter.class)
-                .addFilterBefore(rateLimitFilter, UsernamePasswordAuthenticationFilter.class)
-                .addFilterBefore(apiKeyAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
-                .addFilterBefore(bearerTokenAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
-                .oauth2Login(oauth2 -> oauth2
-                        .successHandler(oAuth2AuthenticationSuccessHandler)
-                        .failureHandler(oAuth2AuthenticationFailureHandler))
-                .httpBasic(basic -> basic.disable())
-                .formLogin(form -> form.disable());
+        @Bean
+        SecurityFilterChain apiSecurity(HttpSecurity http,
+                        BearerTokenAuthenticationFilter bearerTokenAuthenticationFilter,
+                        ApiKeyAuthenticationFilter apiKeyAuthenticationFilter,
+                        OAuth2AuthenticationSuccessHandler oAuth2AuthenticationSuccessHandler,
+                        OAuth2AuthenticationFailureHandler oAuth2AuthenticationFailureHandler,
+                        RequestIdFilter requestIdFilter, RateLimitFilter rateLimitFilter)
+                        throws Exception {
+                http.csrf(csrf -> csrf.disable())
+                                .cors(Customizer.withDefaults())
+                                .sessionManagement(session -> session
+                                                .sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
+                                .authorizeHttpRequests(auth -> auth
+                                                .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                                                .requestMatchers("/ws/**").permitAll()
+                                                .requestMatchers("/swagger-ui.html", "/swagger-ui/**",
+                                                                "/v3/api-docs/**")
+                                                .permitAll()
+                                                .requestMatchers("/oauth2/**", "/login/oauth2/**").permitAll()
+                                                .requestMatchers("/api/auth/register", "/api/auth/login",
+                                                                "/api/auth/2fa/email-code",
+                                                                "/api/auth/oauth2/2fa/verify",
+                                                                "/api/auth/oauth2/providers",
+                                                                "/api/auth/forgot-password", "/api/auth/reset-password",
+                                                                "/api/auth/resend-verification",
+                                                                "/api/auth/verify-email")
+                                                .permitAll()
+                                                .requestMatchers(HttpMethod.POST, "/api/webhooks/sepay",
+                                                                "/api/webhooks/sepay/")
+                                                .permitAll()
+                                                .requestMatchers("/api/webhooks/sepay/**").permitAll()
+                                                .requestMatchers("/api/services", "/api/services/**",
+                                                                "/api/pricing", "/api/pricing/**",
+                                                                "/api/service-categories", "/api/service-categories/**")
+                                                .permitAll()
+                                                .requestMatchers("/api/admin/files/**").authenticated()
+                                                .requestMatchers("/api/admin/**").hasAnyRole("ADMIN", "SUPER_ADMIN")
+                                                .requestMatchers("/api/**").authenticated()
+                                                .anyRequest().permitAll())
+                                .headers(headers -> headers
+                                                .frameOptions(frame -> frame.deny())
+                                                .contentSecurityPolicy(csp -> csp.policyDirectives(
+                                                                "default-src 'self'; frame-ancestors 'none'"))
+                                                .httpStrictTransportSecurity(
+                                                                hsts -> hsts.includeSubDomains(true).preload(true)))
+                                .addFilterBefore(requestIdFilter, UsernamePasswordAuthenticationFilter.class)
+                                .addFilterBefore(rateLimitFilter, UsernamePasswordAuthenticationFilter.class)
+                                .addFilterBefore(apiKeyAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+                                .addFilterBefore(bearerTokenAuthenticationFilter,
+                                                UsernamePasswordAuthenticationFilter.class)
+                                .oauth2Login(oauth2 -> oauth2
+                                                .successHandler(oAuth2AuthenticationSuccessHandler)
+                                                .failureHandler(oAuth2AuthenticationFailureHandler))
+                                .httpBasic(basic -> basic.disable())
+                                .formLogin(form -> form.disable());
 
-        return http.build();
-    }
+                return http.build();
+        }
 
-    @Bean
-    PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
-    }
+        @Bean
+        PasswordEncoder passwordEncoder() {
+                return new BCryptPasswordEncoder();
+        }
 
-    @Bean
-    CorsConfigurationSource corsConfigurationSource(AppSecurityProperties properties) {
-        CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(properties.getCorsAllowedOrigins());
-        configuration.addAllowedMethod("*");
-        configuration.addAllowedHeader("*");
-        configuration.setAllowCredentials(true);
-        configuration.addExposedHeader(RequestIdFilter.REQUEST_ID_HEADER);
+        @Bean
+        CorsConfigurationSource corsConfigurationSource(AppSecurityProperties properties) {
+                CorsConfiguration configuration = new CorsConfiguration();
+                configuration.setAllowedOrigins(properties.getCorsAllowedOrigins());
+                configuration.addAllowedMethod("*");
+                configuration.addAllowedHeader("*");
+                configuration.setAllowCredentials(true);
+                configuration.addExposedHeader(RequestIdFilter.REQUEST_ID_HEADER);
 
-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**", configuration);
-        return source;
-    }
+                UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+                source.registerCorsConfiguration("/**", configuration);
+                return source;
+        }
 }

@@ -5,6 +5,7 @@ import com.example.KendyDigital.dto.order.request.BulkRefundOrdersRequest;
 import com.example.KendyDigital.dto.order.request.CancelOrderRequest;
 import com.example.KendyDigital.dto.order.request.CreateOrderRequest;
 import com.example.KendyDigital.dto.order.request.ExtendOrderRequest;
+import com.example.KendyDigital.dto.order.request.ManualOrderWorkflowRequest;
 import com.example.KendyDigital.dto.order.request.OrderNoteRequest;
 import com.example.KendyDigital.dto.order.request.RefundOrderRequest;
 import com.example.KendyDigital.dto.order.request.ReprocessOrderRequest;
@@ -14,6 +15,7 @@ import java.util.List;
 
 public interface OrderService {
     OrderResponse create(Long userId, CreateOrderRequest request);
+    OrderResponse createForCheckout(Long userId, CreateOrderRequest request, Long checkoutId);
     List<OrderResponse> listByUser(Long userId, OrderStatus status);
     List<OrderResponse> listByUser(Long userId, OrderStatus status, int page, int size);
     List<OrderResponse> searchForUser(Long userId, String query, OrderStatus status, int page, int size);
@@ -32,5 +34,6 @@ public interface OrderService {
     OrderResponse updateUserNote(String orderCode, Long adminUserId, OrderNoteRequest request);
     OrderResponse extend(String orderCode, Long adminUserId, ExtendOrderRequest request);
     OrderResponse reprocess(String orderCode, Long adminUserId, ReprocessOrderRequest request);
+    OrderResponse updateManualWorkflow(String orderCode, Long adminUserId, ManualOrderWorkflowRequest request);
     List<OrderResponse> bulkRefund(Long adminUserId, BulkRefundOrdersRequest request);
 }

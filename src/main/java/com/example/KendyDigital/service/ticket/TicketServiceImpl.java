@@ -24,8 +24,11 @@ import com.example.KendyDigital.repository.*;
 import com.example.KendyDigital.service.audit.AuditService;
 import com.example.KendyDigital.service.file.FileStorageService;
 import com.example.KendyDigital.service.notification.UserNotificationService;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.stream.Collectors;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -109,27 +112,22 @@ public class TicketServiceImpl  implements TicketService{
         List<Ticket> tickets = status == null
                 ? ticketRepository.findAllByUser_IdOrderByCreatedAtDesc(userId, paged(page, size))
                 : ticketRepository.findAllByUser_IdAndStatusOrderByCreatedAtDesc(userId, status, paged(page, size));
-        return tickets
-                .stream()
-                .map(this::toResponse)
-                .toList();
+        return toResponseList(tickets);
     }
 
     @Transactional(readOnly = true)
     public List<TicketResponse> searchForUser(Long userId, String query, TicketStatus status, TicketCategory category,
             TicketPriority priority, int page, int size) {
         String normalizedQuery = normalizeQuery(query);
-        return ticketRepository.searchUser(
+        List<Ticket> tickets = ticketRepository.searchUser(
                         userId,
                         likePattern(normalizedQuery),
                         parseLongOrNull(normalizedQuery),
                         status,
                         category,
                         priority,
-                        paged(page, size))
-                .stream()
-                .map(this::toResponse)
-                .toList();
+                        paged(page, size));
+        return toResponseList(tickets);
     }
 
     @Transactional(readOnly = true)
@@ -192,24 +190,22 @@ public class TicketServiceImpl  implements TicketService{
                 : status == null
                         ? ticketRepository.findAllByOrderByCreatedAtDesc(page(limit))
                         : ticketRepository.findAllByStatusOrderByCreatedAtDesc(status, page(limit));
-        return tickets.stream().map(this::toResponse).toList();
+        return toResponseList(tickets);
     }
 
     @Transactional(readOnly = true)
     public List<TicketResponse> searchForAdmin(String query, TicketStatus status, TicketCategory category,
             TicketPriority priority, Long userId, Integer limit) {
         String normalizedQuery = normalizeQuery(query);
-        return ticketRepository.searchAdmin(
+        List<Ticket> tickets = ticketRepository.searchAdmin(
                         likePattern(normalizedQuery),
                         parseLongOrNull(normalizedQuery),
                         status,
                         category,
                         priority,
                         userId,
-                        page(limit))
-                .stream()
-                .map(this::toResponse)
-                .toList();
+                        page(limit));
+        return toResponseList(tickets);
     }
 
     @Transactional(readOnly = true)
@@ -344,18 +340,14 @@ public class TicketServiceImpl  implements TicketService{
 
     @Transactional(readOnly = true)
     public List<TicketResponse> listUnassigned(Integer limit) {
-        return ticketRepository.findAllByAssignedAdminIsNullOrderByCreatedAtDesc(page(limit))
-                .stream()
-                .map(this::toResponse)
-                .toList();
+        return toResponseList(
+                ticketRepository.findAllByAssignedAdminIsNullOrderByCreatedAtDesc(page(limit)));
     }
 
     @Transactional(readOnly = true)
     public List<TicketResponse> listAssignedToMe(Long adminUserId, Integer limit) {
-        return ticketRepository.findAllByAssignedAdmin_IdOrderByCreatedAtDesc(adminUserId, page(limit))
-                .stream()
-                .map(this::toResponse)
-                .toList();
+        return toResponseList(
+                ticketRepository.findAllByAssignedAdmin_IdOrderByCreatedAtDesc(adminUserId, page(limit)));
     }
 
     @Transactional
@@ -412,6 +404,29 @@ public class TicketServiceImpl  implements TicketService{
                 .map(TicketMessageResponse::from)
                 .toList();
         return TicketResponse.from(ticket, messages);
+    }
+
+    private List<TicketResponse> toResponseList(List<Ticket> tickets) {
+        if (tickets.isEmpty()) {
+            return List.of();
+        }
+        List<String> codes = tickets.stream().map(Ticket::getTicketCode).toList();
+        Map<String, List<TicketMessage>> messagesByTicket = ticketMessageRepository
+                .findByTicket_TicketCodeInOrderByCreatedAtAsc(codes)
+                .stream()
+                .collect(Collectors.groupingBy(
+                        msg -> msg.getTicket().getTicketCode(),
+                        Collectors.toCollection(ArrayList::new)));
+        return tickets.stream()
+                .map(ticket -> {
+                    List<TicketMessageResponse> messages = messagesByTicket
+                            .getOrDefault(ticket.getTicketCode(), List.of())
+                            .stream()
+                            .map(TicketMessageResponse::from)
+                            .toList();
+                    return TicketResponse.from(ticket, messages);
+                })
+                .toList();
     }
 
     private Ticket ensureTicketExists(String ticketCode) {

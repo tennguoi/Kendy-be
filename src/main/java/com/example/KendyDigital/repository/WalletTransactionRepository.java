@@ -14,23 +14,30 @@ import org.springframework.data.repository.query.Param;
 public interface WalletTransactionRepository extends JpaRepository<WalletTransaction, Long> {
     boolean existsByTransactionCode(String transactionCode);
 
-    List<WalletTransaction> findAllByUser_IdOrderByCreatedAtDesc(Long userId, Pageable pageable);
+    @Query("select w from WalletTransaction w join fetch w.user u where u.id = :userId order by w.createdAt desc")
+    List<WalletTransaction> findAllByUser_IdOrderByCreatedAtDesc(@Param("userId") Long userId, Pageable pageable);
 
-    List<WalletTransaction> findAllByUser_IdAndTypeOrderByCreatedAtDesc(Long userId, WalletTransactionType type, Pageable pageable);
+    @Query("select w from WalletTransaction w join fetch w.user u where u.id = :userId and w.type = :type order by w.createdAt desc")
+    List<WalletTransaction> findAllByUser_IdAndTypeOrderByCreatedAtDesc(@Param("userId") Long userId, @Param("type") WalletTransactionType type, Pageable pageable);
 
-    List<WalletTransaction> findAllByUser_IdAndDirectionOrderByCreatedAtDesc(Long userId,
-            WalletTransactionDirection direction, Pageable pageable);
+    @Query("select w from WalletTransaction w join fetch w.user u where u.id = :userId and w.direction = :direction order by w.createdAt desc")
+    List<WalletTransaction> findAllByUser_IdAndDirectionOrderByCreatedAtDesc(@Param("userId") Long userId,
+            @Param("direction") WalletTransactionDirection direction, Pageable pageable);
 
-    List<WalletTransaction> findAllByUser_IdAndTypeAndDirectionOrderByCreatedAtDesc(Long userId,
-            WalletTransactionType type, WalletTransactionDirection direction, Pageable pageable);
+    @Query("select w from WalletTransaction w join fetch w.user u where u.id = :userId and w.type = :type and w.direction = :direction order by w.createdAt desc")
+    List<WalletTransaction> findAllByUser_IdAndTypeAndDirectionOrderByCreatedAtDesc(@Param("userId") Long userId,
+            @Param("type") WalletTransactionType type, @Param("direction") WalletTransactionDirection direction, Pageable pageable);
 
+    @Query("select w from WalletTransaction w join fetch w.user u order by w.createdAt desc")
     List<WalletTransaction> findAllByOrderByCreatedAtDesc(Pageable pageable);
 
-    Optional<WalletTransaction> findByIdAndUser_Id(Long id, Long userId);
+    @Query("select w from WalletTransaction w join fetch w.user u where w.id = :id and u.id = :userId")
+    Optional<WalletTransaction> findByIdAndUser_Id(@Param("id") Long id, @Param("userId") Long userId);
 
     @Query("""
             select w from WalletTransaction w
-            where w.user.id = :userId
+            join fetch w.user u
+            where u.id = :userId
               and (:type is null or w.type = :type)
               and (:direction is null or w.direction = :direction)
               and (
@@ -49,7 +56,7 @@ public interface WalletTransactionRepository extends JpaRepository<WalletTransac
 
     @Query("""
             select w from WalletTransaction w
-            join w.user u
+            join fetch w.user u
             where (:userId is null or u.id = :userId)
               and (:type is null or w.type = :type)
               and (:direction is null or w.direction = :direction)

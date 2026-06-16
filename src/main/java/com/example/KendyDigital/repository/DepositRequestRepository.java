@@ -18,17 +18,22 @@ public interface DepositRequestRepository extends JpaRepository<DepositRequest, 
 
     Optional<DepositRequest> findByDepositCode(String depositCode);
 
-    List<DepositRequest> findAllByUser_IdOrderByCreatedAtDesc(Long userId, Pageable pageable);
+    @Query("select d from DepositRequest d join fetch d.user where d.user.id = :userId order by d.createdAt desc")
+    List<DepositRequest> findAllByUser_IdOrderByCreatedAtDesc(@Param("userId") Long userId, Pageable pageable);
 
-    List<DepositRequest> findAllByUser_IdAndStatusOrderByCreatedAtDesc(Long userId, DepositStatus status, Pageable pageable);
+    @Query("select d from DepositRequest d join fetch d.user where d.user.id = :userId and d.status = :status order by d.createdAt desc")
+    List<DepositRequest> findAllByUser_IdAndStatusOrderByCreatedAtDesc(@Param("userId") Long userId,
+            @Param("status") DepositStatus status, Pageable pageable);
 
+    @Query("select d from DepositRequest d left join fetch d.user order by d.createdAt desc")
     List<DepositRequest> findAllByOrderByCreatedAtDesc(Pageable pageable);
 
-    List<DepositRequest> findAllByStatusOrderByCreatedAtDesc(DepositStatus status, Pageable pageable);
+    @Query("select d from DepositRequest d left join fetch d.user where d.status = :status order by d.createdAt desc")
+    List<DepositRequest> findAllByStatusOrderByCreatedAtDesc(@Param("status") DepositStatus status, Pageable pageable);
 
     @Query("""
             select d from DepositRequest d
-            join d.user u
+            join fetch d.user u
             where (:status is null or d.status = :status)
               and (:userId is null or u.id = :userId)
               and (

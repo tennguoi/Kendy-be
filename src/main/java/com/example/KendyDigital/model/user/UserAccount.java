@@ -86,6 +86,12 @@ public class UserAccount extends TimestampedEntity {
     @Column(name = "two_factor_enabled", nullable = false)
     private boolean twoFactorEnabled = false;
 
+    @Column(name = "failed_login_attempts", nullable = false, columnDefinition = "integer default 0")
+    private int failedLoginAttempts = 0;
+
+    @Column(name = "locked_until")
+    private Instant lockedUntil;
+
     @Column(name = "admin_permissions", columnDefinition = "TEXT")
     private String adminPermissions;
 
@@ -139,6 +145,26 @@ public class UserAccount extends TimestampedEntity {
         if (avatarUrl != null && !avatarUrl.isBlank()) {
             this.avatarUrl = avatarUrl;
         }
+    }
+
+    public boolean isLocked() {
+        return lockedUntil != null && lockedUntil.isAfter(Instant.now());
+    }
+
+    public void recordFailedLogin() {
+        this.failedLoginAttempts++;
+        if (this.failedLoginAttempts >= 5) {
+            this.lockedUntil = Instant.now().plus(java.time.Duration.ofMinutes(15));
+        }
+    }
+
+    public void resetFailedLoginAttempts() {
+        this.failedLoginAttempts = 0;
+        this.lockedUntil = null;
+    }
+
+    public void recordSuccessfulLogin() {
+        resetFailedLoginAttempts();
     }
 
 }

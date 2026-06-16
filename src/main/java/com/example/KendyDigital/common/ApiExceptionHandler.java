@@ -2,6 +2,7 @@ package com.example.KendyDigital.common;
 
 import java.time.Instant;
 import java.util.Map;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -29,6 +30,21 @@ public class ApiExceptionHandler {
     @ExceptionHandler(IllegalArgumentException.class)
     ResponseEntity<Map<String, Object>> handleIllegalArgument(IllegalArgumentException exception) {
         return ResponseEntity.badRequest().body(error(HttpStatus.BAD_REQUEST, exception.getMessage()));
+    }
+
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    ResponseEntity<Map<String, Object>> handleDataIntegrity(DataIntegrityViolationException exception) {
+        String message = exception.getMostSpecificCause().getMessage();
+        if (message != null && message.contains("unique")) {
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(error(HttpStatus.CONFLICT, "Dữ liệu đã tồn tại trong hệ thống"));
+        }
+        if (message != null && message.contains("foreign key")) {
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(error(HttpStatus.CONFLICT, "Dữ liệu liên quan không tồn tại"));
+        }
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(error(HttpStatus.CONFLICT, "Lỗi dữ liệu không hợp lệ"));
     }
 
     private Map<String, Object> error(HttpStatus status, String message) {

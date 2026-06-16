@@ -341,11 +341,15 @@ public class ServiceCatalogServiceImpl  implements ServiceCatalogService{
 
     @Transactional
     public List<ServiceResponse> bulkStatus(Long adminUserId, List<Long> ids, ServiceStatus status, String reason) {
-        return ids.stream()
-                .map(id -> {
-                    ServiceItem service = serviceItemRepository.findById(id)
-                            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
-                                    "Service not found: " + id));
+        List<ServiceItem> services = serviceItemRepository.findAllById(ids);
+        if (services.size() != ids.size()) {
+            List<Long> found = services.stream().map(ServiceItem::getId).toList();
+            Long missing = ids.stream().filter(id -> !found.contains(id)).findFirst().orElse(null);
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND,
+                    "Service not found: " + missing);
+        }
+        return services.stream()
+                .map(service -> {
                     service.changeStatus(status);
                     auditService.recordAdmin(adminUserId, "SERVICE_BULK_STATUS_UPDATED", "SERVICE", service.getId(),
                             "status=" + status + ",reason=" + blankToNull(reason));

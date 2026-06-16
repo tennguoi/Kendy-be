@@ -2,6 +2,8 @@ package com.example.KendyDigital.model.order;
 
 import com.example.KendyDigital.common.TimestampedEntity;
 import com.example.KendyDigital.model.catalog.ServiceItem;
+import com.example.KendyDigital.model.inventory.AccountCredential;
+import com.example.KendyDigital.model.ticket.Ticket;
 import com.example.KendyDigital.model.user.UserAccount;
 import com.example.KendyDigital.model.wallet.WalletTransaction;
 import jakarta.persistence.Column;
@@ -61,6 +63,15 @@ public class OrderRecord extends TimestampedEntity {
     @Column(nullable = false, precision = 18, scale = 2)
     private BigDecimal amount;
 
+    @Column(name = "original_amount", precision = 18, scale = 2)
+    private BigDecimal originalAmount;
+
+    @Column(name = "discount_amount", precision = 18, scale = 2)
+    private BigDecimal discountAmount;
+
+    @Column(name = "coupon_code")
+    private String couponCode;
+
     @Column(name = "input_data", columnDefinition = "TEXT")
     private String inputData;
 
@@ -79,6 +90,9 @@ public class OrderRecord extends TimestampedEntity {
     @JoinColumn(name = "refund_transaction_id")
     private WalletTransaction refundTransaction;
 
+    @OneToOne(mappedBy = "assignedOrder", fetch = FetchType.LAZY)
+    private AccountCredential deliveredCredential;
+
     @Column(name = "idempotency_key")
     private String idempotencyKey;
 
@@ -94,6 +108,17 @@ public class OrderRecord extends TimestampedEntity {
     @Column(name = "processing_deadline_at")
     private Instant processingDeadlineAt;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "assigned_admin_id")
+    private UserAccount assignedAdmin;
+
+    @Column(name = "manual_checklist", columnDefinition = "TEXT")
+    private String manualChecklist;
+
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "support_ticket_id")
+    private Ticket supportTicket;
+
     @Column(name = "completed_at")
     private Instant completedAt;
 
@@ -106,8 +131,17 @@ public class OrderRecord extends TimestampedEntity {
         this.user = user;
         this.service = service;
         this.amount = amount;
+        this.originalAmount = amount;
+        this.discountAmount = BigDecimal.ZERO;
         this.inputData = inputData;
         this.idempotencyKey = idempotencyKey;
+    }
+
+    public void applyPricing(BigDecimal originalAmount, BigDecimal discountAmount, String couponCode) {
+        this.originalAmount = originalAmount;
+        this.discountAmount = discountAmount;
+        this.couponCode = couponCode;
+        this.amount = originalAmount.subtract(discountAmount).max(BigDecimal.ZERO);
     }
 
     public void attachPurchaseTransaction(WalletTransaction walletTransaction) {
@@ -172,5 +206,25 @@ public class OrderRecord extends TimestampedEntity {
         if (adminNote != null) {
             this.adminNote = adminNote;
         }
+    }
+
+    public void updateManualWorkflow(UserAccount assignedAdmin, Instant processingDeadlineAt,
+            String manualChecklist, String adminNote) {
+        if (assignedAdmin != null) {
+            this.assignedAdmin = assignedAdmin;
+        }
+        if (processingDeadlineAt != null) {
+            this.processingDeadlineAt = processingDeadlineAt;
+        }
+        if (manualChecklist != null) {
+            this.manualChecklist = manualChecklist;
+        }
+        if (adminNote != null) {
+            this.adminNote = adminNote;
+        }
+    }
+
+    public void attachSupportTicket(Ticket supportTicket) {
+        this.supportTicket = supportTicket;
     }
 }

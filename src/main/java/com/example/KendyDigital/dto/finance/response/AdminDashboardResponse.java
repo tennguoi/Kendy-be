@@ -24,5 +24,9 @@ public record AdminDashboardResponse(
         long closedTickets,
         long todayDeposits,
         BigDecimal todayRevenue,
-        long unmatchedBankCount) {
+        long unmatchedBankCount,
+        long manualProcessingOrders,
+        long openWarrantyRequests,
+        long lowStockServices,
+        long expiringCredentials) {
 }

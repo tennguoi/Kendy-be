@@ -16,24 +16,32 @@ import org.springframework.data.repository.query.Param;
 public interface TicketRepository extends JpaRepository<Ticket, Long> {
     boolean existsByTicketCode(String ticketCode);
 
-    Optional<Ticket> findByTicketCode(String ticketCode);
+    @Query("select t from Ticket t join fetch t.user u left join fetch t.order o left join fetch t.depositRequest d where t.ticketCode = :ticketCode")
+    Optional<Ticket> findByTicketCode(@Param("ticketCode") String ticketCode);
 
-    List<Ticket> findAllByUser_IdOrderByCreatedAtDesc(Long userId, Pageable pageable);
+    @Query("select t from Ticket t join fetch t.user u left join fetch t.order o left join fetch t.depositRequest d where u.id = :userId order by t.createdAt desc")
+    List<Ticket> findAllByUser_IdOrderByCreatedAtDesc(@Param("userId") Long userId, Pageable pageable);
 
-    List<Ticket> findAllByUser_IdAndStatusOrderByCreatedAtDesc(Long userId, TicketStatus status, Pageable pageable);
+    @Query("select t from Ticket t join fetch t.user u left join fetch t.order o left join fetch t.depositRequest d where u.id = :userId and t.status = :status order by t.createdAt desc")
+    List<Ticket> findAllByUser_IdAndStatusOrderByCreatedAtDesc(@Param("userId") Long userId, @Param("status") TicketStatus status, Pageable pageable);
 
+    @Query("select t from Ticket t join fetch t.user u left join fetch t.order o left join fetch t.depositRequest d where t.assignedAdmin is null order by t.createdAt desc")
     List<Ticket> findAllByAssignedAdminIsNullOrderByCreatedAtDesc(Pageable pageable);
 
-    List<Ticket> findAllByAssignedAdmin_IdOrderByCreatedAtDesc(Long adminId, Pageable pageable);
+    @Query("select t from Ticket t join fetch t.user u left join fetch t.order o left join fetch t.depositRequest d where t.assignedAdmin.id = :adminId order by t.createdAt desc")
+    List<Ticket> findAllByAssignedAdmin_IdOrderByCreatedAtDesc(@Param("adminId") Long adminId, Pageable pageable);
 
+    @Query("select t from Ticket t join fetch t.user u left join fetch t.order o left join fetch t.depositRequest d order by t.createdAt desc")
     List<Ticket> findAllByOrderByCreatedAtDesc(Pageable pageable);
 
-    List<Ticket> findAllByStatusOrderByCreatedAtDesc(TicketStatus status, Pageable pageable);
+    @Query("select t from Ticket t join fetch t.user u left join fetch t.order o left join fetch t.depositRequest d where t.status = :status order by t.createdAt desc")
+    List<Ticket> findAllByStatusOrderByCreatedAtDesc(@Param("status") TicketStatus status, Pageable pageable);
 
     @Query("""
             select t from Ticket t
-            left join t.order o
-            left join t.depositRequest d
+            join fetch t.user u
+            left join fetch t.order o
+            left join fetch t.depositRequest d
             where t.user.id = :userId
               and (:status is null or t.status = :status)
               and (:category is null or t.category = :category)
@@ -55,9 +63,9 @@ public interface TicketRepository extends JpaRepository<Ticket, Long> {
 
     @Query("""
             select t from Ticket t
-            join t.user u
-            left join t.order o
-            left join t.depositRequest d
+            join fetch t.user u
+            left join fetch t.order o
+            left join fetch t.depositRequest d
             where (:status is null or t.status = :status)
               and (:category is null or t.category = :category)
               and (:priority is null or t.priority = :priority)

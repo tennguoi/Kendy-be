@@ -1,7 +1,9 @@
 package com.example.KendyDigital.service.notification;
 
 import com.example.KendyDigital.config.AppEmailProperties;
+import com.example.KendyDigital.model.notification.EmailLog;
 import com.example.KendyDigital.model.user.UserAccount;
+import com.example.KendyDigital.repository.EmailLogRepository;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
@@ -11,6 +13,7 @@ import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.mail.MailException;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -19,13 +22,17 @@ public class EmailNotificationServiceImpl  implements EmailNotificationService{
 
     private final ObjectProvider<JavaMailSender> mailSenderProvider;
     private final AppEmailProperties properties;
+    private final EmailLogRepository emailLogRepository;
 
     public EmailNotificationServiceImpl(ObjectProvider<JavaMailSender> mailSenderProvider,
-            AppEmailProperties properties) {
+            AppEmailProperties properties,
+            EmailLogRepository emailLogRepository) {
         this.mailSenderProvider = mailSenderProvider;
         this.properties = properties;
+        this.emailLogRepository = emailLogRepository;
     }
 
+    @Async("jobExecutor")
     public void sendPasswordReset(UserAccount user, String token, Instant expiresAt) {
         String link = frontendUrl("/reset-password?token=" + encode(token));
         send(user.getEmail(), "Reset your KendyDigital password",
@@ -33,6 +40,7 @@ public class EmailNotificationServiceImpl  implements EmailNotificationService{
                         + "\n\nThis token expires at: " + expiresAt);
     }
 
+    @Async("jobExecutor")
     public void sendEmailVerification(UserAccount user, String token, Instant expiresAt) {
         String link = frontendUrl("/verify-email?token=" + encode(token));
         send(user.getEmail(), "Verify your KendyDigital email",
@@ -40,6 +48,7 @@ public class EmailNotificationServiceImpl  implements EmailNotificationService{
                         + "\n\nThis token expires at: " + expiresAt);
     }
 
+    @Async("jobExecutor")
     public void sendTwoFactorCode(UserAccount user, String code, Instant expiresAt) {
         send(user.getEmail(), "Your KendyDigital 2FA code",
                 "Your 2FA email code is: " + code
@@ -47,10 +56,12 @@ public class EmailNotificationServiceImpl  implements EmailNotificationService{
                         + "\nIf you did not try to sign in, change your password immediately.");
     }
 
+    @Async("jobExecutor")
     public void sendSecurityAlert(UserAccount user, String title, String message) {
         send(user.getEmail(), title, message);
     }
 
+    @Async("jobExecutor")
     public void sendUserNotification(UserAccount user, String title, String message, String actionUrl) {
         String body = message == null ? "" : message;
         if (actionUrl != null && !actionUrl.isBlank()) {
@@ -69,6 +80,9 @@ public class EmailNotificationServiceImpl  implements EmailNotificationService{
             LOGGER.warn("Email enabled but JavaMailSender is not available. Skipped sending '{}' to {}", subject, to);
             return;
         }
+        String status = "SUCCESS";
+        String errorMessage = null;
+        Instant sentAt = Instant.now();
         try {
             SimpleMailMessage message = new SimpleMailMessage();
             message.setFrom(properties.getFrom());
@@ -77,7 +91,14 @@ public class EmailNotificationServiceImpl  implements EmailNotificationService{
             message.setText(body);
             mailSender.send(message);
         } catch (MailException exception) {
+            status = "FAILED";
+            errorMessage = exception.getMessage();
             LOGGER.warn("Failed to send email '{}' to {}: {}", subject, to, exception.getMessage());
+        }
+        try {
+            emailLogRepository.save(new EmailLog(to, subject, body, status, errorMessage, sentAt));
+        } catch (Exception exception) {
+            LOGGER.error("Failed to save email log to database: {}", exception.getMessage());
         }
     }
 

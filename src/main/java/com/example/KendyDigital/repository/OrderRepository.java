@@ -2,6 +2,7 @@ package com.example.KendyDigital.repository;
 
 import com.example.KendyDigital.model.order.OrderRecord;
 import com.example.KendyDigital.model.order.OrderStatus;
+import com.example.KendyDigital.model.catalog.ServiceType;
 import jakarta.persistence.LockModeType;
 import java.math.BigDecimal;
 import java.util.List;
@@ -15,24 +16,88 @@ import org.springframework.data.repository.query.Param;
 public interface OrderRepository extends JpaRepository<OrderRecord, Long> {
     boolean existsByOrderCode(String orderCode);
 
-    Optional<OrderRecord> findByOrderCode(String orderCode);
+    @Query("""
+            select o from OrderRecord o
+            join fetch o.service
+            left join fetch o.deliveredCredential
+            left join fetch o.assignedAdmin
+            left join fetch o.supportTicket
+            join fetch o.user
+            where o.orderCode = :orderCode
+            """)
+    Optional<OrderRecord> findByOrderCode(@Param("orderCode") String orderCode);
 
-    Optional<OrderRecord> findByUser_IdAndIdempotencyKey(Long userId, String idempotencyKey);
-
-    List<OrderRecord> findAllByUser_IdOrderByCreatedAtDesc(Long userId, Pageable pageable);
-
-    List<OrderRecord> findAllByUser_IdAndStatusOrderByCreatedAtDesc(Long userId, OrderStatus status, Pageable pageable);
-
-    List<OrderRecord> findAllByService_IdOrderByCreatedAtDesc(Long serviceId, Pageable pageable);
-
-    List<OrderRecord> findAllByOrderByCreatedAtDesc(Pageable pageable);
-
-    List<OrderRecord> findAllByStatusOrderByCreatedAtDesc(OrderStatus status, Pageable pageable);
+    @Query("select o from OrderRecord o join fetch o.service join fetch o.user where o.user.id = :userId and o.idempotencyKey = :idempotencyKey")
+    Optional<OrderRecord> findByUser_IdAndIdempotencyKey(@Param("userId") Long userId, @Param("idempotencyKey") String idempotencyKey);
 
     @Query("""
             select o from OrderRecord o
-            join o.service s
+            join fetch o.service
+            left join fetch o.deliveredCredential
+            left join fetch o.assignedAdmin
+            left join fetch o.supportTicket
+            join fetch o.user
             where o.user.id = :userId
+            order by o.createdAt desc
+            """)
+    List<OrderRecord> findAllByUser_IdOrderByCreatedAtDesc(@Param("userId") Long userId, Pageable pageable);
+
+    @Query("""
+            select o from OrderRecord o
+            join fetch o.service
+            left join fetch o.deliveredCredential
+            left join fetch o.assignedAdmin
+            left join fetch o.supportTicket
+            join fetch o.user
+            where o.user.id = :userId and o.status = :status
+            order by o.createdAt desc
+            """)
+    List<OrderRecord> findAllByUser_IdAndStatusOrderByCreatedAtDesc(@Param("userId") Long userId,
+            @Param("status") OrderStatus status, Pageable pageable);
+
+    @Query("""
+            select o from OrderRecord o
+            join fetch o.service
+            left join fetch o.deliveredCredential
+            left join fetch o.assignedAdmin
+            left join fetch o.supportTicket
+            join fetch o.user
+            where o.service.id = :serviceId
+            order by o.createdAt desc
+            """)
+    List<OrderRecord> findAllByService_IdOrderByCreatedAtDesc(@Param("serviceId") Long serviceId, Pageable pageable);
+
+    @Query("""
+            select o from OrderRecord o
+            join fetch o.service
+            left join fetch o.deliveredCredential
+            left join fetch o.assignedAdmin
+            left join fetch o.supportTicket
+            join fetch o.user
+            order by o.createdAt desc
+            """)
+    List<OrderRecord> findAllByOrderByCreatedAtDesc(Pageable pageable);
+
+    @Query("""
+            select o from OrderRecord o
+            join fetch o.service
+            left join fetch o.deliveredCredential
+            left join fetch o.assignedAdmin
+            left join fetch o.supportTicket
+            join fetch o.user
+            where o.status = :status
+            order by o.createdAt desc
+            """)
+    List<OrderRecord> findAllByStatusOrderByCreatedAtDesc(@Param("status") OrderStatus status, Pageable pageable);
+
+    @Query("""
+            select o from OrderRecord o
+            join fetch o.service s
+            left join fetch o.deliveredCredential
+            left join fetch o.assignedAdmin
+            left join fetch o.supportTicket
+            join fetch o.user u
+            where u.id = :userId
               and (:status is null or o.status = :status)
               and (
                 :queryPattern is null
@@ -49,8 +114,11 @@ public interface OrderRepository extends JpaRepository<OrderRecord, Long> {
 
     @Query("""
             select o from OrderRecord o
-            join o.user u
-            join o.service s
+            join fetch o.user u
+            join fetch o.service s
+            left join fetch o.deliveredCredential
+            left join fetch o.assignedAdmin
+            left join fetch o.supportTicket
             where (:status is null or o.status = :status)
               and (:userId is null or u.id = :userId)
               and (
@@ -73,13 +141,15 @@ public interface OrderRepository extends JpaRepository<OrderRecord, Long> {
 
     long countByUser_IdAndStatus(Long userId, OrderStatus status);
 
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select o from OrderRecord o join fetch o.user where o.orderCode = :orderCode")
+    Optional<OrderRecord> findByOrderCodeForUpdate(@Param("orderCode") String orderCode);
+
     long countByService_Id(Long serviceId);
 
     long countByService_IdAndStatus(Long serviceId, OrderStatus status);
 
-    @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("select o from OrderRecord o join fetch o.user where o.orderCode = :orderCode")
-    Optional<OrderRecord> findByOrderCodeForUpdate(@Param("orderCode") String orderCode);
+    long countByService_TypeAndStatus(ServiceType serviceType, OrderStatus status);
 
     @Query("select coalesce(sum(o.amount), 0) from OrderRecord o where o.status = :status")
     BigDecimal sumAmountByStatus(@Param("status") OrderStatus status);

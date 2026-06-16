@@ -7,10 +7,12 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.time.Instant;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.springframework.http.HttpStatus;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
@@ -23,6 +25,12 @@ public class RateLimitFilter extends OncePerRequestFilter {
 
     public RateLimitFilter(RateLimitProperties properties) {
         this.properties = properties;
+    }
+
+    @Scheduled(fixedDelay = 60000)
+    public void cleanExpired() {
+        long now = Instant.now().getEpochSecond();
+        counters.entrySet().removeIf(entry -> now - entry.getValue().windowStartedAt() >= WINDOW_SECONDS);
     }
 
     @Override
@@ -54,16 +62,36 @@ public class RateLimitFilter extends OncePerRequestFilter {
         filterChain.doFilter(request, response);
     }
 
+    @Scheduled(fixedRateString = "${app.rate-limit.purge-interval-ms:60000}")
+    public void purgeExpired() {
+        long cutoff = Instant.now().getEpochSecond() - WINDOW_SECONDS;
+        Iterator<Map.Entry<String, WindowCounter>> it = counters.entrySet().iterator();
+        while (it.hasNext()) {
+            if (it.next().getValue().windowStartedAt() < cutoff) {
+                it.remove();
+            }
+        }
+    }
+
     private int limitFor(HttpServletRequest request) {
         String path = request.getRequestURI();
         String method = request.getMethod();
-        if ("POST".equals(method) && ("/api/auth/login".equals(path) || "/api/auth/register".equals(path))) {
+        if ("POST".equals(method) && ("/api/auth/login".equals(path) || "/api/auth/register".equals(path)
+                || "/api/auth/forgot-password".equals(path) || "/api/auth/reset-password".equals(path)
+                || "/api/auth/resend-verification".equals(path))) {
             return properties.getAuthPerMinute();
         }
         if ("POST".equals(method) && "/api/webhooks/sepay".equals(path)) {
             return properties.getWebhookPerMinute();
         }
-        if ("POST".equals(method) && ("/api/deposits".equals(path) || "/api/orders".equals(path))) {
+        if ("POST".equals(method) && ("/api/deposits".equals(path) || "/api/orders".equals(path)
+                || "/api/auth/2fa/email-code".equals(path))) {
+            return properties.getFinancePerMinute();
+        }
+        if (path.startsWith("/api/tickets") || path.startsWith("/api/warranty-requests")) {
+            return properties.getAuthPerMinute();
+        }
+        if ("POST".equals(method) && path.startsWith("/api/admin/credentials/") && path.endsWith("/reveal")) {
             return properties.getFinancePerMinute();
         }
         return 0;
