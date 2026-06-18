@@ -24,8 +24,7 @@ public record AdminBankTransactionResponse(
         Long matchedDepositRequestId,
         Long walletTransactionId,
         Instant receivedAt,
-        Instant creditedAt,
-        String rawPayload) {
+        Instant creditedAt) {
     public static AdminBankTransactionResponse from(BankTransaction transaction) {
         return new AdminBankTransactionResponse(
                 transaction.getId(),
@@ -46,7 +45,6 @@ public record AdminBankTransactionResponse(
                 transaction.getMatchedDepositRequest() == null ? null : transaction.getMatchedDepositRequest().getId(),
                 transaction.getWalletTransaction() == null ? null : transaction.getWalletTransaction().getId(),
                 transaction.getReceivedAt(),
-                transaction.getCreditedAt(),
-                transaction.getRawPayload());
+                transaction.getCreditedAt());
     }
 }

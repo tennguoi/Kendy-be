@@ -39,6 +39,9 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
 import java.util.List;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -325,7 +328,12 @@ public class AdminFinanceController {
         if (dateStr == null || dateStr.isBlank()) {
             return null;
         }
-        return LocalDate.parse(dateStr, DateTimeFormatter.ISO_LOCAL_DATE)
-                .atStartOfDay(ZoneOffset.UTC).toInstant();
+        try {
+            return LocalDate.parse(dateStr, DateTimeFormatter.ISO_LOCAL_DATE)
+                    .atStartOfDay(ZoneOffset.UTC).toInstant();
+        } catch (DateTimeParseException exception) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Date must use ISO format yyyy-MM-dd");
+        }
     }
 }

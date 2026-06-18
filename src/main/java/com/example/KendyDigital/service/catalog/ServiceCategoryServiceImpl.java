@@ -5,6 +5,7 @@ import com.example.KendyDigital.dto.catalog.request.UpdateServiceCategoryRequest
 import com.example.KendyDigital.dto.catalog.response.ServiceCategoryResponse;
 import com.example.KendyDigital.model.catalog.ServiceCategory;
 import com.example.KendyDigital.repository.ServiceCategoryRepository;
+import com.example.KendyDigital.repository.ServiceItemRepository;
 import com.example.KendyDigital.service.audit.AuditService;
 import java.util.List;
 import java.util.Locale;
@@ -16,10 +17,13 @@ import org.springframework.web.server.ResponseStatusException;
 @Service
 public class ServiceCategoryServiceImpl  implements ServiceCategoryService{
     private final ServiceCategoryRepository serviceCategoryRepository;
+    private final ServiceItemRepository serviceItemRepository;
     private final AuditService auditService;
 
-    public ServiceCategoryServiceImpl(ServiceCategoryRepository serviceCategoryRepository, AuditService auditService) {
+    public ServiceCategoryServiceImpl(ServiceCategoryRepository serviceCategoryRepository,
+            ServiceItemRepository serviceItemRepository, AuditService auditService) {
         this.serviceCategoryRepository = serviceCategoryRepository;
+        this.serviceItemRepository = serviceItemRepository;
         this.auditService = auditService;
     }
 
@@ -126,7 +130,9 @@ public class ServiceCategoryServiceImpl  implements ServiceCategoryService{
             if (request.parentId().equals(category.getId())) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Category cannot be its own parent");
             }
-            category.setParent(requireCategory(request.parentId()));
+            ServiceCategory parent = requireCategory(request.parentId());
+            ensureNotDescendant(category, parent);
+            category.setParent(parent);
         } else if (request.parentId() == null && category.getParent() != null) {
             category.setParent(null);
         }
@@ -139,6 +145,12 @@ public class ServiceCategoryServiceImpl  implements ServiceCategoryService{
     @Transactional
     public void delete(Long adminUserId, Long id) {
         ServiceCategory category = requireCategory(id);
+        if (serviceCategoryRepository.existsByParent_Id(id)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Category still has child categories");
+        }
+        if (serviceItemRepository.existsByCategory_Id(id)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Category is still used by services");
+        }
         serviceCategoryRepository.delete(category);
         auditService.recordAdmin(adminUserId, "SERVICE_CATEGORY_DELETED", "SERVICE_CATEGORY", id,
                 "slug=" + category.getSlug());
@@ -147,6 +159,17 @@ public class ServiceCategoryServiceImpl  implements ServiceCategoryService{
     private ServiceCategory requireCategory(Long id) {
         return serviceCategoryRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Category not found"));
+    }
+
+    private void ensureNotDescendant(ServiceCategory category, ServiceCategory candidateParent) {
+        ServiceCategory current = candidateParent;
+        while (current != null) {
+            if (current.getId().equals(category.getId())) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "Category parent cannot be one of its descendants");
+            }
+            current = current.getParent();
+        }
     }
 
     private String normalizeSlug(String slug) {

@@ -333,16 +333,25 @@ public class AccountInventoryServiceImpl implements AccountInventoryService {
 
     @Transactional
     public int releaseExpiredReservations(Instant now) {
-        List<AccountCredential> expiredCredentials =
-                accountCredentialRepository.findExpiredReservations(now, PageRequest.of(0, 200));
-        expiredCredentials.forEach(credential -> {
-            Long checkoutId = credential.getReservedCheckout() == null ? null : credential.getReservedCheckout().getId();
-            credential.releaseReservation();
-            auditService.recordSystem("ACCOUNT_CREDENTIAL_RESERVATION_EXPIRED", "ACCOUNT_CREDENTIAL",
-                    credential.getId(), "checkoutId=" + checkoutId);
-            syncServiceStockStatus(credential.getService());
-        });
-        return expiredCredentials.size();
+        int released = 0;
+        while (true) {
+            List<AccountCredential> expiredCredentials =
+                    accountCredentialRepository.findExpiredReservations(now, PageRequest.of(0, 200));
+            expiredCredentials.forEach(credential -> {
+                Long checkoutId =
+                        credential.getReservedCheckout() == null ? null : credential.getReservedCheckout().getId();
+                credential.releaseReservation();
+                auditService.recordSystem("ACCOUNT_CREDENTIAL_RESERVATION_EXPIRED", "ACCOUNT_CREDENTIAL",
+                        credential.getId(), "checkoutId=" + checkoutId);
+                syncServiceStockStatus(credential.getService());
+            });
+            released += expiredCredentials.size();
+            if (expiredCredentials.size() < 200) {
+                return released;
+            }
+            entityManager.flush();
+            entityManager.clear();
+        }
     }
 
     @Transactional(readOnly = true)
@@ -371,7 +380,7 @@ public class AccountInventoryServiceImpl implements AccountInventoryService {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Replacement credential is not available");
         }
         replacement.deliver(order, order.getUser());
-        order.setDeliveredCredential(replacement);
+        order.attachDeliveredCredential(replacement);
         auditService.recordAdmin(adminUserId, "ACCOUNT_CREDENTIAL_REPLACEMENT_DELIVERED", "ACCOUNT_CREDENTIAL",
                 replacement.getId(), "orderId=" + order.getId());
         syncServiceStockStatus(order.getService());

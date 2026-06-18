@@ -25,11 +25,9 @@ import java.time.Instant;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import lombok.Setter;
 
 @Entity
 @Getter
-@Setter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Table(
         name = "orders",
@@ -146,6 +144,14 @@ public class OrderRecord extends TimestampedEntity {
 
     public void attachPurchaseTransaction(WalletTransaction walletTransaction) {
         this.walletTransaction = walletTransaction;
+    }
+
+    public void attachDeliveredCredential(AccountCredential deliveredCredential) {
+        this.deliveredCredential = deliveredCredential;
+    }
+
+    public void updateResultData(String resultData) {
+        this.resultData = resultData;
     }
 
     public void refund(WalletTransaction refundTransaction, String reason) {

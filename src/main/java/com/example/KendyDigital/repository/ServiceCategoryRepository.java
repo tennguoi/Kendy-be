@@ -13,4 +13,6 @@ public interface ServiceCategoryRepository extends JpaRepository<ServiceCategory
     List<ServiceCategory> findAllByOrderBySortOrderAscNameAsc();
 
     List<ServiceCategory> findAllByParentIsNullOrderBySortOrderAscNameAsc();
+
+    boolean existsByParent_Id(Long parentId);
 }

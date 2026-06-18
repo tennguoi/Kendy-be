@@ -10,7 +10,7 @@ import org.springframework.data.repository.query.Param;
 public interface SystemSettingRepository extends JpaRepository<SystemSetting, String> {
     @Query("""
             select s from SystemSetting s
-            where :queryPattern is null or lower(s.key) like :queryPattern
+            where cast(:queryPattern as string) is null or lower(s.key) like :queryPattern
             order by s.key asc
             """)
     List<SystemSetting> search(@Param("queryPattern") String queryPattern, Pageable pageable);

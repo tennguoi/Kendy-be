@@ -12,10 +12,10 @@ public interface EmailLogRepository extends JpaRepository<EmailLog, Long> {
 
     @Query("""
             select e from EmailLog e
-            where (:queryPattern is null
+            where (cast(:queryPattern as string) is null
               or lower(e.toEmail) like :queryPattern
               or lower(e.subject) like :queryPattern)
-              and (:status is null or e.status = :status)
+              and (cast(:status as string) is null or e.status = :status)
             order by e.createdAt desc
             """)
     List<EmailLog> searchLogs(@Param("queryPattern") String queryPattern, @Param("status") String status, Pageable pageable);

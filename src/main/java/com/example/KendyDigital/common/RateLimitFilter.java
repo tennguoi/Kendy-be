@@ -8,7 +8,6 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.time.Instant;
-import java.util.Iterator;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -63,17 +62,6 @@ public class RateLimitFilter extends OncePerRequestFilter {
         }
 
         filterChain.doFilter(request, response);
-    }
-
-    @Scheduled(fixedRateString = "${app.rate-limit.purge-interval-ms:60000}")
-    public void purgeExpired() {
-        long cutoff = Instant.now().getEpochSecond() - WINDOW_SECONDS;
-        Iterator<Map.Entry<String, WindowCounter>> it = counters.entrySet().iterator();
-        while (it.hasNext()) {
-            if (it.next().getValue().windowStartedAt() < cutoff) {
-                it.remove();
-            }
-        }
     }
 
     private int limitFor(HttpServletRequest request) {

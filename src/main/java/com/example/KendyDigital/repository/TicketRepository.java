@@ -43,16 +43,16 @@ public interface TicketRepository extends JpaRepository<Ticket, Long> {
             left join fetch t.order o
             left join fetch t.depositRequest d
             where t.user.id = :userId
-              and (:status is null or t.status = :status)
-              and (:category is null or t.category = :category)
-              and (:priority is null or t.priority = :priority)
+              and (cast(:status as string) is null or t.status = :status)
+              and (cast(:category as string) is null or t.category = :category)
+              and (cast(:priority as string) is null or t.priority = :priority)
               and (
-                :queryPattern is null
+                cast(:queryPattern as string) is null
                 or lower(t.ticketCode) like :queryPattern
                 or lower(t.subject) like :queryPattern
                 or lower(coalesce(o.orderCode, '')) like :queryPattern
                 or lower(coalesce(d.depositCode, '')) like :queryPattern
-                or (:exactId is not null and t.id = :exactId)
+                or (cast(:exactId as long) is not null and t.id = :exactId)
               )
             order by t.createdAt desc
             """)
@@ -66,19 +66,19 @@ public interface TicketRepository extends JpaRepository<Ticket, Long> {
             join fetch t.user u
             left join fetch t.order o
             left join fetch t.depositRequest d
-            where (:status is null or t.status = :status)
-              and (:category is null or t.category = :category)
-              and (:priority is null or t.priority = :priority)
-              and (:userId is null or u.id = :userId)
+            where (cast(:status as string) is null or t.status = :status)
+              and (cast(:category as string) is null or t.category = :category)
+              and (cast(:priority as string) is null or t.priority = :priority)
+              and (cast(:userId as long) is null or u.id = :userId)
               and (
-                :queryPattern is null
+                cast(:queryPattern as string) is null
                 or lower(t.ticketCode) like :queryPattern
                 or lower(t.subject) like :queryPattern
                 or lower(u.email) like :queryPattern
                 or lower(u.name) like :queryPattern
                 or lower(coalesce(o.orderCode, '')) like :queryPattern
                 or lower(coalesce(d.depositCode, '')) like :queryPattern
-                or (:exactId is not null and t.id = :exactId)
+                or (cast(:exactId as long) is not null and t.id = :exactId)
               )
             order by t.createdAt desc
             """)

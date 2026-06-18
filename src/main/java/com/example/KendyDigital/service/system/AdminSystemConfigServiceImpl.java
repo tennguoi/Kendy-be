@@ -18,6 +18,7 @@ import com.example.KendyDigital.service.audit.AuditService;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -157,6 +158,10 @@ public class AdminSystemConfigServiceImpl  implements AdminSystemConfigService{
     private SystemSettingResponse upsertSetting(Long adminUserId, String key, String value, boolean publicSetting) {
         SystemSetting setting = systemSettingRepository.findById(key).orElse(null);
         String oldValue = setting == null ? null : setting.getValue();
+        if (setting != null && Objects.equals(oldValue, value)
+                && setting.isPublicSetting() == publicSetting) {
+            return SystemSettingResponse.from(setting);
+        }
         if (setting == null) {
             setting = systemSettingRepository.save(new SystemSetting(key, value, publicSetting, adminUserId));
         } else {

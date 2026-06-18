@@ -9,6 +9,7 @@ import com.example.KendyDigital.repository.*;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class WalletLedgerServiceImpl  implements WalletLedgerService{
@@ -24,6 +25,7 @@ public class WalletLedgerServiceImpl  implements WalletLedgerService{
         this.codeGenerator = codeGenerator;
     }
 
+    @Transactional
     public WalletTransaction credit(UserAccount user, BigDecimal amount, WalletTransactionType type,
             String referenceType, Long referenceId, String description, Long createdBy) {
         BigDecimal normalizedAmount = normalizePositiveAmount(amount);
@@ -47,6 +49,7 @@ public class WalletLedgerServiceImpl  implements WalletLedgerService{
         return walletTransactionRepository.save(transaction);
     }
 
+    @Transactional
     public WalletTransaction debit(UserAccount user, BigDecimal amount, WalletTransactionType type,
             String referenceType, Long referenceId, String description, Long createdBy) {
         BigDecimal normalizedAmount = normalizePositiveAmount(amount);

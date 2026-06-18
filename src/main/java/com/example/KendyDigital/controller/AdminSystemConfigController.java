@@ -71,7 +71,7 @@ public class AdminSystemConfigController {
 
     @PutMapping("/api/admin/webhooks/sepay/config")
     public List<SystemSettingResponse> updateSePayConfig(Authentication authentication,
-            @RequestBody WebhookConfigRequest request) {
+            @Valid @RequestBody WebhookConfigRequest request) {
         return systemConfigService.updateSePayConfig(CurrentUser.require(authentication).userId(), request);
     }
 

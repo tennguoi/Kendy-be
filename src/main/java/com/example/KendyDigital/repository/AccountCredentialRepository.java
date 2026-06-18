@@ -27,16 +27,16 @@ public interface AccountCredentialRepository extends JpaRepository<AccountCreden
     @Query("""
             select c from AccountCredential c
             where c.service.id = :serviceId
-              and (:status is null or c.status = :status)
-              and (:queryPattern is null
+              and (cast(:status as string) is null or c.status = :status)
+              and (cast(:queryPattern as string) is null
                 or lower(c.loginIdentifier) like :queryPattern
                 or lower(coalesce(c.internalNote, '')) like :queryPattern
               )
-              and (:createdFrom is null or c.createdAt >= :createdFrom)
-              and (:createdTo is null or c.createdAt < :createdTo)
-              and (:deliveredFrom is null or c.deliveredAt >= :deliveredFrom)
-              and (:deliveredTo is null or c.deliveredAt < :deliveredTo)
-              and (:expiresBefore is null or c.expiresAt < :expiresBefore)
+              and (cast(:createdFrom as timestamp) is null or c.createdAt >= :createdFrom)
+              and (cast(:createdTo as timestamp) is null or c.createdAt < :createdTo)
+              and (cast(:deliveredFrom as timestamp) is null or c.deliveredAt >= :deliveredFrom)
+              and (cast(:deliveredTo as timestamp) is null or c.deliveredAt < :deliveredTo)
+              and (cast(:expiresBefore as timestamp) is null or c.expiresAt < :expiresBefore)
             order by c.createdAt desc
             """)
     List<AccountCredential> searchForAdmin(@Param("serviceId") Long serviceId,

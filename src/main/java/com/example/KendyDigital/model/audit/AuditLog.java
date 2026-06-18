@@ -11,11 +11,9 @@ import jakarta.persistence.Table;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import lombok.Setter;
 
 @Entity
 @Getter
-@Setter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Table(
         name = "audit_logs",
@@ -57,6 +55,10 @@ public class AuditLog extends TimestampedEntity {
         this.targetType = targetType;
         this.targetId = targetId;
         this.metadata = metadata;
+    }
+
+    public void recordIpAddress(String ipAddress) {
+        this.ipAddress = ipAddress;
     }
 
 }

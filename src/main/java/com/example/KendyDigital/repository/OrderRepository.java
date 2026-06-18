@@ -98,14 +98,14 @@ public interface OrderRepository extends JpaRepository<OrderRecord, Long> {
             left join fetch o.supportTicket
             join fetch o.user u
             where u.id = :userId
-              and (:status is null or o.status = :status)
+              and (cast(:status as string) is null or o.status = :status)
               and (
-                :queryPattern is null
+                cast(:queryPattern as string) is null
                 or lower(o.orderCode) like :queryPattern
                 or lower(s.name) like :queryPattern
                 or lower(s.slug) like :queryPattern
                 or lower(coalesce(o.inputData, '')) like :queryPattern
-                or (:exactId is not null and o.id = :exactId)
+                or (cast(:exactId as long) is not null and o.id = :exactId)
               )
             order by o.createdAt desc
             """)
@@ -119,21 +119,25 @@ public interface OrderRepository extends JpaRepository<OrderRecord, Long> {
             left join fetch o.deliveredCredential
             left join fetch o.assignedAdmin
             left join fetch o.supportTicket
-            where (:status is null or o.status = :status)
-              and (:userId is null or u.id = :userId)
+            where (cast(:status as string) is null or o.status = :status)
+              and (cast(:userId as long) is null or u.id = :userId)
+              and (cast(:fromDate as timestamp) is null or o.createdAt >= :fromDate)
+              and (cast(:toDate as timestamp) is null or o.createdAt < :toDate)
               and (
-                :queryPattern is null
+                cast(:queryPattern as string) is null
                 or lower(o.orderCode) like :queryPattern
                 or lower(u.email) like :queryPattern
                 or lower(u.name) like :queryPattern
                 or lower(s.name) like :queryPattern
                 or lower(s.slug) like :queryPattern
-                or (:exactId is not null and o.id = :exactId)
+                or (cast(:exactId as long) is not null and o.id = :exactId)
               )
             order by o.createdAt desc
             """)
     List<OrderRecord> searchAdmin(@Param("queryPattern") String queryPattern, @Param("exactId") Long exactId,
-            @Param("status") OrderStatus status, @Param("userId") Long userId, Pageable pageable);
+            @Param("status") OrderStatus status, @Param("userId") Long userId,
+            @Param("fromDate") java.time.Instant fromDate, @Param("toDate") java.time.Instant toDate,
+            Pageable pageable);
 
     long countByStatus(OrderStatus status);
 

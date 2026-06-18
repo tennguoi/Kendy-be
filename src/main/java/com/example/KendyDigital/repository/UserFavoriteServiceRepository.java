@@ -15,7 +15,12 @@ public interface UserFavoriteServiceRepository extends JpaRepository<UserFavorit
 
     boolean existsByUser_IdAndService_Id(Long userId, Long serviceId);
 
-    List<UserFavoriteService> findAllByUser_IdOrderByCreatedAtDesc(Long userId, Pageable pageable);
+    @Query("""
+            select f from UserFavoriteService f join fetch f.service
+            where f.user.id = :userId
+            order by f.createdAt desc
+            """)
+    List<UserFavoriteService> findAllByUser_IdOrderByCreatedAtDesc(@Param("userId") Long userId, Pageable pageable);
 
     @Query("""
             select o.service from OrderRecord o

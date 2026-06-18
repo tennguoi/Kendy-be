@@ -59,7 +59,7 @@ public class DepositController {
 
     @PostMapping("/{depositCode}/cancel")
     public DepositResponse cancelDeposit(Authentication authentication, @PathVariable String depositCode,
-            @RequestBody(required = false) CancelDepositRequest request) {
+            @Valid @RequestBody CancelDepositRequest request) {
         return depositService.cancelForUser(CurrentUser.require(authentication).userId(), depositCode, request);
     }
 }

@@ -1,12 +1,13 @@
 package com.example.KendyDigital.dto.monitoring.response;
 
 import com.example.KendyDigital.model.job.JobRecord;
+import com.example.KendyDigital.model.job.JobStatus;
 import java.time.Instant;
 
 public record JobRecordResponse(
         Long id,
         String name,
-        String status,
+        JobStatus status,
         String logs,
         Instant createdAt,
         Instant updatedAt) {

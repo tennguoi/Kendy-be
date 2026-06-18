@@ -57,13 +57,13 @@ public class AccountInventoryController {
 
     @PostMapping("/api/admin/services/{serviceId}/credentials/bulk-import")
     public BulkAccountCredentialImportResponse bulkImport(Authentication authentication, @PathVariable Long serviceId,
-            @RequestBody BulkAccountCredentialImportRequest request) {
+            @Valid @RequestBody BulkAccountCredentialImportRequest request) {
         return accountInventoryService.bulkImport(CurrentUser.require(authentication).userId(), serviceId, request);
     }
 
     @PutMapping("/api/admin/credentials/{credentialId}")
     public AccountCredentialAdminResponse update(Authentication authentication, @PathVariable Long credentialId,
-            @RequestBody UpdateAccountCredentialRequest request) {
+            @Valid @RequestBody UpdateAccountCredentialRequest request) {
         return accountInventoryService.update(CurrentUser.require(authentication).userId(), credentialId, request);
     }
 

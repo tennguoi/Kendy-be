@@ -4,7 +4,6 @@ import com.example.KendyDigital.dto.file.response.StoredFileResponse;
 import com.example.KendyDigital.model.file.StoredFile;
 import com.example.KendyDigital.repository.StoredFileRepository;
 import com.example.KendyDigital.service.audit.AuditService;
-import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -16,30 +15,23 @@ import org.springframework.web.server.ResponseStatusException;
 public class AdminFileManagerServiceImpl  implements AdminFileManagerService{
     private final StoredFileRepository storedFileRepository;
     private final AuditService auditService;
+    private final UploadedFileValidator uploadedFileValidator;
 
-    public AdminFileManagerServiceImpl(StoredFileRepository storedFileRepository, AuditService auditService) {
+    public AdminFileManagerServiceImpl(StoredFileRepository storedFileRepository, AuditService auditService,
+            UploadedFileValidator uploadedFileValidator) {
         this.storedFileRepository = storedFileRepository;
         this.auditService = auditService;
+        this.uploadedFileValidator = uploadedFileValidator;
     }
 
     @Transactional
     public StoredFileResponse uploadFile(Long adminUserId, MultipartFile file) {
-        if (file == null || file.isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "File is required");
-        }
-        try {
-            StoredFile storedFile = storedFileRepository.save(new StoredFile(
-                    file.getOriginalFilename() == null ? "upload.bin" : file.getOriginalFilename(),
-                    file.getContentType(),
-                    file.getSize(),
-                    adminUserId,
-                    file.getBytes()));
-            auditService.recordAdmin(adminUserId, "FILE_UPLOADED", "FILE", storedFile.getId(),
-                    "fileName=" + storedFile.getFileName());
-            return StoredFileResponse.from(storedFile);
-        } catch (IOException exception) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Cannot read uploaded file");
-        }
+        UploadedFileValidator.ValidatedUpload upload = uploadedFileValidator.validate(file);
+        StoredFile storedFile = storedFileRepository.save(new StoredFile(
+                upload.fileName(), upload.contentType(), upload.sizeBytes(), adminUserId, upload.content()));
+        auditService.recordAdmin(adminUserId, "FILE_UPLOADED", "FILE", storedFile.getId(),
+                "fileName=" + storedFile.getFileName());
+        return StoredFileResponse.from(storedFile);
     }
 
     @Transactional(readOnly = true)

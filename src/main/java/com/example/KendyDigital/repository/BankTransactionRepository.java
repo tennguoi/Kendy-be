@@ -22,16 +22,16 @@ public interface BankTransactionRepository extends JpaRepository<BankTransaction
 
     @Query("""
             select b from BankTransaction b
-            where (:status is null or b.status = :status)
+            where (cast(:status as string) is null or b.status = :status)
               and (
-                :queryPattern is null
+                cast(:queryPattern as string) is null
                 or lower(coalesce(b.referenceCode, '')) like :queryPattern
                 or lower(coalesce(b.code, '')) like :queryPattern
                 or lower(coalesce(b.content, '')) like :queryPattern
                 or lower(coalesce(b.accountNumber, '')) like :queryPattern
                 or lower(coalesce(b.gateway, '')) like :queryPattern
-                or (:exactId is not null and b.id = :exactId)
-                or (:sepayId is not null and b.sepayId = :sepayId)
+                or (cast(:exactId as long) is not null and b.id = :exactId)
+                or (cast(:sepayId as long) is not null and b.sepayId = :sepayId)
               )
             order by b.receivedAt desc
             """)

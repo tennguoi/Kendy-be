@@ -129,6 +129,10 @@ public class AdminBankTxManagerServiceImpl  implements AdminBankTxManagerService
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Bank transaction not found"));
         ensureNotCredited(bankTransaction);
         ensureNotDuplicate(bankTransaction);
+        if (bankTransaction.getStatus() == BankTransactionStatus.IGNORED) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Ignored bank transaction cannot be reprocessed");
+        }
         ensureIncomingTransfer(bankTransaction);
 
         DepositRequest deposit = depositRequestRepository.findByDepositCodeForUpdate(

@@ -20,6 +20,8 @@ import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -50,8 +52,18 @@ public class AdminRoleServiceImpl  implements AdminRoleService{
 
     @Transactional(readOnly = true)
     public List<AdminRoleResponse> listRoles() {
-        return adminRoleRepository.findAll().stream()
-                .map(this::toResponse)
+        List<AdminRole> roles = adminRoleRepository.findAll();
+        Map<Long, List<String>> permissionsByRole = roles.isEmpty()
+                ? Map.of()
+                : rolePermissionRepository
+                        .findAllByRole_IdInWithPermission(roles.stream().map(AdminRole::getId).toList())
+                        .stream()
+                        .collect(Collectors.groupingBy(
+                                rp -> rp.getRole().getId(),
+                                Collectors.mapping(rp -> rp.getPermission().getCode(), Collectors.toList())));
+        return roles.stream()
+                .map(role -> AdminRoleResponse.from(role,
+                        permissionsByRole.getOrDefault(role.getId(), List.of())))
                 .toList();
     }
 
@@ -69,10 +81,9 @@ public class AdminRoleServiceImpl  implements AdminRoleService{
                 new AdminRole(request.name().trim(), request.description(), false));
 
         if (request.permissionIds() != null) {
-            for (Long permId : request.permissionIds()) {
-                AdminPermission perm = requirePermission(permId);
-                rolePermissionRepository.save(new RolePermission(role, perm));
-            }
+            rolePermissionRepository.saveAll(resolvePermissions(request.permissionIds()).stream()
+                    .map(permission -> new RolePermission(role, permission))
+                    .toList());
         }
 
         auditService.recordAdmin(adminUserId, "ADMIN_ROLE_CREATED", "ADMIN_ROLE", role.getId(),
@@ -100,10 +111,9 @@ public class AdminRoleServiceImpl  implements AdminRoleService{
 
         if (request.permissionIds() != null) {
             rolePermissionRepository.deleteByRole_Id(role.getId());
-            for (Long permId : request.permissionIds()) {
-                AdminPermission perm = requirePermission(permId);
-                rolePermissionRepository.save(new RolePermission(role, perm));
-            }
+            rolePermissionRepository.saveAll(resolvePermissions(request.permissionIds()).stream()
+                    .map(permission -> new RolePermission(role, permission))
+                    .toList());
         }
 
         auditService.recordAdmin(adminUserId, "ADMIN_ROLE_UPDATED", "ADMIN_ROLE", role.getId(),
@@ -116,6 +126,9 @@ public class AdminRoleServiceImpl  implements AdminRoleService{
         AdminRole role = requireRole(id);
         if (role.isSystem()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Cannot delete system role");
+        }
+        if (userAdminRoleRepository.existsByRole_Id(role.getId())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Role is still assigned to users");
         }
         rolePermissionRepository.deleteByRole_Id(role.getId());
         adminRoleRepository.delete(role);
@@ -171,16 +184,9 @@ public class AdminRoleServiceImpl  implements AdminRoleService{
 
         List<String> permissions = new ArrayList<>(parseCsvPermissions(user.getAdminPermissions()));
 
-        List<UserAdminRole> userRoles = userAdminRoleRepository.findAllByUser_Id(userId);
-        for (UserAdminRole ur : userRoles) {
-            List<RolePermission> rps = rolePermissionRepository.findAllByRole_Id(ur.getRole().getId());
-            for (RolePermission rp : rps) {
-                String code = rp.getPermission().getCode();
-                if (!permissions.contains(code)) {
-                    permissions.add(code);
-                }
-            }
-        }
+        rolePermissionRepository.findPermissionCodesByUserId(userId).stream()
+                .filter(code -> !permissions.contains(code))
+                .forEach(permissions::add);
         return permissions;
     }
 
@@ -211,5 +217,16 @@ public class AdminRoleServiceImpl  implements AdminRoleService{
     private AdminPermission requirePermission(Long id) {
         return adminPermissionRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Permission not found"));
+    }
+
+    private List<AdminPermission> resolvePermissions(List<Long> permissionIds) {
+        List<Long> distinctIds = permissionIds.stream().distinct().toList();
+        List<AdminPermission> permissions = adminPermissionRepository.findAllById(distinctIds);
+        if (permissions.size() != distinctIds.size()) {
+            Set<Long> foundIds = permissions.stream().map(AdminPermission::getId).collect(Collectors.toSet());
+            Long missingId = distinctIds.stream().filter(id -> !foundIds.contains(id)).findFirst().orElse(null);
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Permission not found: " + missingId);
+        }
+        return permissions;
     }
 }

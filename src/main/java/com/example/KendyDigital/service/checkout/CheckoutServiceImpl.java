@@ -146,7 +146,7 @@ public class CheckoutServiceImpl  implements CheckoutService{
 
     private void refreshCheckoutStatus(CheckoutSession checkout) {
         if (checkout.getOrder() != null) {
-            checkout.setStatus(CheckoutStatus.ORDER_CREATED);
+            checkout.attachOrder(checkout.getOrder());
             return;
         }
         if (checkout.getStatus() == CheckoutStatus.WALLET_CREDITED) {
@@ -155,7 +155,7 @@ public class CheckoutServiceImpl  implements CheckoutService{
 
         DepositRequest deposit = depositRequestRepository.findByDepositCodeForUpdate(checkout.getDepositRequest().getDepositCode())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Deposit not found"));
-        checkout.setDepositRequest(deposit);
+        checkout.replaceDepositRequest(deposit);
 
         if (deposit.getStatus() == DepositStatus.CANCELLED) {
             accountInventoryService.releaseReservationForCheckout(checkout.getId());
@@ -170,7 +170,7 @@ public class CheckoutServiceImpl  implements CheckoutService{
         }
 
         if (deposit.getStatus() != DepositStatus.COMPLETED) {
-            checkout.setStatus(CheckoutStatus.PENDING_PAYMENT);
+            checkout.markPendingPayment();
             return;
         }
 

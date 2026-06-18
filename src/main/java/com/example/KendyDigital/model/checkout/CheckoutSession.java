@@ -23,11 +23,9 @@ import java.math.BigDecimal;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import lombok.Setter;
 
 @Entity
 @Getter
-@Setter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Table(
         name = "checkout_sessions",
@@ -112,6 +110,14 @@ public class CheckoutSession extends TimestampedEntity {
         this.order = order;
         this.status = CheckoutStatus.ORDER_CREATED;
         this.statusMessage = null;
+    }
+
+    public void replaceDepositRequest(DepositRequest depositRequest) {
+        this.depositRequest = depositRequest;
+    }
+
+    public void markPendingPayment() {
+        this.status = CheckoutStatus.PENDING_PAYMENT;
     }
 
     public void markWalletCredited(String statusMessage) {

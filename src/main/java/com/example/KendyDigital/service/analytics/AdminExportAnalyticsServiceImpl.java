@@ -24,8 +24,10 @@ import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -172,7 +174,7 @@ public class AdminExportAnalyticsServiceImpl  implements AdminExportAnalyticsSer
     public String exportUsers() {
         List<String> rows = new ArrayList<>();
         rows.add("id,email,name,phone,role,status,balance,createdAt");
-        userAccountRepository.findAllByOrderByCreatedAtDesc(PageRequest.of(0, 5000))
+        loadAll(userAccountRepository::findAllByOrderByCreatedAtDesc)
                 .forEach(user -> rows.add(csvRow(user.getId(), user.getEmail(), user.getName(), user.getPhone(),
                         user.getRole(), user.getStatus(), user.getBalance(), user.getCreatedAt())));
         return csv(rows);
@@ -205,7 +207,7 @@ public class AdminExportAnalyticsServiceImpl  implements AdminExportAnalyticsSer
 
             // Rows
             java.util.List<com.example.KendyDigital.model.user.UserAccount> users =
-                    userAccountRepository.findAllByOrderByCreatedAtDesc(org.springframework.data.domain.PageRequest.of(0, 5000));
+                    loadAll(userAccountRepository::findAllByOrderByCreatedAtDesc);
             int r = 1;
             for (com.example.KendyDigital.model.user.UserAccount u : users) {
                 org.apache.poi.ss.usermodel.Row row = sheet.createRow(r++);
@@ -260,7 +262,7 @@ public class AdminExportAnalyticsServiceImpl  implements AdminExportAnalyticsSer
     public String exportOrders() {
         List<String> rows = new ArrayList<>();
         rows.add("id,orderCode,userId,serviceId,amount,status,createdAt");
-        orderRepository.findAllByOrderByCreatedAtDesc(PageRequest.of(0, 5000))
+        loadAll(orderRepository::findAllByOrderByCreatedAtDesc)
                 .forEach(order -> rows.add(csvRow(order.getId(), order.getOrderCode(), order.getUser().getId(),
                         order.getService().getId(), order.getAmount(), order.getStatus(), order.getCreatedAt())));
         return csv(rows);
@@ -285,7 +287,7 @@ public class AdminExportAnalyticsServiceImpl  implements AdminExportAnalyticsSer
                 c.setCellStyle(headerStyle);
             }
             java.util.List<com.example.KendyDigital.model.order.OrderRecord> orders =
-                    orderRepository.findAllByOrderByCreatedAtDesc(org.springframework.data.domain.PageRequest.of(0, 5000));
+                    loadAll(orderRepository::findAllByOrderByCreatedAtDesc);
             int r = 1;
             for (com.example.KendyDigital.model.order.OrderRecord o : orders) {
                 org.apache.poi.ss.usermodel.Row row = sheet.createRow(r++);
@@ -319,7 +321,7 @@ public class AdminExportAnalyticsServiceImpl  implements AdminExportAnalyticsSer
     public String exportBank() {
         List<String> rows = new ArrayList<>();
         rows.add("id,sepayId,referenceCode,transferType,transferAmount,status,receivedAt");
-        bankTransactionRepository.findAllByOrderByReceivedAtDesc(PageRequest.of(0, 5000))
+        loadAll(bankTransactionRepository::findAllByOrderByReceivedAtDesc)
                 .forEach(tx -> rows.add(csvRow(tx.getId(), tx.getSepayId(), tx.getReferenceCode(),
                         tx.getTransferType(), tx.getTransferAmount(), tx.getStatus(), tx.getReceivedAt())));
         return csv(rows);
@@ -344,7 +346,7 @@ public class AdminExportAnalyticsServiceImpl  implements AdminExportAnalyticsSer
                 c.setCellStyle(headerStyle);
             }
             java.util.List<com.example.KendyDigital.model.bank.BankTransaction> txs =
-                    bankTransactionRepository.findAllByOrderByReceivedAtDesc(org.springframework.data.domain.PageRequest.of(0, 5000));
+                    loadAll(bankTransactionRepository::findAllByOrderByReceivedAtDesc);
             int r = 1;
             for (com.example.KendyDigital.model.bank.BankTransaction tx : txs) {
                 org.apache.poi.ss.usermodel.Row row = sheet.createRow(r++);
@@ -378,7 +380,7 @@ public class AdminExportAnalyticsServiceImpl  implements AdminExportAnalyticsSer
     public String exportTickets() {
         List<String> rows = new ArrayList<>();
         rows.add("id,ticketCode,userId,category,priority,status,createdAt,closedAt");
-        ticketRepository.findAllByOrderByCreatedAtDesc(PageRequest.of(0, 5000))
+        loadAll(ticketRepository::findAllByOrderByCreatedAtDesc)
                 .forEach(ticket -> rows.add(csvRow(ticket.getId(), ticket.getTicketCode(), ticket.getUser().getId(),
                         ticket.getCategory(), ticket.getPriority(), ticket.getStatus(), ticket.getCreatedAt(),
                         ticket.getClosedAt())));
@@ -404,7 +406,7 @@ public class AdminExportAnalyticsServiceImpl  implements AdminExportAnalyticsSer
                 c.setCellStyle(headerStyle);
             }
             java.util.List<com.example.KendyDigital.model.ticket.Ticket> tickets =
-                    ticketRepository.findAllByOrderByCreatedAtDesc(org.springframework.data.domain.PageRequest.of(0, 5000));
+                    loadAll(ticketRepository::findAllByOrderByCreatedAtDesc);
             int r = 1;
             for (com.example.KendyDigital.model.ticket.Ticket t : tickets) {
                 org.apache.poi.ss.usermodel.Row row = sheet.createRow(r++);
@@ -440,7 +442,7 @@ public class AdminExportAnalyticsServiceImpl  implements AdminExportAnalyticsSer
     public String exportAudit() {
         List<String> rows = new ArrayList<>();
         rows.add("id,actorUserId,actorRole,action,targetType,targetId,metadata,createdAt");
-        auditLogRepository.findAllByOrderByCreatedAtDesc(PageRequest.of(0, 5000))
+        loadAll(auditLogRepository::findAllByOrderByCreatedAtDesc)
                 .forEach(log -> rows.add(csvRow(log.getId(), log.getActorUserId(), log.getActorRole(),
                         log.getAction(), log.getTargetType(), log.getTargetId(), log.getMetadata(),
                         log.getCreatedAt())));
@@ -466,7 +468,7 @@ public class AdminExportAnalyticsServiceImpl  implements AdminExportAnalyticsSer
                 c.setCellStyle(headerStyle);
             }
             java.util.List<com.example.KendyDigital.model.audit.AuditLog> logs =
-                    auditLogRepository.findAllByOrderByCreatedAtDesc(org.springframework.data.domain.PageRequest.of(0, 5000));
+                    loadAll(auditLogRepository::findAllByOrderByCreatedAtDesc);
             int r = 1;
             for (com.example.KendyDigital.model.audit.AuditLog log : logs) {
                 org.apache.poi.ss.usermodel.Row row = sheet.createRow(r++);
@@ -514,5 +516,17 @@ public class AdminExportAnalyticsServiceImpl  implements AdminExportAnalyticsSer
     private PageRequest page(Integer limit) {
         int normalizedLimit = limit == null ? 100 : Math.max(1, Math.min(limit, 500));
         return PageRequest.of(0, normalizedLimit);
+    }
+
+    private <T> List<T> loadAll(Function<Pageable, List<T>> loader) {
+        final int batchSize = 500;
+        List<T> results = new ArrayList<>();
+        for (int pageNumber = 0; ; pageNumber++) {
+            List<T> batch = loader.apply(PageRequest.of(pageNumber, batchSize));
+            results.addAll(batch);
+            if (batch.size() < batchSize) {
+                return results;
+            }
+        }
     }
 }

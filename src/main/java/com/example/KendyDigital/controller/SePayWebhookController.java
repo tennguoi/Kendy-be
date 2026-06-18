@@ -16,12 +16,10 @@ import javax.crypto.spec.SecretKeySpec;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.util.MultiValueMap;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -43,27 +41,28 @@ public class SePayWebhookController {
     @PostMapping
     public ResponseEntity<SePayWebhookResponse> receive(
             @RequestHeader HttpHeaders headers,
-            @RequestParam MultiValueMap<String, String> queryParams,
             @RequestBody String rawPayload) {
-        verifyApiKey(headers, queryParams);
+        verifyApiKey(headers);
         verifyHmac(headers, rawPayload);
         SePayWebhookPayload payload = parsePayload(rawPayload);
         sePayWebhookService.process(payload, rawPayload);
         return ResponseEntity.ok(new SePayWebhookResponse(true));
     }
 
-    private void verifyApiKey(HttpHeaders headers, MultiValueMap<String, String> queryParams) {
+    private void verifyApiKey(HttpHeaders headers) {
         if (!properties.isRequireApiKey()) {
             return;
         }
-        String receivedApiKey = resolveWebhookSecret(headers, queryParams);
+        String receivedApiKey = resolveWebhookSecret(headers);
         if (properties.getApiKey() == null || properties.getApiKey().isBlank()
-                || !properties.getApiKey().equals(receivedApiKey)) {
+                || !MessageDigest.isEqual(
+                        properties.getApiKey().getBytes(StandardCharsets.UTF_8),
+                        receivedApiKey.getBytes(StandardCharsets.UTF_8))) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid SePay webhook API key");
         }
     }
 
-    private String resolveWebhookSecret(HttpHeaders headers, MultiValueMap<String, String> queryParams) {
+    private String resolveWebhookSecret(HttpHeaders headers) {
         String configuredHeader = normalizeHeaderValue(headers.getFirst(properties.getApiKeyHeader()));
         if (!configuredHeader.isBlank()) {
             return configuredHeader;
@@ -87,24 +86,6 @@ public class SePayWebhookController {
             return authorization.substring("Apikey ".length()).trim();
         }
 
-        String querySecret = firstQueryParam(queryParams, "secret", "webhookSecret", "webhook-secret", "apiKey", "token");
-        if (!querySecret.isBlank()) {
-            return querySecret;
-        }
-
-        return "";
-    }
-
-    private String firstQueryParam(MultiValueMap<String, String> queryParams, String... keys) {
-        if (queryParams == null) {
-            return "";
-        }
-        for (String key : keys) {
-            String value = normalizeHeaderValue(queryParams.getFirst(key));
-            if (!value.isBlank()) {
-                return value;
-            }
-        }
         return "";
     }
 

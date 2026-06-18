@@ -38,15 +38,15 @@ public interface WalletTransactionRepository extends JpaRepository<WalletTransac
             select w from WalletTransaction w
             join fetch w.user u
             where u.id = :userId
-              and (:type is null or w.type = :type)
-              and (:direction is null or w.direction = :direction)
+              and (cast(:type as string) is null or w.type = :type)
+              and (cast(:direction as string) is null or w.direction = :direction)
               and (
-                :queryPattern is null
+                cast(:queryPattern as string) is null
                 or lower(w.transactionCode) like :queryPattern
                 or lower(coalesce(w.referenceType, '')) like :queryPattern
                 or lower(coalesce(w.description, '')) like :queryPattern
-                or (:exactId is not null and w.id = :exactId)
-                or (:exactId is not null and w.referenceId = :exactId)
+                or (cast(:exactId as long) is not null and w.id = :exactId)
+                or (cast(:exactId as long) is not null and w.referenceId = :exactId)
               )
             order by w.createdAt desc
             """)
@@ -57,18 +57,18 @@ public interface WalletTransactionRepository extends JpaRepository<WalletTransac
     @Query("""
             select w from WalletTransaction w
             join fetch w.user u
-            where (:userId is null or u.id = :userId)
-              and (:type is null or w.type = :type)
-              and (:direction is null or w.direction = :direction)
+            where (cast(:userId as long) is null or u.id = :userId)
+              and (cast(:type as string) is null or w.type = :type)
+              and (cast(:direction as string) is null or w.direction = :direction)
               and (
-                :queryPattern is null
+                cast(:queryPattern as string) is null
                 or lower(w.transactionCode) like :queryPattern
                 or lower(coalesce(w.referenceType, '')) like :queryPattern
                 or lower(coalesce(w.description, '')) like :queryPattern
                 or lower(u.email) like :queryPattern
                 or lower(u.name) like :queryPattern
-                or (:exactId is not null and w.id = :exactId)
-                or (:exactId is not null and w.referenceId = :exactId)
+                or (cast(:exactId as long) is not null and w.id = :exactId)
+                or (cast(:exactId as long) is not null and w.referenceId = :exactId)
               )
             order by w.createdAt desc
             """)

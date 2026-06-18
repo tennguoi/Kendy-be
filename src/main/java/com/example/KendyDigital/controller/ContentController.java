@@ -93,7 +93,7 @@ public class ContentController {
                 .ifPresent(existing -> {
                     throw new ResponseStatusException(HttpStatus.CONFLICT, "Slug already exists for this content type");
                 });
-        item.setType(request.type());
+        item.changeType(request.type());
         apply(item, request, adminUserId);
         auditService.recordAdmin(adminUserId, "CONTENT_UPDATED", "CONTENT_ITEM", item.getId(),
                 "type=" + item.getType() + ",slug=" + item.getSlug());

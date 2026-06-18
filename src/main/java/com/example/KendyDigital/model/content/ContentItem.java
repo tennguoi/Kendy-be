@@ -14,11 +14,9 @@ import jakarta.persistence.UniqueConstraint;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import lombok.Setter;
 
 @Entity
 @Getter
-@Setter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Table(
         name = "content_items",
@@ -92,5 +90,9 @@ public class ContentItem extends TimestampedEntity {
         this.published = published;
         this.sortOrder = sortOrder;
         this.updatedBy = updatedBy;
+    }
+
+    public void changeType(ContentType type) {
+        this.type = type;
     }
 }

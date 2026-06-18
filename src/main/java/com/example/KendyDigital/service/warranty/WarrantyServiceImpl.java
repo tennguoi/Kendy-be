@@ -140,7 +140,7 @@ public class WarrantyServiceImpl implements WarrantyService {
                 adminUserId,
                 warrantyRequest.getOrder(),
                 replacementCredentialId);
-        warrantyRequest.getOrder().setResultData("{\"deliveryType\":\"ACCOUNT_CREDENTIAL_REPLACED\","
+        warrantyRequest.getOrder().updateResultData("{\"deliveryType\":\"ACCOUNT_CREDENTIAL_REPLACED\","
                 + "\"credentialId\":" + replacement.getId() + ","
                 + "\"replacedAt\":\"" + Instant.now() + "\"}");
         warrantyRequest.approveReplace(replacement, adminNote);

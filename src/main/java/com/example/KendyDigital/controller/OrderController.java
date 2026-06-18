@@ -76,13 +76,13 @@ public class OrderController {
 
     @PostMapping("/api/admin/orders/{orderCode}/complete")
     public OrderResponse complete(Authentication authentication, @PathVariable String orderCode,
-            @RequestBody AdminOrderUpdateRequest request) {
+            @Valid @RequestBody AdminOrderUpdateRequest request) {
         return orderService.complete(orderCode, CurrentUser.require(authentication).userId(), request);
     }
 
     @PostMapping("/api/admin/orders/{orderCode}/fail")
     public OrderResponse fail(Authentication authentication, @PathVariable String orderCode,
-            @RequestBody AdminOrderUpdateRequest request) {
+            @Valid @RequestBody AdminOrderUpdateRequest request) {
         return orderService.fail(orderCode, CurrentUser.require(authentication).userId(), request);
     }
 
@@ -124,7 +124,7 @@ public class OrderController {
 
     @PostMapping("/api/admin/orders/{orderCode}/manual-workflow")
     public OrderResponse updateManualWorkflow(Authentication authentication, @PathVariable String orderCode,
-            @RequestBody ManualOrderWorkflowRequest request) {
+            @Valid @RequestBody ManualOrderWorkflowRequest request) {
         return orderService.updateManualWorkflow(orderCode, CurrentUser.require(authentication).userId(), request);
     }
 

@@ -29,13 +29,13 @@ public interface UserAccountRepository extends JpaRepository<UserAccount, Long> 
 
     @Query("""
             select u from UserAccount u
-            where (:status is null or u.status = :status)
+            where (cast(:status as string) is null or u.status = :status)
               and (
-                :queryPattern is null
+                cast(:queryPattern as string) is null
                 or lower(u.name) like :queryPattern
                 or lower(u.email) like :queryPattern
                 or lower(coalesce(u.phone, '')) like :queryPattern
-                or (:exactId is not null and u.id = :exactId)
+                or (cast(:exactId as long) is not null and u.id = :exactId)
               )
             order by u.createdAt desc
             """)

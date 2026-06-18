@@ -47,11 +47,8 @@ public class AdminDepositManagerServiceImpl  implements AdminDepositManagerServi
 
     @Transactional(readOnly = true)
     public List<DepositResponse> listDeposits(DepositStatus status, Long userId, Instant fromDate, Instant toDate, int page, int size) {
-        List<DepositRequest> deposits = userId != null
-                ? depositRequestRepository.findAllByUser_IdOrderByCreatedAtDesc(userId, paged(page, size))
-                : status == null
-                        ? depositRequestRepository.findAllByOrderByCreatedAtDesc(paged(page, size))
-                        : depositRequestRepository.findAllByStatusOrderByCreatedAtDesc(status, paged(page, size));
+        List<DepositRequest> deposits = depositRequestRepository.searchAdmin(
+                null, null, status, userId, fromDate, toDate, paged(page, size));
         return deposits.stream().map(DepositResponse::from).toList();
     }
 
@@ -69,6 +66,8 @@ public class AdminDepositManagerServiceImpl  implements AdminDepositManagerServi
                 parseLongOrNull(normalizedQuery),
                 status,
                 userId,
+                fromDate,
+                toDate,
                 paged(page, size));
         return deposits.stream().map(DepositResponse::from).toList();
     }

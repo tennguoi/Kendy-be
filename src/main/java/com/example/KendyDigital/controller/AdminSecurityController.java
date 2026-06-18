@@ -91,7 +91,7 @@ public class AdminSecurityController {
 
     @PutMapping("/api/admin/admins/{id}/permissions")
     public Map<String, Object> updatePermissions(Authentication authentication, @PathVariable Long id,
-            @RequestBody AdminPermissionsRequest request) {
+            @Valid @RequestBody AdminPermissionsRequest request) {
         return securityManagerService.updatePermissions(CurrentUser.require(authentication).userId(), id, request);
     }
 

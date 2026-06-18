@@ -34,18 +34,20 @@ public interface ServiceItemRepository extends JpaRepository<ServiceItem, Long> 
 
     List<ServiceItem> findAllByOrderBySortOrderAscNameAsc(Pageable pageable);
 
+    boolean existsByCategory_Id(Long categoryId);
+
     @Query("""
             select s from ServiceItem s
-            where (:status is null or s.status = :status)
-              and (:categoryId is null or s.category.id = :categoryId)
-              and (:categorySlug is null or s.category.slug = :categorySlug)
-              and (:featured is null or s.featured = :featured)
+            where (cast(:status as string) is null or s.status = :status)
+              and (cast(:categoryId as long) is null or s.category.id = :categoryId)
+              and (cast(:categorySlug as string) is null or s.category.slug = :categorySlug)
+              and (cast(:featured as boolean) is null or s.featured = :featured)
               and (
-                :queryPattern is null
+                cast(:queryPattern as string) is null
                 or lower(s.name) like :queryPattern
                 or lower(s.slug) like :queryPattern
                 or lower(coalesce(s.shortDescription, '')) like :queryPattern
-                or (:exactId is not null and s.id = :exactId)
+                or (cast(:exactId as long) is not null and s.id = :exactId)
               )
             order by s.sortOrder asc, s.name asc
             """)
@@ -57,16 +59,16 @@ public interface ServiceItemRepository extends JpaRepository<ServiceItem, Long> 
             select s from ServiceItem s
             where s.status = com.example.KendyDigital.model.catalog.ServiceStatus.ACTIVE
               and s.publicVisible = true
-              and (:categoryId is null or s.category.id = :categoryId)
-              and (:categorySlug is null or s.category.slug = :categorySlug)
-              and (:featured is null or s.featured = :featured)
+              and (cast(:categoryId as long) is null or s.category.id = :categoryId)
+              and (cast(:categorySlug as string) is null or s.category.slug = :categorySlug)
+              and (cast(:featured as boolean) is null or s.featured = :featured)
               and (
-                :queryPattern is null
+                cast(:queryPattern as string) is null
                 or lower(s.name) like :queryPattern
                 or lower(s.slug) like :queryPattern
                 or lower(coalesce(s.shortDescription, '')) like :queryPattern
                 or lower(coalesce(s.description, '')) like :queryPattern
-                or (:exactId is not null and s.id = :exactId)
+                or (cast(:exactId as long) is not null and s.id = :exactId)
               )
             order by s.sortOrder asc, s.name asc
             """)

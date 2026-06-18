@@ -16,12 +16,12 @@ public interface AuditLogRepository extends JpaRepository<AuditLog, Long> {
 
     @Query("""
             select a from AuditLog a
-            where (:action is null or a.action = :action)
-              and (:actorUserId is null or a.actorUserId = :actorUserId)
-              and (:targetType is null or a.targetType = :targetType)
-              and (:targetId is null or a.targetId = :targetId)
+            where (cast(:action as string) is null or a.action = :action)
+              and (cast(:actorUserId as long) is null or a.actorUserId = :actorUserId)
+              and (cast(:targetType as string) is null or a.targetType = :targetType)
+              and (cast(:targetId as long) is null or a.targetId = :targetId)
               and (
-                :queryPattern is null
+                cast(:queryPattern as string) is null
                 or lower(a.action) like :queryPattern
                 or lower(coalesce(a.targetType, '')) like :queryPattern
                 or lower(coalesce(a.metadata, '')) like :queryPattern

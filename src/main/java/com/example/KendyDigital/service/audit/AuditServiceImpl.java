@@ -35,15 +35,17 @@ public class AuditServiceImpl  implements AuditService{
         return null;
     }
 
+    @Transactional
     public void recordSystem(String action, String targetType, Long targetId, String metadata) {
         AuditLog log = new AuditLog(null, "SYSTEM", action, targetType, targetId, metadata);
-        log.setIpAddress(getClientIp());
+        log.recordIpAddress(getClientIp());
         auditLogRepository.save(log);
     }
 
+    @Transactional
     public void recordAdmin(Long adminUserId, String action, String targetType, Long targetId, String metadata) {
         AuditLog log = new AuditLog(adminUserId, "ADMIN", action, targetType, targetId, metadata);
-        log.setIpAddress(getClientIp());
+        log.recordIpAddress(getClientIp());
         auditLogRepository.save(log);
     }
 

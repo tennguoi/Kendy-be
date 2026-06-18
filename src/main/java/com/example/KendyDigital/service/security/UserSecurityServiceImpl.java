@@ -101,7 +101,7 @@ public class UserSecurityServiceImpl  implements UserSecurityService{
                 PASSWORD_RESET_TTL);
         auditService.recordSystem("USER_PASSWORD_RESET_REQUESTED", "USER", user.get().getId(), null);
         emailNotificationService.sendPasswordReset(user.get(), issued.token(), issued.expiresAt());
-        return new SecurityTokenResponse("Password reset token issued.", issued.expiresAt(), issued.token());
+        return new SecurityTokenResponse("If the email exists, a reset token has been issued.", null, null);
     }
 
     @Transactional
@@ -119,9 +119,10 @@ public class UserSecurityServiceImpl  implements UserSecurityService{
 
     @Transactional
     public SecurityTokenResponse resendVerification(AuthEmailRequest request) {
-        UserAccount user = userAccountRepository.findByEmailIgnoreCase(normalizeEmail(request.email()))
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
-        return sendEmailVerification(user);
+        userAccountRepository.findByEmailIgnoreCase(normalizeEmail(request.email()))
+                .ifPresent(this::sendEmailVerification);
+        return new SecurityTokenResponse(
+                "If the email exists and is not verified, a verification email has been sent.", null, null);
     }
 
     @Transactional
@@ -133,7 +134,7 @@ public class UserSecurityServiceImpl  implements UserSecurityService{
                 EMAIL_VERIFY_TTL);
         auditService.recordSystem("USER_EMAIL_VERIFICATION_REQUESTED", "USER", user.getId(), null);
         emailNotificationService.sendEmailVerification(user, issued.token(), issued.expiresAt());
-        return new SecurityTokenResponse("Email verification token issued.", issued.expiresAt(), issued.token());
+        return new SecurityTokenResponse("Email verification email sent.", issued.expiresAt(), null);
     }
 
     @Transactional

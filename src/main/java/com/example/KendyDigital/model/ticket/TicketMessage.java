@@ -17,11 +17,9 @@ import jakarta.persistence.Table;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import lombok.Setter;
 
 @Entity
 @Getter
-@Setter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Table(
         name = "ticket_messages",
@@ -48,9 +46,6 @@ public class TicketMessage extends TimestampedEntity {
 
     @Column(nullable = false, columnDefinition = "TEXT")
     private String message;
-
-    @Column(columnDefinition = "TEXT")
-    private String attachments;
 
     public TicketMessage(Ticket ticket, UserAccount sender, TicketSenderRole senderRole, String message) {
         this.ticket = ticket;

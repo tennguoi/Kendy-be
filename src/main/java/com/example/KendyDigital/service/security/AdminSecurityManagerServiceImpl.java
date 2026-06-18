@@ -94,6 +94,9 @@ public class AdminSecurityManagerServiceImpl  implements AdminSecurityManagerSer
     @Transactional
     public TotpSetupResponse setupTwoFactor(Long adminUserId, Long targetAdminId) {
         UserAccount admin = requireAdminForUpdate(targetAdminId);
+        if (admin.isTwoFactorEnabled()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "2FA is already enabled");
+        }
         String secret = twoFactorService.generateSecret();
         List<String> backupCodes = twoFactorService.generateBackupCodes();
         String qrBase64 = twoFactorService.qrCodeBase64(secret, admin.getEmail(), "KendyDigital");
@@ -107,6 +110,9 @@ public class AdminSecurityManagerServiceImpl  implements AdminSecurityManagerSer
     public AdminUserResponse verifyAndEnableTwoFactor(Long adminUserId, Long targetAdminId,
             TwoFactorVerifyRequest request) {
         UserAccount admin = requireAdminForUpdate(targetAdminId);
+        if (admin.isTwoFactorEnabled()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "2FA is already enabled");
+        }
         if (admin.getTwoFactorSecret() == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     "2FA not initialized. Call setup first.");

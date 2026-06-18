@@ -16,10 +16,10 @@ public interface ContentItemRepository extends JpaRepository<ContentItem, Long> 
 
     @Query("""
             select c from ContentItem c
-            where (:type is null or c.type = :type)
-              and (:published is null or c.published = :published)
+            where (cast(:type as string) is null or c.type = :type)
+              and (cast(:published as boolean) is null or c.published = :published)
               and (
-                :queryPattern is null
+                cast(:queryPattern as string) is null
                 or lower(c.slug) like :queryPattern
                 or lower(c.title) like :queryPattern
                 or lower(coalesce(c.summary, '')) like :queryPattern

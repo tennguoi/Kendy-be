@@ -8,4 +8,6 @@ public interface UserAdminRoleRepository extends JpaRepository<UserAdminRole, Lo
     List<UserAdminRole> findAllByUser_Id(Long userId);
 
     void deleteByUser_Id(Long userId);
+
+    boolean existsByRole_Id(Long roleId);
 }

@@ -207,7 +207,7 @@ public class OrderServiceImpl implements OrderService {
 
         if (credential != null) {
             credential.deliver(order, user);
-            order.setDeliveredCredential(credential);
+            order.attachDeliveredCredential(credential);
             OrderStatus oldStatus = order.getStatus();
             order.complete(deliveryResultData(order, credential, service), "Auto-delivered account credential");
             orderEventRepository.save(new OrderEvent(order, oldStatus, order.getStatus(), null, "SYSTEM", "Auto-delivered account credential"));
@@ -300,6 +300,8 @@ public class OrderServiceImpl implements OrderService {
                         parseLongOrNull(normalizedQuery),
                         status,
                         userId,
+                        null,
+                        null,
                         page(limit))
                 .stream()
                 .map(OrderResponse::from)

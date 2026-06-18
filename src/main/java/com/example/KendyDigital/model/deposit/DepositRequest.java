@@ -23,11 +23,9 @@ import java.time.Instant;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import lombok.Setter;
 
 @Entity
 @Getter
-@Setter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Table(
         name = "deposit_requests",
@@ -110,6 +108,12 @@ public class DepositRequest extends TimestampedEntity {
 
     public void cancel() {
         this.status = DepositStatus.CANCELLED;
+    }
+
+    public void markExpired() {
+        if (this.status == DepositStatus.PENDING && this.expiredAt.isBefore(Instant.now())) {
+            this.status = DepositStatus.EXPIRED;
+        }
     }
 
     public void extendTo(Instant expiredAt) {

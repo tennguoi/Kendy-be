@@ -3,6 +3,7 @@ package com.example.KendyDigital.service.wallet;
 import com.example.KendyDigital.dto.user.request.AdminWalletAdjustmentRequest;
 import com.example.KendyDigital.dto.wallet.response.WalletTransactionResponse;
 import com.example.KendyDigital.model.user.UserAccount;
+import com.example.KendyDigital.model.user.UserRole;
 import com.example.KendyDigital.model.wallet.WalletTransaction;
 import com.example.KendyDigital.model.wallet.WalletTransactionDirection;
 import com.example.KendyDigital.model.wallet.WalletTransactionType;
@@ -91,12 +92,15 @@ public class AdminWalletManagerServiceImpl  implements AdminWalletManagerService
     @Transactional
     public WalletTransactionResponse adjustWallet(Long adminUserId, Long targetUserId,
             AdminWalletAdjustmentRequest request) {
+        UserAccount admin = userAccountRepository.findById(adminUserId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Admin not found"));
+        if (admin.getRole() != UserRole.ADMIN && admin.getRole() != UserRole.SUPER_ADMIN) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Admin role required");
+        }
         UserAccount user = userAccountRepository.findByIdForUpdate(targetUserId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
 
         if (request.amount().compareTo(LARGE_TRANSACTION_THRESHOLD) >= 0) {
-            UserAccount admin = userAccountRepository.findById(adminUserId)
-                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Admin not found"));
             if (request.confirmationPassword() == null || request.confirmationPassword().isBlank()
                     || !passwordEncoder.matches(request.confirmationPassword(), admin.getPasswordHash())) {
                 throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Confirmation password required for transactions of this size");

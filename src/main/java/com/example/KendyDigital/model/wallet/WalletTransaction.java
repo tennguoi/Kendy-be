@@ -19,17 +19,17 @@ import java.math.BigDecimal;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import lombok.Setter;
 
 @Entity
 @Getter
-@Setter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Table(
         name = "wallet_transactions",
         indexes = {
                 @Index(name = "idx_wallet_transactions_user_id", columnList = "user_id"),
-                @Index(name = "idx_wallet_transactions_created_at", columnList = "created_at")
+                @Index(name = "idx_wallet_transactions_created_at", columnList = "created_at"),
+                @Index(name = "idx_wallet_transactions_user_type_direction",
+                        columnList = "user_id,type,direction")
         },
         uniqueConstraints = {
                 @UniqueConstraint(name = "uk_wallet_transactions_code", columnNames = "transaction_code")

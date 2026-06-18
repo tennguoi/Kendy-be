@@ -65,7 +65,7 @@ public class AuthServiceImpl  implements AuthService{
 
         if (user.isLocked()) {
             throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS,
-                    "Tài khoản đã bị khóa tạm thời do nhập sai mật khẩu nhiều lần. Vui lòng thử lại sau 15 phút.");
+                    "Account is temporarily locked after repeated failed login attempts. Try again in 15 minutes.");
         }
 
         if (!passwordEncoder.matches(request.password(), user.getPasswordHash())) {
@@ -108,7 +108,7 @@ public class AuthServiceImpl  implements AuthService{
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid credentials"));
         if (user.isLocked()) {
             throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS,
-                    "Tài khoản đã bị khóa tạm thời do nhập sai mật khẩu nhiều lần. Vui lòng thử lại sau 15 phút.");
+                    "Account is temporarily locked after repeated failed login attempts. Try again in 15 minutes.");
         }
         if (!passwordEncoder.matches(request.password(), user.getPasswordHash())) {
             user.recordFailedLogin();

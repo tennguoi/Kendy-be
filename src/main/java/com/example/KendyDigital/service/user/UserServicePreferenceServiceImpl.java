@@ -41,7 +41,7 @@ public class UserServicePreferenceServiceImpl  implements UserServicePreferenceS
 
     @Transactional
     public ServiceResponse addFavorite(Long userId, Long serviceId) {
-        UserAccount user = userAccountRepository.findById(userId)
+        UserAccount user = userAccountRepository.findByIdForUpdate(userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
         ServiceItem service = serviceItemRepository.findById(serviceId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Service not found"));

@@ -414,15 +414,11 @@ public class ServiceCatalogServiceImpl  implements ServiceCatalogService{
 
     private java.util.Map<Long, Long> getServiceOrderCounts() {
         java.util.Map<Long, Long> counts = new java.util.HashMap<>();
-        try {
-            List<Object[]> performance = orderRepository.servicePerformance(PageRequest.of(0, 1000));
-            for (Object[] row : performance) {
-                if (row.length >= 3 && row[0] instanceof Long serviceId && row[2] instanceof Long count) {
-                    counts.put(serviceId, count);
-                }
+        List<Object[]> performance = orderRepository.servicePerformance(PageRequest.of(0, 1000));
+        for (Object[] row : performance) {
+            if (row.length >= 3 && row[0] instanceof Long serviceId && row[2] instanceof Long count) {
+                counts.put(serviceId, count);
             }
-        } catch (Exception e) {
-            System.err.println("Failed to fetch service performance: " + e.getMessage());
         }
         return counts;
     }

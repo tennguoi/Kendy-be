@@ -83,6 +83,9 @@ public class CouponServiceImpl implements CouponService {
         Coupon coupon = couponRepository.findById(couponId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Coupon not found"));
         String code = Coupon.normalizeCode(request.code());
+        if (code == null || code.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Coupon code is required");
+        }
         couponRepository.findByCodeIgnoreCase(code)
                 .filter(existing -> !existing.getId().equals(couponId))
                 .ifPresent(existing -> {
@@ -99,7 +102,7 @@ public class CouponServiceImpl implements CouponService {
                 positiveOrNull(request.perUserLimit()),
                 request.startsAt(),
                 request.endsAt(),
-                request.status() == null ? CouponStatus.ACTIVE : request.status(),
+                request.status() == null ? coupon.getStatus() : request.status(),
                 resolveService(request.serviceId()),
                 blankToNull(request.adminNote()));
         auditService.recordAdmin(adminUserId, "COUPON_UPDATED", "COUPON", coupon.getId(), "code=" + coupon.getCode());

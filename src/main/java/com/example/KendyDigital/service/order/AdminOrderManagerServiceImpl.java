@@ -21,11 +21,8 @@ public class AdminOrderManagerServiceImpl  implements AdminOrderManagerService{
 
     @Transactional(readOnly = true)
     public List<OrderResponse> listOrders(OrderStatus status, Long userId, Instant fromDate, Instant toDate, int page, int size) {
-        List<OrderRecord> orders = userId != null
-                ? orderRepository.findAllByUser_IdOrderByCreatedAtDesc(userId, paged(page, size))
-                : status == null
-                        ? orderRepository.findAllByOrderByCreatedAtDesc(paged(page, size))
-                        : orderRepository.findAllByStatusOrderByCreatedAtDesc(status, paged(page, size));
+        List<OrderRecord> orders = orderRepository.searchAdmin(
+                null, null, status, userId, fromDate, toDate, paged(page, size));
         return orders.stream().map(OrderResponse::from).toList();
     }
 
@@ -38,6 +35,8 @@ public class AdminOrderManagerServiceImpl  implements AdminOrderManagerService{
                 parseLongOrNull(normalizedQuery),
                 status,
                 userId,
+                fromDate,
+                toDate,
                 paged(page, size));
         return orders.stream().map(OrderResponse::from).toList();
     }

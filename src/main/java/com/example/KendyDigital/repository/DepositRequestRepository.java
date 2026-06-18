@@ -34,21 +34,33 @@ public interface DepositRequestRepository extends JpaRepository<DepositRequest, 
     @Query("""
             select d from DepositRequest d
             join fetch d.user u
-            where (:status is null or d.status = :status)
-              and (:userId is null or u.id = :userId)
+            where (cast(:status as string) is null or d.status = :status)
+              and (cast(:userId as long) is null or u.id = :userId)
+              and (cast(:fromDate as timestamp) is null or d.createdAt >= :fromDate)
+              and (cast(:toDate as timestamp) is null or d.createdAt < :toDate)
               and (
-                :queryPattern is null
+                cast(:queryPattern as string) is null
                 or lower(d.depositCode) like :queryPattern
                 or lower(d.transferContent) like :queryPattern
                 or lower(d.bankAccount) like :queryPattern
                 or lower(u.email) like :queryPattern
                 or lower(u.name) like :queryPattern
-                or (:exactId is not null and d.id = :exactId)
+                or (cast(:exactId as long) is not null and d.id = :exactId)
               )
             order by d.createdAt desc
             """)
     List<DepositRequest> searchAdmin(@Param("queryPattern") String queryPattern, @Param("exactId") Long exactId,
-            @Param("status") DepositStatus status, @Param("userId") Long userId, Pageable pageable);
+            @Param("status") DepositStatus status, @Param("userId") Long userId,
+            @Param("fromDate") Instant fromDate, @Param("toDate") Instant toDate, Pageable pageable);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("""
+            select d from DepositRequest d
+            where d.status = com.example.KendyDigital.model.deposit.DepositStatus.PENDING
+              and d.expiredAt < :now
+            order by d.expiredAt asc
+            """)
+    List<DepositRequest> findPendingExpiredForUpdate(@Param("now") Instant now, Pageable pageable);
 
     long countByStatus(DepositStatus status);
 

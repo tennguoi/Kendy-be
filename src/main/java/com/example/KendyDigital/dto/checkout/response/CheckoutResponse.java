@@ -21,17 +21,18 @@ public record CheckoutResponse(
         OrderResponse order,
         Instant checkedAt) {
     public static CheckoutResponse from(CheckoutSession checkout) {
+        var deposit = checkout.getDepositRequest();
         return new CheckoutResponse(
                 checkout.getCheckoutCode(),
                 checkout.getStatus(),
                 checkout.getService().getId(),
                 checkout.getService().getName(),
-                checkout.getDepositRequest().getAmount(),
+                deposit == null ? checkout.getOriginalAmount() : deposit.getAmount(),
                 checkout.getOriginalAmount(),
                 checkout.getDiscountAmount(),
                 checkout.getCouponCode(),
                 checkout.getStatusMessage(),
-                DepositResponse.from(checkout.getDepositRequest()),
+                deposit == null ? null : DepositResponse.from(deposit),
                 checkout.getOrder() == null ? null : OrderResponse.from(checkout.getOrder()),
                 Instant.now());
     }

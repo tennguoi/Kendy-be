@@ -14,6 +14,7 @@ import com.example.KendyDigital.service.audit.AuditService;
 import com.example.KendyDigital.service.notification.UserNotificationService;
 import com.example.KendyDigital.service.wallet.WalletLedgerService;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -158,7 +159,12 @@ public class SePayWebhookServiceImpl  implements SePayWebhookService{
     }
 
     private BigDecimal normalizeAmount(BigDecimal amount) {
-        return amount.stripTrailingZeros().scale() < 0 ? amount.setScale(0) : amount;
+        try {
+            return amount.setScale(2, RoundingMode.UNNECESSARY);
+        } catch (ArithmeticException exception) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "transferAmount must have at most two decimal places");
+        }
     }
 
     private Instant parseTransactionDate(String value) {
