@@ -21,6 +21,8 @@ public interface AccountInventoryService {
     List<AccountCredentialAdminResponse> searchByService(Long serviceId, AccountCredentialStatus status, String query,
             Instant createdFrom, Instant createdTo, Instant deliveredFrom, Instant deliveredTo,
             Instant expiresBefore, Integer limit);
+    List<AccountCredentialAdminResponse> searchAssigned(AccountCredentialStatus status, String query,
+            Instant deliveredFrom, Instant deliveredTo, Instant expiresBefore, Integer limit);
     AccountCredentialAdminResponse create(Long adminUserId, Long serviceId, CreateAccountCredentialRequest request);
     BulkAccountCredentialImportResponse bulkImport(Long adminUserId, Long serviceId,
             BulkAccountCredentialImportRequest request);

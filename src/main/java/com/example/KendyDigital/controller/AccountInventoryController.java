@@ -49,6 +49,17 @@ public class AccountInventoryController {
         return accountInventoryService.listByService(serviceId, status, limit);
     }
 
+    @GetMapping("/api/admin/assigned-credentials")
+    public List<AccountCredentialAdminResponse> listAssigned(
+            @RequestParam(required = false) AccountCredentialStatus status,
+            @RequestParam(required = false) String query,
+            @RequestParam(required = false) Instant deliveredFrom,
+            @RequestParam(required = false) Instant deliveredTo,
+            @RequestParam(required = false) Instant expiresBefore,
+            @RequestParam(required = false) Integer limit) {
+        return accountInventoryService.searchAssigned(status, query, deliveredFrom, deliveredTo, expiresBefore, limit);
+    }
+
     @PostMapping("/api/admin/services/{serviceId}/credentials")
     public AccountCredentialAdminResponse create(Authentication authentication, @PathVariable Long serviceId,
             @Valid @RequestBody CreateAccountCredentialRequest request) {

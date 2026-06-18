@@ -49,6 +49,34 @@ public interface AccountCredentialRepository extends JpaRepository<AccountCreden
             @Param("expiresBefore") Instant expiresBefore,
             Pageable pageable);
 
+    @Query("""
+            select c from AccountCredential c
+            join fetch c.service
+            join fetch c.deliveredToUser
+            left join fetch c.assignedOrder
+            where c.deliveredToUser is not null
+              and (cast(:status as string) is null or c.status = :status)
+              and (cast(:queryPattern as string) is null
+                or lower(c.loginIdentifier) like :queryPattern
+                or lower(c.service.name) like :queryPattern
+                or lower(c.deliveredToUser.name) like :queryPattern
+                or lower(c.deliveredToUser.email) like :queryPattern
+                or lower(coalesce(c.deliveredToUser.phone, '')) like :queryPattern
+                or lower(coalesce(c.assignedOrder.orderCode, '')) like :queryPattern
+              )
+              and (cast(:deliveredFrom as timestamp) is null or c.deliveredAt >= :deliveredFrom)
+              and (cast(:deliveredTo as timestamp) is null or c.deliveredAt < :deliveredTo)
+              and (cast(:expiresBefore as timestamp) is null or c.expiresAt < :expiresBefore)
+            order by c.deliveredAt desc, c.createdAt desc
+            """)
+    List<AccountCredential> searchAssignedForAdmin(
+            @Param("status") AccountCredentialStatus status,
+            @Param("queryPattern") String queryPattern,
+            @Param("deliveredFrom") Instant deliveredFrom,
+            @Param("deliveredTo") Instant deliveredTo,
+            @Param("expiresBefore") Instant expiresBefore,
+            Pageable pageable);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("""
             select c from AccountCredential c

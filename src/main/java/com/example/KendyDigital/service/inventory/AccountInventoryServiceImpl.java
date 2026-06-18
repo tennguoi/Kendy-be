@@ -91,6 +91,23 @@ public class AccountInventoryServiceImpl implements AccountInventoryService {
                 .toList();
     }
 
+    @Transactional(readOnly = true)
+    public List<AccountCredentialAdminResponse> searchAssigned(AccountCredentialStatus status, String query,
+            Instant deliveredFrom, Instant deliveredTo, Instant expiresBefore, Integer limit) {
+        String pattern = query == null || query.isBlank() ? null
+                : "%" + query.trim().toLowerCase(Locale.ROOT) + "%";
+        return accountCredentialRepository.searchAssignedForAdmin(
+                        status,
+                        pattern,
+                        deliveredFrom,
+                        deliveredTo,
+                        expiresBefore,
+                        page(normalizedLimit(limit)))
+                .stream()
+                .map(AccountCredentialAdminResponse::from)
+                .toList();
+    }
+
     @Transactional
     public AccountCredentialAdminResponse create(Long adminUserId, Long serviceId, CreateAccountCredentialRequest request) {
         ServiceItem service = serviceItemRepository.findById(serviceId)
