@@ -3,6 +3,8 @@ package com.example.KendyDigital.service;
 import java.util.List;
 import java.util.Locale;
 
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,6 +27,7 @@ public class ServiceCategoryService {
     }
 
     @Transactional(readOnly = true)
+    @Cacheable(value = "service-categories", key = "'all'")
     public List<ServiceCategoryResponse> listAll() {
         return serviceCategoryRepository.findAllByOrderBySortOrderAscNameAsc()
                 .stream()
@@ -33,6 +36,7 @@ public class ServiceCategoryService {
     }
 
     @Transactional(readOnly = true)
+    @Cacheable(value = "service-categories", key = "'root'")
     public List<ServiceCategoryResponse> listRoot() {
         return serviceCategoryRepository.findAllByParentIsNullOrderBySortOrderAscNameAsc()
                 .stream()
@@ -53,6 +57,7 @@ public class ServiceCategoryService {
     }
 
     @Transactional
+    @CacheEvict(value = "service-categories", allEntries = true)
     public ServiceCategoryResponse create(Long adminUserId, CreateServiceCategoryRequest request) {
         String slug = normalizeSlug(request.slug());
         if (serviceCategoryRepository.existsBySlug(slug)) {
@@ -80,6 +85,7 @@ public class ServiceCategoryService {
     }
 
     @Transactional
+    @CacheEvict(value = "service-categories", allEntries = true)
     public ServiceCategoryResponse update(Long adminUserId, Long id, UpdateServiceCategoryRequest request) {
         ServiceCategory category = requireCategory(id);
 
@@ -114,6 +120,7 @@ public class ServiceCategoryService {
     }
 
     @Transactional
+    @CacheEvict(value = "service-categories", allEntries = true)
     public void delete(Long adminUserId, Long id) {
         ServiceCategory category = requireCategory(id);
         serviceCategoryRepository.delete(category);

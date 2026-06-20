@@ -8,6 +8,9 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -46,6 +49,10 @@ public class ServiceCatalogService {
     }
 
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = "services", allEntries = true),
+            @CacheEvict(value = "service-by-slug", allEntries = true)
+    })
     public ServiceResponse create(Long adminUserId, CreateServiceRequest request) {
         String slug = normalizeSlug(request.slug());
         if (serviceItemRepository.existsBySlug(slug)) {
@@ -101,6 +108,7 @@ public class ServiceCatalogService {
     }
 
     @Transactional(readOnly = true)
+    @Cacheable(value = "services", key = "'active-all'")
     public List<ServiceResponse> listActive() {
         return searchActive(null, null, 100);
     }
@@ -208,6 +216,7 @@ public class ServiceCatalogService {
     }
 
     @Transactional(readOnly = true)
+    @Cacheable(value = "service-by-slug", key = "#slug")
     public ServiceResponse getBySlug(String slug) {
         ServiceItem service = serviceItemRepository.findBySlug(normalizeSlug(slug))
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Service not found"));
@@ -218,6 +227,10 @@ public class ServiceCatalogService {
     }
 
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = "services", allEntries = true),
+            @CacheEvict(value = "service-by-slug", allEntries = true)
+    })
     public ServiceResponse update(Long id, Long adminUserId, UpdateServiceRequest request) {
         ServiceItem service = serviceItemRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Service not found"));
@@ -298,6 +311,10 @@ public class ServiceCatalogService {
     }
 
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = "services", allEntries = true),
+            @CacheEvict(value = "service-by-slug", allEntries = true)
+    })
     public ServiceResponse updateStatus(Long id, Long adminUserId, ServiceStatusUpdateRequest request) {
         ServiceItem service = serviceItemRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Service not found"));
@@ -312,6 +329,10 @@ public class ServiceCatalogService {
     }
 
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = "services", allEntries = true),
+            @CacheEvict(value = "service-by-slug", allEntries = true)
+    })
     public ServiceResponse delete(Long id, Long adminUserId) {
         ServiceItem service = serviceItemRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Service not found"));
@@ -342,6 +363,10 @@ public class ServiceCatalogService {
     }
 
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = "services", allEntries = true),
+            @CacheEvict(value = "service-by-slug", allEntries = true)
+    })
     public List<ServiceResponse> bulkStatus(Long adminUserId, List<Long> ids, ServiceStatus status, String reason) {
         return ids.stream()
                 .map(id -> {

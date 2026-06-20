@@ -1,19 +1,26 @@
 package com.example.KendyDigital.config;
 
 import java.time.Duration;
+import java.util.Map;
 
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.cache.CacheManager;
+import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.data.redis.cache.RedisCacheConfiguration;
+import org.springframework.data.redis.cache.RedisCacheManager;
 import org.springframework.data.redis.connection.RedisPassword;
 import org.springframework.data.redis.connection.RedisStandaloneConfiguration;
 import org.springframework.data.redis.connection.lettuce.LettuceClientConfiguration;
 import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSerializer;
+import org.springframework.data.redis.serializer.RedisSerializationContext;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
 
 /**
@@ -21,6 +28,7 @@ import org.springframework.data.redis.serializer.StringRedisSerializer;
  */
 @Configuration
 @EnableConfigurationProperties
+@EnableCaching
 @ConditionalOnProperty(prefix = "app.redis", name = "enabled", havingValue = "true")
 public class RedisAutoConfig {
 
@@ -67,6 +75,29 @@ public class RedisAutoConfig {
         tpl.afterPropertiesSet();
         return tpl;
     }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public CacheManager cacheManager(LettuceConnectionFactory factory) {
+        RedisCacheConfiguration defaultConfig = RedisCacheConfiguration.defaultCacheConfig()
+                .entryTtl(Duration.ofMinutes(5))
+                .serializeKeysWith(
+                        RedisSerializationContext.SerializationPair.fromSerializer(new StringRedisSerializer()))
+                .serializeValuesWith(
+                        RedisSerializationContext.SerializationPair.fromSerializer(
+                                new GenericJackson2JsonRedisSerializer()));
+
+        Map<String, RedisCacheConfiguration> cacheConfigs = Map.of(
+                "services", defaultConfig.entryTtl(Duration.ofMinutes(5)),
+                "service-categories", defaultConfig.entryTtl(Duration.ofMinutes(10)),
+                "service-by-slug", defaultConfig.entryTtl(Duration.ofMinutes(5)));
+
+        return RedisCacheManager.builder(factory)
+                .cacheDefaults(defaultConfig)
+                .withInitialCacheConfigurations(cacheConfigs)
+                .build();
+    }
+
     public static class AppRedisProperties {
         private boolean enabled = true;
         private String host = "localhost";
