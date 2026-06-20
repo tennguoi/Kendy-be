@@ -144,6 +144,17 @@ public class CheckoutServiceImpl  implements CheckoutService{
         return CheckoutResponse.from(checkout);
     }
 
+    @Transactional
+    public CheckoutResponse completePaidDeposit(Long depositId) {
+        CheckoutSession checkout = checkoutSessionRepository.findByDepositRequestIdForUpdate(depositId)
+                .orElse(null);
+        if (checkout == null) {
+            return null;
+        }
+        refreshCheckoutStatus(checkout);
+        return CheckoutResponse.from(checkout);
+    }
+
     private void refreshCheckoutStatus(CheckoutSession checkout) {
         if (checkout.getOrder() != null) {
             checkout.attachOrder(checkout.getOrder());

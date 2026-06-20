@@ -53,9 +53,12 @@ public class SePayWebhookController {
         if (!properties.isRequireApiKey()) {
             return;
         }
+        if (properties.getApiKey() == null || properties.getApiKey().isBlank()) {
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
+                    "SePay webhook API key is not configured on the server");
+        }
         String receivedApiKey = resolveWebhookSecret(headers);
-        if (properties.getApiKey() == null || properties.getApiKey().isBlank()
-                || !MessageDigest.isEqual(
+        if (!MessageDigest.isEqual(
                         properties.getApiKey().getBytes(StandardCharsets.UTF_8),
                         receivedApiKey.getBytes(StandardCharsets.UTF_8))) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid SePay webhook API key");

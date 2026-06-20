@@ -21,6 +21,16 @@ public interface CheckoutSessionRepository extends JpaRepository<CheckoutSession
             join fetch c.user
             join fetch c.service
             join fetch c.depositRequest
+            where c.depositRequest.id = :depositId
+            """)
+    Optional<CheckoutSession> findByDepositRequestIdForUpdate(@Param("depositId") Long depositId);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("""
+            select c from CheckoutSession c
+            join fetch c.user
+            join fetch c.service
+            join fetch c.depositRequest
             where c.checkoutCode = :checkoutCode
             """)
     Optional<CheckoutSession> findByCheckoutCodeForUpdate(@Param("checkoutCode") String checkoutCode);

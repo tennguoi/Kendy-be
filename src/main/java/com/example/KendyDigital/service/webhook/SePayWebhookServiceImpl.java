@@ -11,6 +11,7 @@ import com.example.KendyDigital.model.wallet.WalletTransactionType;
 import com.example.KendyDigital.repository.*;
 import com.example.KendyDigital.repository.UserAccountRepository;
 import com.example.KendyDigital.service.audit.AuditService;
+import com.example.KendyDigital.service.checkout.CheckoutService;
 import com.example.KendyDigital.service.notification.UserNotificationService;
 import com.example.KendyDigital.service.wallet.WalletLedgerService;
 import java.math.BigDecimal;
@@ -40,6 +41,7 @@ public class SePayWebhookServiceImpl  implements SePayWebhookService{
     private final WalletLedgerService walletLedgerService;
     private final AuditService auditService;
     private final UserNotificationService userNotificationService;
+    private final CheckoutService checkoutService;
     private final Pattern depositCodePattern;
 
     public SePayWebhookServiceImpl(BankTransactionInserter bankTransactionInserter,
@@ -49,6 +51,7 @@ public class SePayWebhookServiceImpl  implements SePayWebhookService{
             WalletLedgerService walletLedgerService,
             AuditService auditService,
             UserNotificationService userNotificationService,
+            CheckoutService checkoutService,
             BankProperties bankProperties) {
         this.bankTransactionInserter = bankTransactionInserter;
         this.bankTransactionRepository = bankTransactionRepository;
@@ -57,6 +60,7 @@ public class SePayWebhookServiceImpl  implements SePayWebhookService{
         this.walletLedgerService = walletLedgerService;
         this.auditService = auditService;
         this.userNotificationService = userNotificationService;
+        this.checkoutService = checkoutService;
         this.depositCodePattern = Pattern.compile("\\b" + Pattern.quote(bankProperties.getTransferPrefix())
                 + "[A-Z0-9]{8,}\\b", Pattern.CASE_INSENSITIVE);
     }
@@ -128,6 +132,7 @@ public class SePayWebhookServiceImpl  implements SePayWebhookService{
 
         deposit.complete(bankTransaction, walletTransaction);
         bankTransaction.credit(deposit, walletTransaction);
+        checkoutService.completePaidDeposit(deposit.getId());
         auditService.recordSystem(
                 "SEPAY_DEPOSIT_CREDITED",
                 "DEPOSIT_REQUEST",

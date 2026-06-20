@@ -91,8 +91,10 @@ public class AdminSystemConfigServiceImpl  implements AdminSystemConfigService{
     public Map<String, Object> sepayStatus() {
         Map<String, Object> response = new LinkedHashMap<>();
         response.put("requireApiKey", sePayWebhookProperties.isRequireApiKey());
+        response.put("apiKeyConfigured", isConfigured(sePayWebhookProperties.getApiKey()));
         response.put("apiKeyHeader", sePayWebhookProperties.getApiKeyHeader());
         response.put("requireHmac", sePayWebhookProperties.isRequireHmac());
+        response.put("hmacConfigured", isConfigured(sePayWebhookProperties.getHmacSecret()));
         response.put("signatureHeader", sePayWebhookProperties.getSignatureHeader());
         response.put("recentWebhookLogs", auditLogRepository.searchAdmin(likePattern("SEPAY"), null, null, null, null, PageRequest.of(0, 10))
                 .stream()
@@ -183,5 +185,9 @@ public class AdminSystemConfigServiceImpl  implements AdminSystemConfigService{
 
     private String likePattern(String value) {
         return value == null ? null : "%" + value.toLowerCase(java.util.Locale.ROOT) + "%";
+    }
+
+    private boolean isConfigured(String value) {
+        return value != null && !value.isBlank();
     }
 }

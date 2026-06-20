@@ -14,6 +14,8 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.server.ResponseStatusException;
 
 @Service
@@ -95,10 +97,7 @@ public class UserNotificationServiceImpl  implements UserNotificationService{
         if (user != null) {
             UserNotification notification = userNotificationRepository.save(
                     new UserNotification(user, title, message, type, actionUrl));
-            notificationRealtimeService.publishNotification(
-                    userId,
-                    UserNotificationResponse.from(notification),
-                    unreadCount(userId));
+            publishRealtimeAfterCommit(userId, UserNotificationResponse.from(notification));
             if (shouldSendEmail(userId, type)) {
                 emailNotificationService.sendUserNotification(user, notification.getTitle(),
                         notification.getMessage(), notification.getActionUrl());
@@ -127,6 +126,23 @@ public class UserNotificationServiceImpl  implements UserNotificationService{
             return settings.isSecurityUpdates();
         }
         return true;
+    }
+
+    private void publishRealtimeAfterCommit(Long userId, UserNotificationResponse notification) {
+        Runnable publish = () -> notificationRealtimeService.publishNotification(
+                userId,
+                notification,
+                unreadCount(userId));
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            publish.run();
+            return;
+        }
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                publish.run();
+            }
+        });
     }
 
     private UserNotificationSettings requireSettings(Long userId) {

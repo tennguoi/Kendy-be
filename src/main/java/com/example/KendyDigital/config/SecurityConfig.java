@@ -3,6 +3,7 @@ package com.example.KendyDigital.config;
 import com.example.KendyDigital.common.MaintenanceModeFilter;
 import com.example.KendyDigital.common.RateLimitFilter;
 import com.example.KendyDigital.common.RequestIdFilter;
+import com.example.KendyDigital.common.ServerTimeFilter;
 import com.example.KendyDigital.security.ApiKeyAuthenticationFilter;
 import com.example.KendyDigital.security.BearerTokenAuthenticationFilter;
 import com.example.KendyDigital.security.OAuth2AuthenticationFailureHandler;
@@ -32,7 +33,7 @@ public class SecurityConfig {
                         OAuth2AuthenticationSuccessHandler oAuth2AuthenticationSuccessHandler,
                         OAuth2AuthenticationFailureHandler oAuth2AuthenticationFailureHandler,
                         RequestIdFilter requestIdFilter, RateLimitFilter rateLimitFilter,
-                        MaintenanceModeFilter maintenanceModeFilter)
+                        MaintenanceModeFilter maintenanceModeFilter, ServerTimeFilter serverTimeFilter)
                         throws Exception {
                 http.csrf(csrf -> csrf.disable())
                                 .cors(Customizer.withDefaults())
@@ -45,6 +46,7 @@ public class SecurityConfig {
                                                                 "/v3/api-docs/**")
                                                 .permitAll()
                                                 .requestMatchers("/oauth2/**", "/login/oauth2/**").permitAll()
+                                                .requestMatchers(HttpMethod.GET, "/api/time").permitAll()
                                                 .requestMatchers("/api/auth/register", "/api/auth/login",
                                                                 "/api/auth/2fa/email-code",
                                                                 "/api/auth/oauth2/2fa/verify",
@@ -73,6 +75,7 @@ public class SecurityConfig {
                                                 .httpStrictTransportSecurity(
                                                                 hsts -> hsts.includeSubDomains(true).preload(true)))
                                 .addFilterBefore(requestIdFilter, UsernamePasswordAuthenticationFilter.class)
+                                .addFilterBefore(serverTimeFilter, RequestIdFilter.class)
                                 .addFilterBefore(maintenanceModeFilter, UsernamePasswordAuthenticationFilter.class)
                                 .addFilterBefore(rateLimitFilter, UsernamePasswordAuthenticationFilter.class)
                                 .addFilterBefore(apiKeyAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
@@ -100,6 +103,7 @@ public class SecurityConfig {
                 configuration.addAllowedHeader("*");
                 configuration.setAllowCredentials(true);
                 configuration.addExposedHeader(RequestIdFilter.REQUEST_ID_HEADER);
+                configuration.addExposedHeader(ServerTimeFilter.SERVER_TIME_HEADER);
 
                 UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
                 source.registerCorsConfiguration("/**", configuration);
