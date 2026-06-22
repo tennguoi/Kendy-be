@@ -68,6 +68,13 @@ public class ServiceItem extends TimestampedEntity {
     private ServiceType type = ServiceType.MANUAL;
 
     @Enumerated(EnumType.STRING)
+    @Column(name = "access_strategy", length = 32)
+    private AccessStrategy accessStrategy;
+
+    @Column(name = "access_duration_days")
+    private Integer accessDurationDays;
+
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 32)
     private ServiceStatus status = ServiceStatus.ACTIVE;
 
@@ -183,6 +190,20 @@ public class ServiceItem extends TimestampedEntity {
 
     public void updateType(ServiceType type) {
         this.type = type;
+    }
+
+    public AccessStrategy resolvedAccessStrategy() {
+        if (accessStrategy != null) {
+            return accessStrategy;
+        }
+        return type == ServiceType.ACCOUNT_STOCK
+                ? AccessStrategy.DEDICATED_ACCOUNT
+                : AccessStrategy.MANUAL;
+    }
+
+    public void updateAccessPolicy(AccessStrategy accessStrategy, Integer accessDurationDays) {
+        this.accessStrategy = accessStrategy;
+        this.accessDurationDays = accessDurationDays;
     }
 
     public void changeStatus(ServiceStatus status) {

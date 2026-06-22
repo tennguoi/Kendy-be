@@ -13,6 +13,7 @@ import java.time.Instant;
 import java.util.Base64;
 import java.util.HexFormat;
 import java.util.Optional;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,14 +22,23 @@ public class AuthTokenServiceImpl  implements AuthTokenService{
     private static final Duration ACCESS_TOKEN_TTL = Duration.ofHours(12);
 
     private final AuthSessionRepository authSessionRepository;
+    private final int maxActiveSessions;
     private final SecureRandom secureRandom = new SecureRandom();
 
-    public AuthTokenServiceImpl(AuthSessionRepository authSessionRepository) {
+    public AuthTokenServiceImpl(AuthSessionRepository authSessionRepository,
+            @Value("${app.security.max-active-sessions:3}") int maxActiveSessions) {
         this.authSessionRepository = authSessionRepository;
+        this.maxActiveSessions = Math.max(1, maxActiveSessions);
     }
 
     @Transactional
     public IssuedToken issue(UserAccount user) {
+        var activeSessions = authSessionRepository
+                .findAllByUser_IdAndRevokedAtIsNullOrderByCreatedAtAsc(user.getId());
+        int sessionsToRevoke = activeSessions.size() - maxActiveSessions + 1;
+        for (int index = 0; index < sessionsToRevoke; index++) {
+            activeSessions.get(index).revoke();
+        }
         String token = randomToken();
         Instant expiresAt = Instant.now().plus(ACCESS_TOKEN_TTL);
         authSessionRepository.save(new AuthSession(sha256(token), user, expiresAt));

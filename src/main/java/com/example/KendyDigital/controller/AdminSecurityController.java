@@ -7,6 +7,7 @@ import com.example.KendyDigital.dto.catalog.request.IdsRequest;
 import com.example.KendyDigital.dto.role.request.AdminPermissionsRequest;
 import com.example.KendyDigital.dto.role.request.AdminRolesRequest;
 import com.example.KendyDigital.dto.user.response.AdminUserResponse;
+import com.example.KendyDigital.dto.user.response.UserApiKeyResponse;
 import com.example.KendyDigital.model.user.UserStatus;
 import com.example.KendyDigital.security.CurrentUser;
 import com.example.KendyDigital.service.security.AdminSecurityManagerService;
@@ -130,5 +131,18 @@ public class AdminSecurityController {
             @Valid @RequestBody IdsRequest request) {
         return securityManagerService.bulkUserStatus(CurrentUser.require(authentication).userId(), request.ids(),
                 UserStatus.ACTIVE, request.reason());
+    }
+
+    @GetMapping("/api/admin/users/{id}/api-keys")
+    public List<UserApiKeyResponse> userApiKeys(@PathVariable Long id,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return securityManagerService.listUserApiKeys(id, page, size);
+    }
+
+    @DeleteMapping("/api/admin/users/{id}/api-keys/{keyId}")
+    public void revokeUserApiKey(Authentication authentication, @PathVariable Long id,
+            @PathVariable Long keyId) {
+        securityManagerService.revokeUserApiKey(CurrentUser.require(authentication).userId(), id, keyId);
     }
 }

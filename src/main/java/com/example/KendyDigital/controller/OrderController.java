@@ -64,11 +64,6 @@ public class OrderController {
         return orderService.cancelForUser(CurrentUser.require(authentication).userId(), orderCode, request);
     }
 
-    @PostMapping("/api/orders/{orderCode}/reorder")
-    public OrderResponse reorder(Authentication authentication, @PathVariable String orderCode) {
-        return orderService.reorder(CurrentUser.require(authentication).userId(), orderCode);
-    }
-
     @GetMapping("/api/admin/orders/{orderCode}")
     public OrderResponse getByCodeForAdmin(@PathVariable String orderCode) {
         return orderService.getByCodeForAdmin(orderCode);

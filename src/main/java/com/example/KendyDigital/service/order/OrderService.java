@@ -25,7 +25,6 @@ public interface OrderService {
     OrderResponse getByCodeForUser(Long userId, String orderCode);
     OrderResponse getByCodeForAdmin(String orderCode);
     OrderResponse cancelForUser(Long userId, String orderCode, CancelOrderRequest request);
-    OrderResponse reorder(Long userId, String orderCode);
     OrderResponse complete(String orderCode, Long adminUserId, AdminOrderUpdateRequest request);
     OrderResponse fail(String orderCode, Long adminUserId, AdminOrderUpdateRequest request);
     OrderResponse cancelByAdmin(String orderCode, Long adminUserId, CancelOrderRequest request);

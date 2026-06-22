@@ -8,6 +8,8 @@ public class RateLimitProperties {
     private int authPerMinute = 10;
     private int webhookPerMinute = 120;
     private int financePerMinute = 60;
+    private int depositPerMinute = 5;
+    private int renewalPerMinute = 3;
 
     public boolean isEnabled() {
         return enabled;
@@ -39,5 +41,21 @@ public class RateLimitProperties {
 
     public void setFinancePerMinute(int financePerMinute) {
         this.financePerMinute = financePerMinute;
+    }
+
+    public int getDepositPerMinute() {
+        return depositPerMinute;
+    }
+
+    public void setDepositPerMinute(int depositPerMinute) {
+        this.depositPerMinute = depositPerMinute;
+    }
+
+    public int getRenewalPerMinute() {
+        return renewalPerMinute;
+    }
+
+    public void setRenewalPerMinute(int renewalPerMinute) {
+        this.renewalPerMinute = renewalPerMinute;
     }
 }

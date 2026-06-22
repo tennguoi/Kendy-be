@@ -6,8 +6,10 @@ import com.example.KendyDigital.dto.webhook.response.SePayWebhookResponse;
 import com.example.KendyDigital.repository.*;
 import com.example.KendyDigital.security.*;
 import com.example.KendyDigital.service.webhook.SePayWebhookService;
+import com.example.KendyDigital.service.webhook.SePayWebhookSecurityMonitor;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.servlet.http.HttpServletRequest;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.HexFormat;
@@ -29,24 +31,39 @@ public class SePayWebhookController {
     private final SePayWebhookService sePayWebhookService;
     private final SePayWebhookProperties properties;
     private final ObjectMapper objectMapper;
+    private final SePayWebhookSecurityMonitor securityMonitor;
 
     public SePayWebhookController(SePayWebhookService sePayWebhookService,
             SePayWebhookProperties properties,
-            ObjectMapper objectMapper) {
+            ObjectMapper objectMapper,
+            SePayWebhookSecurityMonitor securityMonitor) {
         this.sePayWebhookService = sePayWebhookService;
         this.properties = properties;
         this.objectMapper = objectMapper;
+        this.securityMonitor = securityMonitor;
     }
 
     @PostMapping
     public ResponseEntity<SePayWebhookResponse> receive(
             @RequestHeader HttpHeaders headers,
-            @RequestBody String rawPayload) {
-        verifyApiKey(headers);
-        verifyHmac(headers, rawPayload);
-        SePayWebhookPayload payload = parsePayload(rawPayload);
-        sePayWebhookService.process(payload, rawPayload);
-        return ResponseEntity.ok(new SePayWebhookResponse(true));
+            @RequestBody String rawPayload,
+            HttpServletRequest request) {
+        String ipAddress = clientIp(request);
+        securityMonitor.received(ipAddress, rawPayload.getBytes(StandardCharsets.UTF_8).length);
+        try {
+            verifyApiKey(headers);
+            verifyHmac(headers, rawPayload);
+            SePayWebhookPayload payload = parsePayload(rawPayload);
+            sePayWebhookService.process(payload, rawPayload);
+            securityMonitor.accepted(ipAddress, payload.id(), payload.referenceCode());
+            return ResponseEntity.ok(new SePayWebhookResponse(true));
+        } catch (ResponseStatusException exception) {
+            securityMonitor.rejected(ipAddress, exception.getReason(), isSignatureFailure(exception));
+            throw exception;
+        } catch (RuntimeException exception) {
+            securityMonitor.rejected(ipAddress, exception.getClass().getSimpleName(), false);
+            throw exception;
+        }
     }
 
     private void verifyApiKey(HttpHeaders headers) {
@@ -144,5 +161,22 @@ public class SePayWebhookController {
 
     private String normalizeHeaderValue(String value) {
         return value == null ? "" : value.trim();
+    }
+
+    private boolean isSignatureFailure(ResponseStatusException exception) {
+        String reason = exception.getReason();
+        return reason != null && (reason.contains("signature") || reason.contains("HMAC"));
+    }
+
+    private String clientIp(HttpServletRequest request) {
+        String forwardedFor = request.getHeader("X-Forwarded-For");
+        if (isLoopback(request.getRemoteAddr()) && forwardedFor != null && !forwardedFor.isBlank()) {
+            return forwardedFor.split(",")[0].trim();
+        }
+        return request.getRemoteAddr();
+    }
+
+    private boolean isLoopback(String address) {
+        return "127.0.0.1".equals(address) || "0:0:0:0:0:0:0:1".equals(address) || "::1".equals(address);
     }
 }

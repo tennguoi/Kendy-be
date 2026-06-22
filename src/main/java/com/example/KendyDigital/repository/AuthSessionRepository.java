@@ -15,5 +15,7 @@ public interface AuthSessionRepository extends JpaRepository<AuthSession, Long> 
 
     List<AuthSession> findAllByUser_IdAndRevokedAtIsNull(Long userId);
 
+    List<AuthSession> findAllByUser_IdAndRevokedAtIsNullOrderByCreatedAtAsc(Long userId);
+
     long countByUser_IdAndRevokedAtIsNull(Long userId);
 }

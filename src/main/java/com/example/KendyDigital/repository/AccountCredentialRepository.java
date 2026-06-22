@@ -77,6 +77,15 @@ public interface AccountCredentialRepository extends JpaRepository<AccountCreden
             @Param("expiresBefore") Instant expiresBefore,
             Pageable pageable);
 
+    @Query("""
+            select c from AccountCredential c
+            join fetch c.service
+            left join fetch c.assignedOrder
+            where c.deliveredToUser.id = :userId
+            order by c.deliveredAt desc, c.createdAt desc
+            """)
+    List<AccountCredential> findAllDeliveredForUser(@Param("userId") Long userId, Pageable pageable);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("""
             select c from AccountCredential c

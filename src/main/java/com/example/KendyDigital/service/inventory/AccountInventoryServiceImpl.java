@@ -7,6 +7,7 @@ import com.example.KendyDigital.dto.inventory.response.AccountCredentialAdminRes
 import com.example.KendyDigital.dto.inventory.response.AccountCredentialRevealResponse;
 import com.example.KendyDigital.dto.inventory.response.BulkAccountCredentialImportResponse;
 import com.example.KendyDigital.dto.inventory.response.InventoryAlertSummaryResponse;
+import com.example.KendyDigital.dto.inventory.response.UserAccountCredentialResponse;
 import com.example.KendyDigital.model.catalog.ServiceItem;
 import com.example.KendyDigital.model.catalog.ServiceStockStatus;
 import com.example.KendyDigital.model.catalog.ServiceType;
@@ -57,6 +58,14 @@ public class AccountInventoryServiceImpl implements AccountInventoryService {
         this.adminRoleService = adminRoleService;
         this.entityManager = entityManager;
         this.stockImportBatchRepository = stockImportBatchRepository;
+    }
+
+    @Transactional(readOnly = true)
+    public List<UserAccountCredentialResponse> listForUser(Long userId, Integer limit) {
+        return accountCredentialRepository.findAllDeliveredForUser(userId, page(normalizedLimit(limit)))
+                .stream()
+                .map(UserAccountCredentialResponse::from)
+                .toList();
     }
 
     @Transactional(readOnly = true)

@@ -41,6 +41,7 @@ import com.example.KendyDigital.repository.UserAccountRepository;
 import com.example.KendyDigital.service.audit.AuditService;
 import com.example.KendyDigital.service.coupon.AppliedCoupon;
 import com.example.KendyDigital.service.coupon.CouponService;
+import com.example.KendyDigital.service.entitlement.EntitlementService;
 import com.example.KendyDigital.service.inventory.AccountInventoryService;
 import com.example.KendyDigital.service.notification.EmailNotificationService;
 import com.example.KendyDigital.service.notification.UserNotificationService;
@@ -77,6 +78,7 @@ public class OrderServiceImpl implements OrderService {
     private final TicketMessageRepository ticketMessageRepository;
     private final CouponService couponService;
     private final OrderEventRepository orderEventRepository;
+    private final EntitlementService entitlementService;
 
     public OrderServiceImpl(OrderRepository orderRepository,
             UserAccountRepository userAccountRepository,
@@ -92,7 +94,8 @@ public class OrderServiceImpl implements OrderService {
             TicketRepository ticketRepository,
             TicketMessageRepository ticketMessageRepository,
             CouponService couponService,
-            OrderEventRepository orderEventRepository) {
+            OrderEventRepository orderEventRepository,
+            EntitlementService entitlementService) {
         this.orderRepository = orderRepository;
         this.userAccountRepository = userAccountRepository;
         this.serviceItemRepository = serviceItemRepository;
@@ -108,6 +111,7 @@ public class OrderServiceImpl implements OrderService {
         this.ticketMessageRepository = ticketMessageRepository;
         this.couponService = couponService;
         this.orderEventRepository = orderEventRepository;
+        this.entitlementService = entitlementService;
     }
 
     @Transactional
@@ -217,14 +221,14 @@ public class OrderServiceImpl implements OrderService {
             }
             userNotificationService.create(userId,
                     "Tài khoản đã được giao",
-                    "Đơn " + order.getOrderCode() + " đã hoàn thành. Vào chi tiết đơn để xem thông tin đăng nhập.",
+                    "Đơn " + order.getOrderCode() + " đã hoàn thành. Vào Tài khoản của tôi để xem thông tin đăng nhập.",
                     "ORDER",
-                    "/orders/" + order.getOrderCode());
+                    "/locker");
             emailNotificationService.sendUserNotification(user,
                     "Tài khoản đã được giao",
                     "Đơn " + order.getOrderCode()
-                            + " đã hoàn thành. Vì lý do bảo mật, thông tin đăng nhập chỉ hiển thị trong chi tiết đơn sau khi đăng nhập.",
-                    "/orders/" + order.getOrderCode());
+                            + " đã hoàn thành. Thông tin đăng nhập đã có trong mục Tài khoản của tôi.",
+                    "/locker");
         } else {
             Ticket supportTicket = createManualOrderTicket(order, user);
             order.attachSupportTicket(supportTicket);
@@ -237,6 +241,7 @@ public class OrderServiceImpl implements OrderService {
             notifyAdminsManualOrder(order);
         }
 
+        entitlementService.createForOrder(order, credential);
         auditService.recordSystem(
                 "ORDER_PURCHASED",
                 "ORDER",
@@ -341,6 +346,7 @@ public class OrderServiceImpl implements OrderService {
                 "Cancel order " + order.getOrderCode());
         OrderStatus oldStatus = order.getStatus();
         order.cancelByUser(reason, refundTransaction);
+        entitlementService.revokeForOrder(order, reason);
         orderEventRepository.save(new OrderEvent(order, oldStatus, order.getStatus(), userId, "USER", reason));
 
         auditService.recordSystem(
@@ -357,16 +363,6 @@ public class OrderServiceImpl implements OrderService {
     }
 
     @Transactional
-    public OrderResponse reorder(Long userId, String orderCode) {
-        OrderRecord source = orderRepository.findByOrderCode(orderCode)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found"));
-        if (!source.getUser().getId().equals(userId)) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found");
-        }
-        return create(userId, new CreateOrderRequest(source.getService().getId(), source.getInputData(), null, null));
-    }
-
-    @Transactional
     public OrderResponse complete(String orderCode, Long adminUserId, AdminOrderUpdateRequest request) {
         OrderRecord order = orderRepository.findByOrderCodeForUpdate(orderCode)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found"));
@@ -374,6 +370,7 @@ public class OrderServiceImpl implements OrderService {
 
         OrderStatus oldStatus = order.getStatus();
         order.complete(blankToNull(request.resultData()), blankToNull(request.adminNote()));
+        entitlementService.activateForOrder(order);
         orderEventRepository.save(new OrderEvent(order, oldStatus, order.getStatus(), adminUserId, "ADMIN", request.adminNote()));
         auditService.recordAdmin(
                 adminUserId,
@@ -393,6 +390,7 @@ public class OrderServiceImpl implements OrderService {
 
         OrderStatus oldStatus = order.getStatus();
         order.fail(blankToNull(request.resultData()), blankToNull(request.adminNote()));
+        entitlementService.revokeForOrder(order, request.adminNote());
         orderEventRepository.save(new OrderEvent(order, oldStatus, order.getStatus(), adminUserId, "ADMIN", request.adminNote()));
         auditService.recordAdmin(
                 adminUserId,
@@ -417,6 +415,7 @@ public class OrderServiceImpl implements OrderService {
                 "Admin cancel order " + order.getOrderCode());
         OrderStatus oldStatus = order.getStatus();
         order.cancelByAdmin(reason, refundTransaction);
+        entitlementService.revokeForOrder(order, reason);
         orderEventRepository.save(new OrderEvent(order, oldStatus, order.getStatus(), adminUserId, "ADMIN", reason));
 
         auditService.recordAdmin(
@@ -456,6 +455,7 @@ public class OrderServiceImpl implements OrderService {
         }
         OrderStatus oldStatus = order.getStatus();
         order.refund(refundTransaction, request.reason());
+        entitlementService.revokeForOrder(order, request.reason());
         orderEventRepository.save(new OrderEvent(order, oldStatus, order.getStatus(), adminUserId, "ADMIN", request.reason()));
 
         auditService.recordAdmin(

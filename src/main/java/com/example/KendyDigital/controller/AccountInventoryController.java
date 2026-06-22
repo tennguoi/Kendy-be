@@ -7,6 +7,7 @@ import com.example.KendyDigital.dto.inventory.response.AccountCredentialAdminRes
 import com.example.KendyDigital.dto.inventory.response.AccountCredentialRevealResponse;
 import com.example.KendyDigital.dto.inventory.response.BulkAccountCredentialImportResponse;
 import com.example.KendyDigital.dto.inventory.response.InventoryAlertSummaryResponse;
+import com.example.KendyDigital.dto.inventory.response.UserAccountCredentialResponse;
 import com.example.KendyDigital.model.inventory.AccountCredentialStatus;
 import com.example.KendyDigital.security.CurrentUser;
 import com.example.KendyDigital.service.inventory.AccountInventoryService;
@@ -29,6 +30,12 @@ public class AccountInventoryController {
 
     public AccountInventoryController(AccountInventoryService accountInventoryService) {
         this.accountInventoryService = accountInventoryService;
+    }
+
+    @GetMapping("/api/me/credentials")
+    public List<UserAccountCredentialResponse> listForCurrentUser(Authentication authentication,
+            @RequestParam(required = false) Integer limit) {
+        return accountInventoryService.listForUser(CurrentUser.require(authentication).userId(), limit);
     }
 
     @GetMapping("/api/admin/services/{serviceId}/credentials")

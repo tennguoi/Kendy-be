@@ -1,6 +1,7 @@
 package com.example.KendyDigital.dto.catalog.request;
 
 import com.example.KendyDigital.model.catalog.ServiceCtaType;
+import com.example.KendyDigital.model.catalog.AccessStrategy;
 import com.example.KendyDigital.model.catalog.ServiceStatus;
 import com.example.KendyDigital.model.catalog.ServiceStockStatus;
 import com.example.KendyDigital.model.catalog.ServiceType;
@@ -17,6 +18,8 @@ public record UpdateServiceRequest(
         String priceText,
         @DecimalMin("0.00") BigDecimal costPrice,
         ServiceType type,
+        AccessStrategy accessStrategy,
+        @Min(1) Integer accessDurationDays,
         ServiceStatus status,
         ServiceStockStatus stockStatus,
         ServiceCtaType ctaType,

@@ -28,6 +28,9 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.RequestPart;
+import org.springframework.http.MediaType;
+import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 public class MeController {
@@ -48,6 +51,12 @@ public class MeController {
     public AuthUserResponse updateProfile(Authentication authentication,
             @Valid @RequestBody UpdateProfileRequest request) {
         return userProfileService.updateProfile(CurrentUser.require(authentication).userId(), request);
+    }
+
+    @PostMapping(value = "/api/me/avatar", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public AuthUserResponse uploadAvatar(Authentication authentication,
+            @RequestPart("file") MultipartFile file) {
+        return userProfileService.uploadAvatar(CurrentUser.require(authentication).userId(), file);
     }
 
     @PostMapping("/api/me/change-password")

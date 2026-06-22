@@ -8,6 +8,7 @@ import com.example.KendyDigital.dto.catalog.response.ServicePricingResponse;
 import com.example.KendyDigital.dto.catalog.response.ServiceResponse;
 import com.example.KendyDigital.dto.order.response.OrderResponse;
 import com.example.KendyDigital.model.catalog.ServiceCategory;
+import com.example.KendyDigital.model.catalog.AccessStrategy;
 import com.example.KendyDigital.model.catalog.ServiceCtaType;
 import com.example.KendyDigital.model.catalog.ServiceItem;
 import com.example.KendyDigital.model.catalog.ServiceStatus;
@@ -58,6 +59,9 @@ public class ServiceCatalogServiceImpl  implements ServiceCatalogService{
                 normalizeMoney(request.price()),
                 request.type() == null ? ServiceType.MANUAL : request.type(),
                 request.status() == null ? ServiceStatus.ACTIVE : request.status());
+        AccessStrategy accessStrategy = normalizeAccessStrategy(service.getType(), request.accessStrategy());
+        service.updateAccessPolicy(accessStrategy,
+                normalizeAccessDuration(accessStrategy, request.accessDurationDays()));
         if (request.priceText() != null) {
             service.updatePriceText(blankToNull(request.priceText()));
         }
@@ -255,6 +259,18 @@ public class ServiceCatalogServiceImpl  implements ServiceCatalogService{
         if (request.type() != null) {
             service.updateType(request.type());
         }
+        if (request.type() != null || request.accessStrategy() != null || request.accessDurationDays() != null) {
+            AccessStrategy accessStrategy = normalizeAccessStrategy(
+                    service.getType(),
+                    request.accessStrategy() == null ? service.resolvedAccessStrategy() : request.accessStrategy());
+            service.updateAccessPolicy(
+                    accessStrategy,
+                    normalizeAccessDuration(
+                            accessStrategy,
+                            request.accessDurationDays() == null
+                                    ? service.getAccessDurationDays()
+                                    : request.accessDurationDays()));
+        }
         if (request.status() != null) {
             service.changeStatus(request.status());
         }
@@ -375,6 +391,30 @@ public class ServiceCatalogServiceImpl  implements ServiceCatalogService{
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, message);
         }
         return value.trim();
+    }
+
+    private AccessStrategy normalizeAccessStrategy(ServiceType type, AccessStrategy requested) {
+        AccessStrategy strategy = requested == null
+                ? (type == ServiceType.ACCOUNT_STOCK
+                    ? AccessStrategy.DEDICATED_ACCOUNT
+                    : AccessStrategy.MANUAL)
+                : requested;
+        if (type == ServiceType.ACCOUNT_STOCK && strategy != AccessStrategy.DEDICATED_ACCOUNT) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "ACCOUNT_STOCK services must use DEDICATED_ACCOUNT access");
+        }
+        if (type == ServiceType.MANUAL && strategy == AccessStrategy.DEDICATED_ACCOUNT) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "DEDICATED_ACCOUNT access requires ACCOUNT_STOCK service type");
+        }
+        return strategy;
+    }
+
+    private Integer normalizeAccessDuration(AccessStrategy strategy, Integer requestedDays) {
+        if (requestedDays != null) {
+            return requestedDays;
+        }
+        return strategy == AccessStrategy.DEDICATED_ACCOUNT ? null : 30;
     }
 
     private BigDecimal normalizeMoney(BigDecimal amount) {

@@ -1,5 +1,7 @@
 package com.example.KendyDigital.service.user;
 
+import com.cloudinary.Cloudinary;
+import com.cloudinary.utils.ObjectUtils;
 import com.example.KendyDigital.dto.auth.response.AuthUserResponse;
 import com.example.KendyDigital.dto.user.request.ChangePasswordRequest;
 import com.example.KendyDigital.dto.user.request.UpdateProfileRequest;
@@ -18,14 +20,18 @@ import com.example.KendyDigital.repository.UserAccountRepository;
 import com.example.KendyDigital.repository.UserApiKeyRepository;
 import com.example.KendyDigital.repository.WalletTransactionRepository;
 import com.example.KendyDigital.service.audit.AuditService;
+import com.example.KendyDigital.service.file.UploadedFileValidator;
+import java.io.IOException;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Set;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.web.multipart.MultipartFile;
 
 @Service
 public class UserProfileServiceImpl  implements UserProfileService{
@@ -38,6 +44,10 @@ public class UserProfileServiceImpl  implements UserProfileService{
     private final UserApiKeyRepository userApiKeyRepository;
     private final PasswordEncoder passwordEncoder;
     private final AuditService auditService;
+    private final Cloudinary cloudinary;
+    private final UploadedFileValidator uploadedFileValidator;
+    private static final Set<String> AVATAR_CONTENT_TYPES =
+            Set.of("image/jpeg", "image/png", "image/gif", "image/webp");
 
     public UserProfileServiceImpl(UserAccountRepository userAccountRepository,
             OrderRepository orderRepository,
@@ -47,7 +57,9 @@ public class UserProfileServiceImpl  implements UserProfileService{
             AuthSessionRepository authSessionRepository,
             UserApiKeyRepository userApiKeyRepository,
             PasswordEncoder passwordEncoder,
-            AuditService auditService) {
+            AuditService auditService,
+            Cloudinary cloudinary,
+            UploadedFileValidator uploadedFileValidator) {
         this.userAccountRepository = userAccountRepository;
         this.orderRepository = orderRepository;
         this.depositRequestRepository = depositRequestRepository;
@@ -57,6 +69,8 @@ public class UserProfileServiceImpl  implements UserProfileService{
         this.userApiKeyRepository = userApiKeyRepository;
         this.passwordEncoder = passwordEncoder;
         this.auditService = auditService;
+        this.cloudinary = cloudinary;
+        this.uploadedFileValidator = uploadedFileValidator;
     }
 
     @Transactional(readOnly = true)
@@ -71,6 +85,36 @@ public class UserProfileServiceImpl  implements UserProfileService{
         user.setPhone(blankToNull(request.phone()));
         auditService.recordSystem("USER_PROFILE_UPDATED", "USER", user.getId(), null);
         return AuthUserResponse.from(user);
+    }
+
+    @Transactional
+    public AuthUserResponse uploadAvatar(Long userId, MultipartFile file) {
+        UploadedFileValidator.ValidatedUpload upload = uploadedFileValidator.validate(file);
+        if (!AVATAR_CONTENT_TYPES.contains(upload.contentType())) {
+            throw new ResponseStatusException(HttpStatus.UNSUPPORTED_MEDIA_TYPE,
+                    "Only JPG, PNG, GIF and WEBP images are allowed");
+        }
+
+        UserAccount user = getUser(userId);
+        try {
+            Map<?, ?> result = cloudinary.uploader().upload(upload.content(), ObjectUtils.asMap(
+                    "folder", "kendy-digital/avatars",
+                    "public_id", "user-" + user.getPublicId(),
+                    "resource_type", "image",
+                    "overwrite", true,
+                    "invalidate", true));
+            Object secureUrl = result.get("secure_url");
+            if (secureUrl == null || secureUrl.toString().isBlank()) {
+                throw new ResponseStatusException(HttpStatus.BAD_GATEWAY,
+                        "Cloudinary response is missing secure_url");
+            }
+            user.setAvatarUrl(secureUrl.toString());
+            auditService.recordSystem("USER_AVATAR_UPDATED", "USER", user.getId(), null);
+            return AuthUserResponse.from(user);
+        } catch (IOException exception) {
+            throw new ResponseStatusException(HttpStatus.BAD_GATEWAY,
+                    "Cloudinary avatar upload failed", exception);
+        }
     }
 
     @Transactional

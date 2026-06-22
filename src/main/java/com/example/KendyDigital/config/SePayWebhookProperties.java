@@ -10,6 +10,8 @@ public class SePayWebhookProperties {
     private boolean requireHmac = true;
     private String hmacSecret = "";
     private String signatureHeader = "X-SePay-Signature";
+    private int rejectionAlertThreshold = 5;
+    private int rejectionWindowSeconds = 300;
 
     public boolean isRequireApiKey() {
         return requireApiKey;
@@ -57,5 +59,21 @@ public class SePayWebhookProperties {
 
     public void setSignatureHeader(String signatureHeader) {
         this.signatureHeader = signatureHeader;
+    }
+
+    public int getRejectionAlertThreshold() {
+        return rejectionAlertThreshold;
+    }
+
+    public void setRejectionAlertThreshold(int rejectionAlertThreshold) {
+        this.rejectionAlertThreshold = rejectionAlertThreshold;
+    }
+
+    public int getRejectionWindowSeconds() {
+        return rejectionWindowSeconds;
+    }
+
+    public void setRejectionWindowSeconds(int rejectionWindowSeconds) {
+        this.rejectionWindowSeconds = rejectionWindowSeconds;
     }
 }

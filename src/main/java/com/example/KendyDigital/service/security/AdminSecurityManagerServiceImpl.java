@@ -6,13 +6,17 @@ import com.example.KendyDigital.dto.auth.response.TotpSetupResponse;
 import com.example.KendyDigital.dto.role.request.AdminPermissionsRequest;
 import com.example.KendyDigital.dto.role.request.AdminRolesRequest;
 import com.example.KendyDigital.dto.user.response.AdminUserResponse;
+import com.example.KendyDigital.dto.user.response.UserApiKeyResponse;
 import com.example.KendyDigital.model.auth.AuthSession;
 import com.example.KendyDigital.model.user.UserAccount;
+import com.example.KendyDigital.model.user.UserApiKey;
 import com.example.KendyDigital.model.user.UserRole;
 import com.example.KendyDigital.model.user.UserStatus;
 import com.example.KendyDigital.repository.AuthSessionRepository;
 import com.example.KendyDigital.repository.UserAccountRepository;
+import com.example.KendyDigital.repository.UserApiKeyRepository;
 import com.example.KendyDigital.service.audit.AuditService;
+import com.example.KendyDigital.service.notification.UserNotificationService;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -28,17 +32,23 @@ import org.springframework.web.server.ResponseStatusException;
 public class AdminSecurityManagerServiceImpl  implements AdminSecurityManagerService{
     private final UserAccountRepository userAccountRepository;
     private final AuthSessionRepository authSessionRepository;
+    private final UserApiKeyRepository userApiKeyRepository;
     private final AuditService auditService;
     private final TwoFactorService twoFactorService;
+    private final UserNotificationService userNotificationService;
 
     public AdminSecurityManagerServiceImpl(UserAccountRepository userAccountRepository,
             AuthSessionRepository authSessionRepository,
+            UserApiKeyRepository userApiKeyRepository,
             AuditService auditService,
-            TwoFactorService twoFactorService) {
+            TwoFactorService twoFactorService,
+            UserNotificationService userNotificationService) {
         this.userAccountRepository = userAccountRepository;
         this.authSessionRepository = authSessionRepository;
+        this.userApiKeyRepository = userApiKeyRepository;
         this.auditService = auditService;
         this.twoFactorService = twoFactorService;
+        this.userNotificationService = userNotificationService;
     }
 
     @Transactional(readOnly = true)
@@ -190,6 +200,25 @@ public class AdminSecurityManagerServiceImpl  implements AdminSecurityManagerSer
         auditService.recordAdmin(adminUserId, "ADMIN_ROLE_UPDATED", "USER", admin.getId(),
                 "role=" + request.role() + ",reason=" + blankToNull(request.reason()));
         return getRoles(admin.getId());
+    }
+
+    @Transactional(readOnly = true)
+    public List<UserApiKeyResponse> listUserApiKeys(Long userId, int page, int size) {
+        return userApiKeyRepository.findAllByUser_IdOrderByCreatedAtDesc(userId, paged(page, size))
+                .stream()
+                .map(UserApiKeyResponse::from)
+                .toList();
+    }
+
+    @Transactional
+    public void revokeUserApiKey(Long adminUserId, Long userId, Long keyId) {
+        UserApiKey key = userApiKeyRepository.findByIdAndUser_Id(keyId, userId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "API key not found"));
+        key.revoke();
+        auditService.recordAdmin(adminUserId, "USER_API_KEY_REVOKED", "USER_API_KEY", key.getId(),
+                "userId=" + userId + ",keyName=" + key.getName() + ",keyPrefix=" + key.getKeyPrefix());
+        userNotificationService.create(userId, "API key revoked by admin",
+                "API key '" + key.getName() + "' was revoked by an administrator.", "SECURITY", "/account/security");
     }
 
     private UserAccount requireAdmin(Long adminId) {

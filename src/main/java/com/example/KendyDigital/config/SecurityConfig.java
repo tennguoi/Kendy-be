@@ -77,10 +77,10 @@ public class SecurityConfig {
                                 .addFilterBefore(requestIdFilter, UsernamePasswordAuthenticationFilter.class)
                                 .addFilterBefore(serverTimeFilter, RequestIdFilter.class)
                                 .addFilterBefore(maintenanceModeFilter, UsernamePasswordAuthenticationFilter.class)
-                                .addFilterBefore(rateLimitFilter, UsernamePasswordAuthenticationFilter.class)
                                 .addFilterBefore(apiKeyAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
                                 .addFilterBefore(bearerTokenAuthenticationFilter,
                                                 UsernamePasswordAuthenticationFilter.class)
+                                .addFilterAfter(rateLimitFilter, BearerTokenAuthenticationFilter.class)
                                 .oauth2Login(oauth2 -> oauth2
                                                 .successHandler(oAuth2AuthenticationSuccessHandler)
                                                 .failureHandler(oAuth2AuthenticationFailureHandler))

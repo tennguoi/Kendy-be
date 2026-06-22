@@ -43,6 +43,7 @@ public class SePayWebhookServiceImpl  implements SePayWebhookService{
     private final UserNotificationService userNotificationService;
     private final CheckoutService checkoutService;
     private final Pattern depositCodePattern;
+    private final String expectedAccountNumber;
 
     public SePayWebhookServiceImpl(BankTransactionInserter bankTransactionInserter,
             BankTransactionRepository bankTransactionRepository,
@@ -61,6 +62,7 @@ public class SePayWebhookServiceImpl  implements SePayWebhookService{
         this.auditService = auditService;
         this.userNotificationService = userNotificationService;
         this.checkoutService = checkoutService;
+        this.expectedAccountNumber = normalizeAccountNumber(bankProperties.getAccountNumber());
         this.depositCodePattern = Pattern.compile("\\b" + Pattern.quote(bankProperties.getTransferPrefix())
                 + "[A-Z0-9]{8,}\\b", Pattern.CASE_INSENSITIVE);
     }
@@ -152,6 +154,16 @@ public class SePayWebhookServiceImpl  implements SePayWebhookService{
         if (isBlank(payload.referenceCode()) && payload.id() == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "referenceCode or id is required");
         }
+        if (expectedAccountNumber.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
+                    "Receiving bank account is not configured");
+        }
+        String accountNumber = normalizeAccountNumber(payload.accountNumber());
+        String subAccount = normalizeAccountNumber(payload.subAccount());
+        if (!expectedAccountNumber.equals(accountNumber) && !expectedAccountNumber.equals(subAccount)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Webhook receiving account does not match the configured bank account");
+        }
     }
 
     private Optional<String> extractDepositCode(String content, String code) {
@@ -195,5 +207,9 @@ public class SePayWebhookServiceImpl  implements SePayWebhookService{
 
     private boolean isBlank(String value) {
         return value == null || value.isBlank();
+    }
+
+    private String normalizeAccountNumber(String value) {
+        return value == null ? "" : value.replaceAll("[^A-Za-z0-9]", "").toUpperCase(Locale.ROOT);
     }
 }

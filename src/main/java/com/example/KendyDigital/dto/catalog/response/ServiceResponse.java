@@ -1,6 +1,7 @@
 package com.example.KendyDigital.dto.catalog.response;
 
 import com.example.KendyDigital.model.catalog.ServiceCtaType;
+import com.example.KendyDigital.model.catalog.AccessStrategy;
 import com.example.KendyDigital.model.catalog.ServiceItem;
 import com.example.KendyDigital.model.catalog.ServiceStatus;
 import com.example.KendyDigital.model.catalog.ServiceStockStatus;
@@ -17,6 +18,8 @@ public record ServiceResponse(
         String priceText,
         BigDecimal costPrice,
         ServiceType type,
+        AccessStrategy accessStrategy,
+        Integer accessDurationDays,
         ServiceStatus status,
         ServiceStockStatus stockStatus,
         ServiceCtaType ctaType,
@@ -46,6 +49,8 @@ public record ServiceResponse(
                 service.getPriceText(),
                 service.getCostPrice(),
                 service.getType(),
+                service.resolvedAccessStrategy(),
+                service.getAccessDurationDays(),
                 service.getStatus(),
                 service.getStockStatus(),
                 service.getCtaType(),

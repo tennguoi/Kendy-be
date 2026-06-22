@@ -101,7 +101,7 @@ class OrderRaceConditionIntegrationTest {
                     "Svc " + counter, "svc-" + counter,
                     "Short", "Full",
                     BigDecimal.valueOf(100_000), "100.000đ", BigDecimal.valueOf(50_000),
-                    ServiceType.ACCOUNT_STOCK, ServiceStatus.ACTIVE, ServiceStockStatus.AVAILABLE,
+                    ServiceType.ACCOUNT_STOCK, null, null, ServiceStatus.ACTIVE, ServiceStockStatus.AVAILABLE,
                     ServiceCtaType.BUY_NOW, null, false, true, null,
                     "Req", "Benefits", "Notes", "24h", "7 days",
                     0, cat.id(), null, null, null);

@@ -2,6 +2,7 @@ package com.example.KendyDigital.common;
 
 import com.example.KendyDigital.config.RateLimitProperties;
 import com.example.KendyDigital.repository.SystemSettingRepository;
+import com.example.KendyDigital.security.AuthenticatedUser;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -12,6 +13,8 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -44,7 +47,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
             return;
         }
 
-        String key = clientIp(request) + ":" + request.getMethod() + ":" + request.getRequestURI();
+        String key = rateLimitSubject(request) + ":" + request.getMethod() + ":" + request.getRequestURI();
         WindowCounter counter = counters.compute(key, (ignored, existing) -> {
             long now = Instant.now().getEpochSecond();
             if (existing == null || now - existing.windowStartedAt() >= WINDOW_SECONDS) {
@@ -75,12 +78,18 @@ public class RateLimitFilter extends OncePerRequestFilter {
         if ("POST".equals(method) && "/api/webhooks/sepay".equals(path)) {
             return configuredLimit("rate_limit.webhook_per_minute", properties.getWebhookPerMinute());
         }
-        if ("POST".equals(method) && ("/api/deposits".equals(path) || "/api/orders".equals(path)
+        if ("POST".equals(method) && "/api/deposits".equals(path)) {
+            return configuredLimit("rate_limit.deposit_per_minute", properties.getDepositPerMinute());
+        }
+        if ("POST".equals(method) && ("/api/orders".equals(path)
                 || "/api/auth/2fa/email-code".equals(path))) {
             return configuredLimit("rate_limit.finance_per_minute", properties.getFinancePerMinute());
         }
         if (path.startsWith("/api/tickets") || path.startsWith("/api/warranty-requests")) {
             return configuredLimit("rate_limit.auth_per_minute", properties.getAuthPerMinute());
+        }
+        if ("POST".equals(method) && path.matches("/api/me/entitlements/\\d+/renew")) {
+            return configuredLimit("rate_limit.renewal_per_minute", properties.getRenewalPerMinute());
         }
         if ("POST".equals(method) && path.startsWith("/api/admin/credentials/") && path.endsWith("/reveal")) {
             return configuredLimit("rate_limit.finance_per_minute", properties.getFinancePerMinute());
@@ -110,10 +119,26 @@ public class RateLimitFilter extends OncePerRequestFilter {
 
     private String clientIp(HttpServletRequest request) {
         String forwardedFor = request.getHeader("X-Forwarded-For");
-        if (forwardedFor != null && !forwardedFor.isBlank()) {
+        if (isLoopback(request.getRemoteAddr()) && forwardedFor != null && !forwardedFor.isBlank()) {
             return forwardedFor.split(",")[0].trim();
         }
         return request.getRemoteAddr();
+    }
+
+    private boolean isLoopback(String address) {
+        return "127.0.0.1".equals(address) || "0:0:0:0:0:0:0:1".equals(address) || "::1".equals(address);
+    }
+
+    private String rateLimitSubject(HttpServletRequest request) {
+        if ("POST".equals(request.getMethod())
+                && ("/api/deposits".equals(request.getRequestURI())
+                    || request.getRequestURI().matches("/api/me/entitlements/\\d+/renew"))) {
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            if (authentication != null && authentication.getPrincipal() instanceof AuthenticatedUser user) {
+                return "user:" + user.userId();
+            }
+        }
+        return "ip:" + clientIp(request);
     }
 
     private record WindowCounter(long windowStartedAt, AtomicInteger count) {
