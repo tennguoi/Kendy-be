@@ -45,7 +45,7 @@ public class EmailNotificationServiceImpl  implements EmailNotificationService{
         this.contentItemRepository = contentItemRepository;
     }
 
-    @Async("jobExecutor")
+    @Async("mailExecutor")
     public void sendPasswordReset(UserAccount user, String token, Instant expiresAt) {
         String link = frontendUrl("/reset-password?token=" + encode(token));
         String subject = template("password_reset", "email.template.password_reset.subject",
@@ -56,7 +56,7 @@ public class EmailNotificationServiceImpl  implements EmailNotificationService{
         send(user.getEmail(), subject, body);
     }
 
-    @Async("jobExecutor")
+    @Async("mailExecutor")
     public void sendEmailVerification(UserAccount user, String token, Instant expiresAt) {
         String link = frontendUrl("/verify-email?token=" + encode(token));
         String subject = template("email_verification", "email.template.email_verification.subject",
@@ -67,7 +67,7 @@ public class EmailNotificationServiceImpl  implements EmailNotificationService{
         send(user.getEmail(), subject, body);
     }
 
-    @Async("jobExecutor")
+    @Async("mailExecutor")
     public void sendTwoFactorCode(UserAccount user, String code, Instant expiresAt) {
         String subject = template("two_factor", "email.template.two_factor.subject",
                 "Your KendyDigital 2FA code", user, null, null, expiresAt, code);
@@ -77,13 +77,13 @@ public class EmailNotificationServiceImpl  implements EmailNotificationService{
         send(user.getEmail(), subject, body);
     }
 
-    @Async("jobExecutor")
+    @Async("mailExecutor")
     public void sendSecurityAlert(UserAccount user, String title, String message) {
         String body = String.format("<h2>%s</h2><p>%s</p>", escapeHtml(title), escapeHtml(message));
         send(user.getEmail(), title, body);
     }
 
-    @Async("jobExecutor")
+    @Async("mailExecutor")
     public void sendUserNotification(UserAccount user, String title, String message, String actionUrl) {
         StringBuilder body = new StringBuilder();
         body.append("<h2>").append(escapeHtml(title)).append("</h2>");

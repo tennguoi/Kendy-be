@@ -21,6 +21,7 @@ import com.example.KendyDigital.model.user.UserApiKey;
 import com.example.KendyDigital.model.user.UserSecurityToken;
 import com.example.KendyDigital.model.user.UserSecurityTokenType;
 import com.example.KendyDigital.model.user.UserStatus;
+import com.example.KendyDigital.security.ResolvedApiKey;
 import com.example.KendyDigital.repository.AuthSessionRepository;
 import com.example.KendyDigital.repository.UserAccountRepository;
 import com.example.KendyDigital.repository.UserApiKeyRepository;
@@ -36,10 +37,12 @@ import java.security.SecureRandom;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Base64;
+import java.util.Arrays;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
@@ -390,7 +393,7 @@ public class UserSecurityServiceImpl  implements UserSecurityService{
     }
 
     @Transactional
-    public Optional<UserAccount> resolveApiKey(String token) {
+    public Optional<ResolvedApiKey> resolveApiKey(String token) {
         if (token == null || token.isBlank()) {
             return Optional.empty();
         }
@@ -403,7 +406,11 @@ public class UserSecurityServiceImpl  implements UserSecurityService{
             return Optional.empty();
         }
         key.markUsed();
-        return Optional.of(key.getUser());
+        Set<String> scopes = Arrays.stream(Optional.ofNullable(key.getScopes()).orElse("").split(","))
+                .map(String::trim)
+                .filter(value -> !value.isBlank())
+                .collect(Collectors.toUnmodifiableSet());
+        return Optional.of(new ResolvedApiKey(key.getUser(), scopes));
     }
 
     private IssuedSecurityToken issueSecurityToken(UserAccount user, UserSecurityTokenType type, Duration ttl) {

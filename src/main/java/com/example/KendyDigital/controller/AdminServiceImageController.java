@@ -3,12 +3,14 @@ package com.example.KendyDigital.controller;
 import com.example.KendyDigital.dto.catalog.response.ServiceImageUploadResponse;
 import com.example.KendyDigital.service.catalog.ServiceImageService;
 import org.springframework.http.MediaType;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 @RestController
+@PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
 public class AdminServiceImageController {
     private final ServiceImageService serviceImageService;
 

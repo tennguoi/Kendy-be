@@ -91,4 +91,14 @@ public interface WalletTransactionRepository extends JpaRepository<WalletTransac
     BigDecimal sumAmountByTypeAndDirectionBetween(@Param("type") WalletTransactionType type,
             @Param("direction") WalletTransactionDirection direction, @Param("from") java.time.Instant from,
             @Param("to") java.time.Instant to);
+
+    @Query(value = """
+            select cast(created_at as date) as day, coalesce(sum(amount), 0)
+            from wallet_transactions
+            where created_at >= :from and created_at < :to
+              and type = 'DEPOSIT' and direction = 'CREDIT'
+            group by cast(created_at as date)
+            order by day
+            """, nativeQuery = true)
+    List<Object[]> sumDepositsByDay(@Param("from") java.time.Instant from, @Param("to") java.time.Instant to);
 }

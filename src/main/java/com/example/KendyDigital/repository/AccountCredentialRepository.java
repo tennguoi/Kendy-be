@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Optional;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -19,13 +20,20 @@ public interface AccountCredentialRepository extends JpaRepository<AccountCreden
 
     long countByService_IdAndStatus(Long serviceId, AccountCredentialStatus status);
 
+    @EntityGraph(attributePaths = {"service", "assignedOrder", "reservedCheckout", "reservedByUser", "deliveredToUser"})
     List<AccountCredential> findAllByService_IdOrderByCreatedAtDesc(Long serviceId, Pageable pageable);
 
+    @EntityGraph(attributePaths = {"service", "assignedOrder", "reservedCheckout", "reservedByUser", "deliveredToUser"})
     List<AccountCredential> findAllByService_IdAndStatusOrderByCreatedAtDesc(Long serviceId,
             AccountCredentialStatus status, Pageable pageable);
 
     @Query("""
             select c from AccountCredential c
+            join fetch c.service
+            left join fetch c.assignedOrder
+            left join fetch c.reservedCheckout
+            left join fetch c.reservedByUser
+            left join fetch c.deliveredToUser
             where c.service.id = :serviceId
               and (cast(:status as string) is null or c.status = :status)
               and (cast(:queryPattern as string) is null

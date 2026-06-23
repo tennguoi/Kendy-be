@@ -162,6 +162,16 @@ public interface OrderRepository extends JpaRepository<OrderRecord, Long> {
     BigDecimal sumAmountByStatusBetween(@Param("status") OrderStatus status, @Param("from") java.time.Instant from,
             @Param("to") java.time.Instant to);
 
+    @Query(value = """
+            select cast(created_at as date) as day, status, coalesce(sum(amount), 0)
+            from orders
+            where created_at >= :from and created_at < :to
+              and status in ('COMPLETED', 'REFUNDED')
+            group by cast(created_at as date), status
+            order by day
+            """, nativeQuery = true)
+    List<Object[]> sumRevenueByDay(@Param("from") java.time.Instant from, @Param("to") java.time.Instant to);
+
     @Query("""
             select o.service.id, o.service.name, count(o), coalesce(sum(o.amount), 0)
             from OrderRecord o

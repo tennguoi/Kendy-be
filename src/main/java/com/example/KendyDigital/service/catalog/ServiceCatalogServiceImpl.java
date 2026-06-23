@@ -24,6 +24,8 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -45,6 +47,7 @@ public class ServiceCatalogServiceImpl  implements ServiceCatalogService{
     }
 
     @Transactional
+    @CacheEvict(cacheNames = {"publicServices", "publicPricing"}, allEntries = true)
     public ServiceResponse create(Long adminUserId, CreateServiceRequest request) {
         String slug = normalizeSlug(request.slug());
         if (serviceItemRepository.existsBySlug(slug)) {
@@ -113,6 +116,7 @@ public class ServiceCatalogServiceImpl  implements ServiceCatalogService{
     }
 
     @Transactional(readOnly = true)
+    @Cacheable(cacheNames = "publicServices", key = "{#query, #categoryId, #categorySlug, #sort, #limit}")
     public List<ServiceResponse> searchActive(String query, Long categoryId, String categorySlug, String sort,
             Integer limit) {
         String normalizedQuery = query == null || query.isBlank() ? null : query.trim();
@@ -138,8 +142,8 @@ public class ServiceCatalogServiceImpl  implements ServiceCatalogService{
     }
 
     @Transactional(readOnly = true)
-    public List<ServiceResponse> listForAdmin() {
-        return serviceItemRepository.findAllByOrderBySortOrderAscNameAsc()
+    public List<ServiceResponse> listForAdmin(Integer limit) {
+        return serviceItemRepository.findAllByOrderBySortOrderAscNameAsc(page(limit))
                 .stream()
                 .map(ServiceResponse::from)
                 .toList();
@@ -173,6 +177,7 @@ public class ServiceCatalogServiceImpl  implements ServiceCatalogService{
     }
 
     @Transactional(readOnly = true)
+    @Cacheable(cacheNames = "publicPricing", key = "{#query, #categoryId, #categorySlug, #featured, #sort, #limit}")
     public List<ServicePricingResponse> searchPricing(String query, Long categoryId, String categorySlug,
             Boolean featured, String sort, Integer limit) {
         String normalizedQuery = query == null || query.isBlank() ? null : query.trim();
@@ -228,6 +233,7 @@ public class ServiceCatalogServiceImpl  implements ServiceCatalogService{
     }
 
     @Transactional
+    @CacheEvict(cacheNames = {"publicServices", "publicPricing"}, allEntries = true)
     public ServiceResponse update(Long id, Long adminUserId, UpdateServiceRequest request) {
         ServiceItem service = serviceItemRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Service not found"));
@@ -320,6 +326,7 @@ public class ServiceCatalogServiceImpl  implements ServiceCatalogService{
     }
 
     @Transactional
+    @CacheEvict(cacheNames = {"publicServices", "publicPricing"}, allEntries = true)
     public ServiceResponse updateStatus(Long id, Long adminUserId, ServiceStatusUpdateRequest request) {
         ServiceItem service = serviceItemRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Service not found"));
@@ -334,6 +341,7 @@ public class ServiceCatalogServiceImpl  implements ServiceCatalogService{
     }
 
     @Transactional
+    @CacheEvict(cacheNames = {"publicServices", "publicPricing"}, allEntries = true)
     public ServiceResponse delete(Long id, Long adminUserId) {
         ServiceItem service = serviceItemRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Service not found"));

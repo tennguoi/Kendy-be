@@ -7,8 +7,6 @@ import com.example.KendyDigital.model.order.OrderStatus;
 import com.example.KendyDigital.model.ticket.Ticket;
 import com.example.KendyDigital.model.user.UserAccount;
 import com.example.KendyDigital.model.user.UserStatus;
-import com.example.KendyDigital.model.wallet.WalletTransactionDirection;
-import com.example.KendyDigital.model.wallet.WalletTransactionType;
 import com.example.KendyDigital.repository.AuditLogRepository;
 import com.example.KendyDigital.repository.BankTransactionRepository;
 import com.example.KendyDigital.repository.OrderRepository;
@@ -74,21 +72,45 @@ public class AdminExportAnalyticsServiceImpl  implements AdminExportAnalyticsSer
     @Transactional(readOnly = true)
     public List<Map<String, Object>> revenueChart(Integer days) {
         int normalizedDays = days == null ? 14 : Math.max(1, Math.min(days, 90));
-        List<Map<String, Object>> rows = new ArrayList<>();
         LocalDate today = LocalDate.now(ZoneOffset.UTC);
+        LocalDate firstDay = today.minusDays(normalizedDays - 1L);
+        Instant from = firstDay.atStartOfDay().toInstant(ZoneOffset.UTC);
+        Instant to = today.plusDays(1).atStartOfDay().toInstant(ZoneOffset.UTC);
+
+        Map<LocalDate, java.math.BigDecimal> depositsByDay = walletTransactionRepository.sumDepositsByDay(from, to)
+                .stream()
+                .collect(Collectors.toMap(
+                        row -> toLocalDate(row[0]),
+                        row -> toBigDecimal(row[1])));
+        Map<LocalDate, Map<String, java.math.BigDecimal>> ordersByDay = new LinkedHashMap<>();
+        for (Object[] row : orderRepository.sumRevenueByDay(from, to)) {
+            ordersByDay.computeIfAbsent(toLocalDate(row[0]), ignored -> new LinkedHashMap<>())
+                    .put(String.valueOf(row[1]), toBigDecimal(row[2]));
+        }
+
+        List<Map<String, Object>> rows = new ArrayList<>(normalizedDays);
         for (int i = normalizedDays - 1; i >= 0; i--) {
             LocalDate date = today.minusDays(i);
-            Instant from = date.atStartOfDay().toInstant(ZoneOffset.UTC);
-            Instant to = date.plusDays(1).atStartOfDay().toInstant(ZoneOffset.UTC);
+            Map<String, java.math.BigDecimal> orderTotals = ordersByDay.getOrDefault(date, Map.of());
             Map<String, Object> row = new LinkedHashMap<>();
             row.put("date", date.toString());
-            row.put("depositVolume", walletTransactionRepository.sumAmountByTypeAndDirectionBetween(
-                    WalletTransactionType.DEPOSIT, WalletTransactionDirection.CREDIT, from, to));
-            row.put("grossRevenue", orderRepository.sumAmountByStatusBetween(OrderStatus.COMPLETED, from, to));
-            row.put("refunds", orderRepository.sumAmountByStatusBetween(OrderStatus.REFUNDED, from, to));
+            row.put("depositVolume", depositsByDay.getOrDefault(date, java.math.BigDecimal.ZERO));
+            row.put("grossRevenue", orderTotals.getOrDefault(OrderStatus.COMPLETED.name(), java.math.BigDecimal.ZERO));
+            row.put("refunds", orderTotals.getOrDefault(OrderStatus.REFUNDED.name(), java.math.BigDecimal.ZERO));
             rows.add(row);
         }
         return rows;
+    }
+
+    private LocalDate toLocalDate(Object value) {
+        if (value instanceof java.sql.Date date) return date.toLocalDate();
+        if (value instanceof LocalDate date) return date;
+        return LocalDate.parse(String.valueOf(value));
+    }
+
+    private java.math.BigDecimal toBigDecimal(Object value) {
+        if (value instanceof java.math.BigDecimal decimal) return decimal;
+        return new java.math.BigDecimal(String.valueOf(value));
     }
 
     @Transactional(readOnly = true)

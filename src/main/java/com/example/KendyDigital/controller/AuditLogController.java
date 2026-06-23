@@ -16,7 +16,9 @@ public class AuditLogController {
     }
 
     @GetMapping("/api/admin/audit-logs")
-    public List<AuditLogResponse> list(@RequestParam(required = false) String action) {
-        return auditService.list(action);
+    public List<AuditLogResponse> list(@RequestParam(required = false) String action,
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size) {
+        return auditService.list(action, page, size);
     }
 }

@@ -16,6 +16,7 @@ import com.example.KendyDigital.dto.user.response.UserApiKeyCreatedResponse;
 import com.example.KendyDigital.dto.user.response.UserApiKeyResponse;
 import com.example.KendyDigital.dto.user.response.UserSecurityOverviewResponse;
 import com.example.KendyDigital.model.user.UserAccount;
+import com.example.KendyDigital.security.ResolvedApiKey;
 import java.util.List;
 import java.util.Optional;
 
@@ -44,5 +45,5 @@ public interface UserSecurityService {
     SecurityTokenResponse issueOAuthTwoFactorChallenge(UserAccount user);
     AuthTokenResponse verifyOAuthTwoFactor(String challengeToken, String code);
     boolean verifyEmailTwoFactorCode(UserAccount user, String code);
-    Optional<UserAccount> resolveApiKey(String token);
+    Optional<ResolvedApiKey> resolveApiKey(String token);
 }

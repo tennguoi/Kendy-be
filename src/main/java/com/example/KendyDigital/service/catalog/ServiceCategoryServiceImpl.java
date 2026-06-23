@@ -9,7 +9,10 @@ import com.example.KendyDigital.repository.ServiceItemRepository;
 import com.example.KendyDigital.service.audit.AuditService;
 import java.util.List;
 import java.util.Locale;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
@@ -28,6 +31,7 @@ public class ServiceCategoryServiceImpl  implements ServiceCategoryService{
     }
 
     @Transactional(readOnly = true)
+    @Cacheable(cacheNames = "serviceCategories", key = "'all'")
     public List<ServiceCategoryResponse> listAll() {
         return serviceCategoryRepository.findAllByOrderBySortOrderAscNameAsc()
                 .stream()
@@ -36,6 +40,17 @@ public class ServiceCategoryServiceImpl  implements ServiceCategoryService{
     }
 
     @Transactional(readOnly = true)
+    public List<ServiceCategoryResponse> listForAdmin(Integer page, Integer size) {
+        int safePage = page == null ? 0 : Math.max(0, page);
+        int safeSize = size == null ? 100 : Math.max(1, Math.min(size, 200));
+        return serviceCategoryRepository.findAllByOrderBySortOrderAscNameAsc(PageRequest.of(safePage, safeSize))
+                .stream()
+                .map(ServiceCategoryResponse::from)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    @Cacheable(cacheNames = "serviceCategories", key = "'root'")
     public List<ServiceCategoryResponse> listRoot() {
         return serviceCategoryRepository.findAllByParentIsNullOrderBySortOrderAscNameAsc()
                 .stream()
@@ -56,6 +71,7 @@ public class ServiceCategoryServiceImpl  implements ServiceCategoryService{
     }
 
     @Transactional
+    @CacheEvict(cacheNames = {"serviceCategories", "publicServices", "publicPricing"}, allEntries = true)
     public ServiceCategoryResponse create(Long adminUserId, CreateServiceCategoryRequest request) {
         String slug = normalizeSlug(request.slug());
         if (serviceCategoryRepository.existsBySlug(slug)) {
@@ -89,6 +105,7 @@ public class ServiceCategoryServiceImpl  implements ServiceCategoryService{
     }
 
     @Transactional
+    @CacheEvict(cacheNames = {"serviceCategories", "publicServices", "publicPricing"}, allEntries = true)
     public ServiceCategoryResponse update(Long adminUserId, Long id, UpdateServiceCategoryRequest request) {
         ServiceCategory category = requireCategory(id);
 
@@ -143,6 +160,7 @@ public class ServiceCategoryServiceImpl  implements ServiceCategoryService{
     }
 
     @Transactional
+    @CacheEvict(cacheNames = {"serviceCategories", "publicServices", "publicPricing"}, allEntries = true)
     public void delete(Long adminUserId, Long id) {
         ServiceCategory category = requireCategory(id);
         if (serviceCategoryRepository.existsByParent_Id(id)) {

@@ -11,6 +11,8 @@ import jakarta.validation.Valid;
 import java.util.List;
 import java.util.Locale;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.transaction.annotation.Transactional;
@@ -36,6 +38,7 @@ public class ContentController {
 
     @GetMapping("/api/content")
     @Transactional(readOnly = true)
+    @Cacheable(cacheNames = "publicContent", key = "{#type, 'list'}")
     public List<ContentItemResponse> publicList(@RequestParam ContentType type) {
         return contentItemRepository.findAllByTypeAndPublishedOrderBySortOrderAscCreatedAtDesc(type, true)
                 .stream()
@@ -45,6 +48,7 @@ public class ContentController {
 
     @GetMapping("/api/content/{type}/{slug}")
     @Transactional(readOnly = true)
+    @Cacheable(cacheNames = "publicContent", key = "{#type, #slug}")
     public ContentItemResponse publicDetail(@PathVariable ContentType type, @PathVariable String slug) {
         ContentItem item = contentItemRepository.findByTypeAndSlug(type, normalizeSlug(slug))
                 .filter(ContentItem::isPublished)
@@ -66,6 +70,7 @@ public class ContentController {
 
     @PostMapping("/api/admin/content")
     @Transactional
+    @CacheEvict(cacheNames = "publicContent", allEntries = true)
     public ContentItemResponse create(Authentication authentication, @Valid @RequestBody ContentItemRequest request) {
         Long adminUserId = CurrentUser.require(authentication).userId();
         String slug = normalizeSlug(request.slug());
@@ -82,6 +87,7 @@ public class ContentController {
 
     @PutMapping("/api/admin/content/{id}")
     @Transactional
+    @CacheEvict(cacheNames = "publicContent", allEntries = true)
     public ContentItemResponse update(Authentication authentication, @PathVariable Long id,
             @Valid @RequestBody ContentItemRequest request) {
         Long adminUserId = CurrentUser.require(authentication).userId();
@@ -102,6 +108,7 @@ public class ContentController {
 
     @DeleteMapping("/api/admin/content/{id}")
     @Transactional
+    @CacheEvict(cacheNames = "publicContent", allEntries = true)
     public void delete(Authentication authentication, @PathVariable Long id) {
         Long adminUserId = CurrentUser.require(authentication).userId();
         ContentItem item = contentItemRepository.findById(id)

@@ -8,15 +8,25 @@ import java.util.List;
 import java.util.Optional;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 public interface WarrantyRequestRepository extends JpaRepository<WarrantyRequest, Long> {
+    @EntityGraph(attributePaths = {
+            "order", "order.service", "user", "originalCredential", "replacementCredential", "refundWalletTransaction"
+    })
     List<WarrantyRequest> findAllByUser_IdOrderByCreatedAtDesc(Long userId, Pageable pageable);
 
+    @EntityGraph(attributePaths = {
+            "order", "order.service", "user", "originalCredential", "replacementCredential", "refundWalletTransaction"
+    })
     List<WarrantyRequest> findAllByStatusOrderByCreatedAtDesc(WarrantyRequestStatus status, Pageable pageable);
 
+    @EntityGraph(attributePaths = {
+            "order", "order.service", "user", "originalCredential", "replacementCredential", "refundWalletTransaction"
+    })
     List<WarrantyRequest> findAllByOrderByCreatedAtDesc(Pageable pageable);
 
     boolean existsByOrder_IdAndStatusIn(Long orderId, Collection<WarrantyRequestStatus> statuses);

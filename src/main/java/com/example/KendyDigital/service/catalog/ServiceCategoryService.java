@@ -7,6 +7,7 @@ import java.util.List;
 
 public interface ServiceCategoryService {
     List<ServiceCategoryResponse> listAll();
+    List<ServiceCategoryResponse> listForAdmin(Integer page, Integer size);
     List<ServiceCategoryResponse> listRoot();
     ServiceCategoryResponse getById(Long id);
     ServiceCategoryResponse getBySlug(String slug);

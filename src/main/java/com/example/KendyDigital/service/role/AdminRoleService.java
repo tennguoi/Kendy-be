@@ -8,7 +8,7 @@ import java.util.List;
 import java.util.Map;
 
 public interface AdminRoleService {
-    List<AdminRoleResponse> listRoles();
+    List<AdminRoleResponse> listRoles(Integer limit);
     AdminRoleResponse getRole(Long id);
     AdminRoleResponse createRole(Long adminUserId, CreateAdminRoleRequest request);
     AdminRoleResponse updateRole(Long adminUserId, Long id, UpdateAdminRoleRequest request);

@@ -15,7 +15,7 @@ public interface ServiceCatalogService {
     List<ServiceResponse> listActive();
     List<ServiceResponse> searchActive(String query, Long categoryId, Integer limit);
     List<ServiceResponse> searchActive(String query, Long categoryId, String categorySlug, String sort, Integer limit);
-    List<ServiceResponse> listForAdmin();
+    List<ServiceResponse> listForAdmin(Integer limit);
     List<ServiceResponse> searchForAdmin(String query, ServiceStatus status, Integer limit);
     List<ServiceResponse> searchForAdmin(String query, ServiceStatus status, Long categoryId, String categorySlug, Boolean featured, String sort, Integer limit);
     List<ServicePricingResponse> searchPricing(String query, Long categoryId, String categorySlug, Boolean featured, String sort, Integer limit);

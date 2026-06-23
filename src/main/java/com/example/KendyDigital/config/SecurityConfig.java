@@ -14,6 +14,7 @@ import org.springframework.http.HttpMethod;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -25,6 +26,7 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 @Configuration
 @EnableWebSecurity
+@EnableMethodSecurity
 public class SecurityConfig {
         @Bean
         SecurityFilterChain apiSecurity(HttpSecurity http,
@@ -44,7 +46,7 @@ public class SecurityConfig {
                                                 .requestMatchers("/ws/**").permitAll()
                                                 .requestMatchers("/swagger-ui.html", "/swagger-ui/**",
                                                                 "/v3/api-docs/**")
-                                                .permitAll()
+                                                .hasRole("SUPER_ADMIN")
                                                 .requestMatchers("/oauth2/**", "/login/oauth2/**").permitAll()
                                                 .requestMatchers(HttpMethod.GET, "/api/time").permitAll()
                                                 .requestMatchers("/api/auth/register", "/api/auth/login",
@@ -64,7 +66,6 @@ public class SecurityConfig {
                                                                 "/api/service-categories", "/api/service-categories/**",
                                                                 "/api/content", "/api/content/**")
                                                 .permitAll()
-                                                .requestMatchers("/api/admin/files/**").authenticated()
                                                 .requestMatchers("/api/admin/**").hasAnyRole("ADMIN", "SUPER_ADMIN")
                                                 .requestMatchers("/api/**").authenticated()
                                                 .anyRequest().permitAll())

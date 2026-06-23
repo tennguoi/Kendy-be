@@ -12,11 +12,14 @@ import java.time.Instant;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.time.Duration;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 @Component
@@ -25,11 +28,15 @@ public class RateLimitFilter extends OncePerRequestFilter {
 
     private final RateLimitProperties properties;
     private final SystemSettingRepository systemSettingRepository;
+    private final ObjectProvider<StringRedisTemplate> redisTemplateProvider;
     private final Map<String, WindowCounter> counters = new ConcurrentHashMap<>();
+    private final Map<String, CachedSetting> settingCache = new ConcurrentHashMap<>();
 
-    public RateLimitFilter(RateLimitProperties properties, SystemSettingRepository systemSettingRepository) {
+    public RateLimitFilter(RateLimitProperties properties, SystemSettingRepository systemSettingRepository,
+            ObjectProvider<StringRedisTemplate> redisTemplateProvider) {
         this.properties = properties;
         this.systemSettingRepository = systemSettingRepository;
+        this.redisTemplateProvider = redisTemplateProvider;
     }
 
     @Scheduled(fixedDelay = 60000)
@@ -47,7 +54,17 @@ public class RateLimitFilter extends OncePerRequestFilter {
             return;
         }
 
-        String key = rateLimitSubject(request) + ":" + request.getMethod() + ":" + request.getRequestURI();
+        String key = "rate-limit:" + rateLimitSubject(request) + ":" + request.getMethod() + ":" + request.getRequestURI();
+        Integer distributedCount = incrementDistributed(key);
+        if (distributedCount != null) {
+            if (distributedCount > limit) {
+                reject(response);
+                return;
+            }
+            filterChain.doFilter(request, response);
+            return;
+        }
+
         WindowCounter counter = counters.compute(key, (ignored, existing) -> {
             long now = Instant.now().getEpochSecond();
             if (existing == null || now - existing.windowStartedAt() >= WINDOW_SECONDS) {
@@ -58,9 +75,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
         });
 
         if (counter.count().get() > limit) {
-            response.setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
-            response.setContentType("application/json");
-            response.getWriter().write("{\"message\":\"Too many requests\"}");
+            reject(response);
             return;
         }
 
@@ -98,15 +113,11 @@ public class RateLimitFilter extends OncePerRequestFilter {
     }
 
     private boolean isEnabled() {
-        return systemSettingRepository.findById("rate_limit.enabled")
-                .map(setting -> Boolean.parseBoolean(setting.getValue()))
-                .orElse(properties.isEnabled());
+        return Boolean.parseBoolean(settingValue("rate_limit.enabled", String.valueOf(properties.isEnabled())));
     }
 
     private int configuredLimit(String key, int fallback) {
-        return systemSettingRepository.findById(key)
-                .map(setting -> parsePositiveInt(setting.getValue(), fallback))
-                .orElse(fallback);
+        return parsePositiveInt(settingValue(key, String.valueOf(fallback)), fallback);
     }
 
     private int parsePositiveInt(String value, int fallback) {
@@ -119,7 +130,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
 
     private String clientIp(HttpServletRequest request) {
         String forwardedFor = request.getHeader("X-Forwarded-For");
-        if (isLoopback(request.getRemoteAddr()) && forwardedFor != null && !forwardedFor.isBlank()) {
+        if (isTrustedProxy(request.getRemoteAddr()) && forwardedFor != null && !forwardedFor.isBlank()) {
             return forwardedFor.split(",")[0].trim();
         }
         return request.getRemoteAddr();
@@ -127,6 +138,15 @@ public class RateLimitFilter extends OncePerRequestFilter {
 
     private boolean isLoopback(String address) {
         return "127.0.0.1".equals(address) || "0:0:0:0:0:0:0:1".equals(address) || "::1".equals(address);
+    }
+
+    private boolean isTrustedProxy(String address) {
+        if (isLoopback(address)) return true;
+        try {
+            return java.net.InetAddress.getByName(address).isSiteLocalAddress();
+        } catch (Exception exception) {
+            return false;
+        }
     }
 
     private String rateLimitSubject(HttpServletRequest request) {
@@ -142,5 +162,42 @@ public class RateLimitFilter extends OncePerRequestFilter {
     }
 
     private record WindowCounter(long windowStartedAt, AtomicInteger count) {
+    }
+
+    private record CachedSetting(String value, long expiresAt) {
+    }
+
+    private String settingValue(String key, String fallback) {
+        long now = System.currentTimeMillis();
+        CachedSetting cached = settingCache.get(key);
+        if (cached != null && cached.expiresAt() > now) {
+            return cached.value();
+        }
+        String value = systemSettingRepository.findById(key)
+                .map(setting -> setting.getValue())
+                .orElse(fallback);
+        settingCache.put(key, new CachedSetting(value, now + 30_000));
+        return value;
+    }
+
+    private Integer incrementDistributed(String key) {
+        StringRedisTemplate redis = redisTemplateProvider.getIfAvailable();
+        if (redis == null) return null;
+        try {
+            Long count = redis.opsForValue().increment(key);
+            if (count != null && count == 1L) {
+                redis.expire(key, Duration.ofSeconds(WINDOW_SECONDS));
+            }
+            return count == null ? null : Math.toIntExact(Math.min(count, Integer.MAX_VALUE));
+        } catch (RuntimeException exception) {
+            return null;
+        }
+    }
+
+    private void reject(HttpServletResponse response) throws IOException {
+        response.setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
+        response.setContentType("application/json");
+        response.setHeader("Retry-After", String.valueOf(WINDOW_SECONDS));
+        response.getWriter().write("{\"message\":\"Too many requests\"}");
     }
 }

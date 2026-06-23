@@ -50,10 +50,13 @@ public class AuditServiceImpl  implements AuditService{
     }
 
     @Transactional(readOnly = true)
-    public List<AuditLogResponse> list(String action) {
+    public List<AuditLogResponse> list(String action, Integer page, Integer size) {
+        int safePage = page == null ? 0 : Math.max(0, page);
+        int safeSize = size == null ? 100 : Math.max(1, Math.min(size, 200));
+        PageRequest pageable = PageRequest.of(safePage, safeSize);
         List<AuditLog> auditLogs = action == null || action.isBlank()
-                ? auditLogRepository.findAllByOrderByCreatedAtDesc(PageRequest.of(0, 100))
-                : auditLogRepository.findAllByActionOrderByCreatedAtDesc(action.trim(), PageRequest.of(0, 100));
+                ? auditLogRepository.findAllByOrderByCreatedAtDesc(pageable)
+                : auditLogRepository.findAllByActionOrderByCreatedAtDesc(action.trim(), pageable);
         return auditLogs.stream()
                 .map(AuditLogResponse::from)
                 .toList();

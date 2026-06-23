@@ -23,6 +23,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 import org.springframework.http.HttpStatus;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
@@ -51,8 +52,9 @@ public class AdminRoleServiceImpl  implements AdminRoleService{
     }
 
     @Transactional(readOnly = true)
-    public List<AdminRoleResponse> listRoles() {
-        List<AdminRole> roles = adminRoleRepository.findAll();
+    public List<AdminRoleResponse> listRoles(Integer limit) {
+        int normalizedLimit = limit == null ? 100 : Math.max(1, Math.min(limit, 200));
+        List<AdminRole> roles = adminRoleRepository.findAll(PageRequest.of(0, normalizedLimit)).getContent();
         Map<Long, List<String>> permissionsByRole = roles.isEmpty()
                 ? Map.of()
                 : rolePermissionRepository
