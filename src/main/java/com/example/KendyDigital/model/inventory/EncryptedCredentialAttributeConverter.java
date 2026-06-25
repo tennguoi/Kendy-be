@@ -58,18 +58,115 @@ public class EncryptedCredentialAttributeConverter implements AttributeConverter
     }
 
     private static byte[] resolveKey() {
+        // 1. Ưu tiên biến môi trường hệ thống
         String configured = firstNonBlank(
                 System.getenv("CREDENTIAL_ENCRYPTION_KEY"),
                 System.getenv("APP_CREDENTIAL_ENCRYPTION_KEY"),
                 System.getProperty("credential.encryption.key"));
+
+        // 2. Nếu trống, tìm trong .vscode/launch.json
         if (configured == null) {
-            configured = "local-dev-fallback-kendy-credential-key";
+            configured = readKeyFromLaunchJson();
         }
+
+        // 3. Nếu vẫn trống và đang chạy trên Windows, truy vấn Registry hoặc chạy sinh khóa tự động
+        if (configured == null && System.getProperty("os.name").toLowerCase().contains("win")) {
+            configured = getOrGenerateWindowsUserKey();
+        }
+
+        // 4. Fallback mặc định cho môi trường Test, bắt buộc phải có key nếu chạy thật
+        if (configured == null) {
+            if (isTestRuntime()) {
+                configured = "test-only-kendy-credential-key";
+            } else {
+                throw new IllegalStateException(
+                        "CREDENTIAL_ENCRYPTION_KEY or APP_CREDENTIAL_ENCRYPTION_KEY is required");
+            }
+        }
+
         byte[] decoded = tryDecodeBase64(configured);
         if (decoded != null && (decoded.length == 16 || decoded.length == 24 || decoded.length == 32)) {
             return decoded;
         }
         return sha256(configured);
+    }
+
+    private static String readKeyFromLaunchJson() {
+        String[] paths = {
+            ".vscode/launch.json",
+            "../.vscode/launch.json",
+            "be/.vscode/launch.json",
+            "../be/.vscode/launch.json",
+            "/app/.vscode/launch.json",
+            "/app/be/.vscode/launch.json",
+            "/app/../.vscode/launch.json"
+        };
+        for (String path : paths) {
+            java.io.File file = new java.io.File(path);
+            if (file.exists() && file.isFile()) {
+                try {
+                    String content = new String(java.nio.file.Files.readAllBytes(file.toPath()), StandardCharsets.UTF_8);
+                    java.util.regex.Pattern pattern = java.util.regex.Pattern.compile(
+                            "\"CREDENTIAL_ENCRYPTION_KEY\"\\s*:\\s*\"([^\"]+)\"");
+                    java.util.regex.Matcher matcher = pattern.matcher(content);
+                    if (matcher.find()) {
+                        return matcher.group(1).trim();
+                    }
+                } catch (Exception ignored) {}
+            }
+        }
+        return null;
+    }
+
+    private static String getOrGenerateWindowsUserKey() {
+        try {
+            // Thử đọc từ User environment variables của Windows
+            String key = executePowerShell("[Environment]::GetEnvironmentVariable('CREDENTIAL_ENCRYPTION_KEY', 'User')");
+            if (key != null && !key.isBlank()) {
+                return key.trim();
+            }
+
+            // Nếu không có, tự động chạy script generate-key.ps1
+            String[] scriptPaths = {
+                ".vscode/generate-key.ps1",
+                "../.vscode/generate-key.ps1",
+                "be/.vscode/generate-key.ps1",
+                "../be/.vscode/generate-key.ps1"
+            };
+            for (String path : scriptPaths) {
+                java.io.File script = new java.io.File(path);
+                if (script.exists()) {
+                    executeCommand("powershell.exe", "-ExecutionPolicy", "Bypass", "-File", path);
+                    // Đọc lại sau khi chạy script
+                    key = executePowerShell("[Environment]::GetEnvironmentVariable('CREDENTIAL_ENCRYPTION_KEY', 'User')");
+                    if (key != null && !key.isBlank()) {
+                        return key.trim();
+                    }
+                }
+            }
+        } catch (Exception ignored) {}
+        return null;
+    }
+
+    private static String executePowerShell(String command) {
+        return executeCommand("powershell.exe", "-Command", command);
+    }
+
+    private static String executeCommand(String... command) {
+        try {
+            Process process = new ProcessBuilder(command).redirectErrorStream(true).start();
+            java.io.BufferedReader reader = new java.io.BufferedReader(
+                    new java.io.InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8));
+            StringBuilder output = new StringBuilder();
+            String line;
+            while ((line = reader.readLine()) != null) {
+                output.append(line).append("\n");
+            }
+            process.waitFor();
+            return output.toString().trim();
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     private static String firstNonBlank(String... values) {
