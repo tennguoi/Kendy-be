@@ -1,19 +1,24 @@
 package com.example.KendyDigital.common;
 
+import com.example.KendyDigital.common.error.ApiError;
+import com.example.KendyDigital.common.error.ErrorCode;
 import com.example.KendyDigital.config.RateLimitProperties;
 import com.example.KendyDigital.repository.SystemSettingRepository;
 import com.example.KendyDigital.security.AuthenticatedUser;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.time.Instant;
+import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.time.Duration;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.context.MessageSource;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -29,14 +34,19 @@ public class RateLimitFilter extends OncePerRequestFilter {
     private final RateLimitProperties properties;
     private final SystemSettingRepository systemSettingRepository;
     private final ObjectProvider<StringRedisTemplate> redisTemplateProvider;
+    private final MessageSource messageSource;
+    private final ObjectMapper objectMapper;
     private final Map<String, WindowCounter> counters = new ConcurrentHashMap<>();
     private final Map<String, CachedSetting> settingCache = new ConcurrentHashMap<>();
 
     public RateLimitFilter(RateLimitProperties properties, SystemSettingRepository systemSettingRepository,
-            ObjectProvider<StringRedisTemplate> redisTemplateProvider) {
+            ObjectProvider<StringRedisTemplate> redisTemplateProvider,
+            MessageSource messageSource, ObjectMapper objectMapper) {
         this.properties = properties;
         this.systemSettingRepository = systemSettingRepository;
         this.redisTemplateProvider = redisTemplateProvider;
+        this.messageSource = messageSource;
+        this.objectMapper = objectMapper;
     }
 
     @Scheduled(fixedDelay = 60000)
@@ -58,7 +68,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
         Integer distributedCount = incrementDistributed(key);
         if (distributedCount != null) {
             if (distributedCount > limit) {
-                reject(response);
+                reject(request, response);
                 return;
             }
             filterChain.doFilter(request, response);
@@ -75,7 +85,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
         });
 
         if (counter.count().get() > limit) {
-            reject(response);
+            reject(request, response);
             return;
         }
 
@@ -86,7 +96,8 @@ public class RateLimitFilter extends OncePerRequestFilter {
         String path = request.getRequestURI();
         String method = request.getMethod();
         if ("POST".equals(method) && ("/api/auth/login".equals(path) || "/api/auth/register".equals(path)
-                || "/api/auth/forgot-password".equals(path) || "/api/auth/reset-password".equals(path)
+                || "/api/auth/forgot-password".equals(path) || "/api/auth/verify-password-reset".equals(path)
+                || "/api/auth/reset-password".equals(path)
                 || "/api/auth/resend-verification".equals(path))) {
             return configuredLimit("rate_limit.auth_per_minute", properties.getAuthPerMinute());
         }
@@ -194,10 +205,17 @@ public class RateLimitFilter extends OncePerRequestFilter {
         }
     }
 
-    private void reject(HttpServletResponse response) throws IOException {
+    private void reject(HttpServletRequest request, HttpServletResponse response) throws IOException {
+        Locale locale = request.getLocale();
+        String message = messageSource.getMessage(ErrorCode.TOO_MANY_REQUESTS.getMessageKey(), null, locale);
+        ApiError apiError = ApiError.of(
+                HttpStatus.TOO_MANY_REQUESTS.value(),
+                HttpStatus.TOO_MANY_REQUESTS.getReasonPhrase(),
+                ErrorCode.TOO_MANY_REQUESTS.name(),
+                message);
         response.setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
         response.setContentType("application/json");
         response.setHeader("Retry-After", String.valueOf(WINDOW_SECONDS));
-        response.getWriter().write("{\"message\":\"Too many requests\"}");
+        response.getWriter().write(objectMapper.writeValueAsString(apiError));
     }
 }

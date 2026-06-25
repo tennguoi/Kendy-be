@@ -10,6 +10,7 @@ import com.example.KendyDigital.model.wallet.WalletTransactionType;
 import com.example.KendyDigital.repository.UserAccountRepository;
 import com.example.KendyDigital.repository.WalletTransactionRepository;
 import com.example.KendyDigital.service.audit.AuditService;
+import com.example.KendyDigital.service.notification.UserNotificationService;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
@@ -28,18 +29,21 @@ public class AdminWalletManagerServiceImpl  implements AdminWalletManagerService
     private final WalletLedgerService walletLedgerService;
     private final AuditService auditService;
     private final PasswordEncoder passwordEncoder;
+    private final UserNotificationService userNotificationService;
     private static final BigDecimal LARGE_TRANSACTION_THRESHOLD = new BigDecimal("1000");
 
     public AdminWalletManagerServiceImpl(WalletTransactionRepository walletTransactionRepository,
             UserAccountRepository userAccountRepository,
             WalletLedgerService walletLedgerService,
             AuditService auditService,
-            PasswordEncoder passwordEncoder) {
+            PasswordEncoder passwordEncoder,
+            UserNotificationService userNotificationService) {
         this.walletTransactionRepository = walletTransactionRepository;
         this.userAccountRepository = userAccountRepository;
         this.walletLedgerService = walletLedgerService;
         this.auditService = auditService;
         this.passwordEncoder = passwordEncoder;
+        this.userNotificationService = userNotificationService;
     }
 
     @Transactional(readOnly = true)
@@ -136,6 +140,9 @@ public class AdminWalletManagerServiceImpl  implements AdminWalletManagerService
                 "USER",
                 user.getId(),
                 "direction=" + request.direction() + ",amount=" + request.amount() + ",reason=" + request.reason());
+        userNotificationService.create(user.getId(), "Wallet adjusted",
+            "Your wallet has been " + (request.direction() == WalletTransactionDirection.CREDIT ? "credited" : "debited") + " " + request.amount() + " VND. Reason: " + request.reason(),
+            "WALLET", "/wallet");
         return WalletTransactionResponse.from(transaction);
     }
 

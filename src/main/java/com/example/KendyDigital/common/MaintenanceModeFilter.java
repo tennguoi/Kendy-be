@@ -1,11 +1,16 @@
 package com.example.KendyDigital.common;
 
+import com.example.KendyDigital.common.error.ApiError;
+import com.example.KendyDigital.common.error.ErrorCode;
 import com.example.KendyDigital.repository.SystemSettingRepository;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.util.Locale;
+import org.springframework.context.MessageSource;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -13,9 +18,14 @@ import org.springframework.web.filter.OncePerRequestFilter;
 @Component
 public class MaintenanceModeFilter extends OncePerRequestFilter {
     private final SystemSettingRepository systemSettingRepository;
+    private final MessageSource messageSource;
+    private final ObjectMapper objectMapper;
 
-    public MaintenanceModeFilter(SystemSettingRepository systemSettingRepository) {
+    public MaintenanceModeFilter(SystemSettingRepository systemSettingRepository,
+            MessageSource messageSource, ObjectMapper objectMapper) {
         this.systemSettingRepository = systemSettingRepository;
+        this.messageSource = messageSource;
+        this.objectMapper = objectMapper;
     }
 
     @Override
@@ -30,9 +40,16 @@ public class MaintenanceModeFilter extends OncePerRequestFilter {
             return;
         }
 
+        Locale locale = request.getLocale();
+        String message = messageSource.getMessage(ErrorCode.MAINTENANCE.getMessageKey(), null, locale);
+        ApiError apiError = ApiError.of(
+                HttpStatus.SERVICE_UNAVAILABLE.value(),
+                HttpStatus.SERVICE_UNAVAILABLE.getReasonPhrase(),
+                ErrorCode.MAINTENANCE.name(),
+                message);
         response.setStatus(HttpStatus.SERVICE_UNAVAILABLE.value());
         response.setContentType("application/json");
-        response.getWriter().write("{\"message\":\"Hệ thống đang bảo trì. Vui lòng quay lại sau.\"}");
+        response.getWriter().write(objectMapper.writeValueAsString(apiError));
     }
 
     private boolean isMaintenanceEnabled() {

@@ -87,6 +87,7 @@ public class UserNotificationServiceImpl  implements UserNotificationService{
                 request.ticketUpdates(),
                 request.walletUpdates(),
                 request.securityUpdates(),
+                request.serviceUpdates(),
                 request.emailNotifications());
         return UserNotificationSettingsResponse.from(settings);
     }
@@ -124,6 +125,9 @@ public class UserNotificationServiceImpl  implements UserNotificationService{
         }
         if ("SECURITY".equalsIgnoreCase(type)) {
             return settings.isSecurityUpdates();
+        }
+        if ("SERVICE".equalsIgnoreCase(type)) {
+            return settings.isServiceUpdates();
         }
         return true;
     }

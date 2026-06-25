@@ -23,6 +23,7 @@ import com.example.KendyDigital.model.user.UserRole;
 import com.example.KendyDigital.repository.*;
 import com.example.KendyDigital.service.audit.AuditService;
 import com.example.KendyDigital.service.file.FileStorageService;
+import com.example.KendyDigital.service.notification.EmailNotificationService;
 import com.example.KendyDigital.service.notification.UserNotificationService;
 import java.util.ArrayList;
 import java.util.List;
@@ -49,6 +50,7 @@ public class TicketServiceImpl  implements TicketService{
     private final AdminNotificationRepository adminNotificationRepository;
     private final FileStorageService fileStorageService;
     private final UserNotificationService userNotificationService;
+    private final EmailNotificationService emailNotificationService;
 
     public TicketServiceImpl(TicketRepository ticketRepository,
             TicketMessageRepository ticketMessageRepository,
@@ -60,7 +62,8 @@ public class TicketServiceImpl  implements TicketService{
             AuditService auditService,
             AdminNotificationRepository adminNotificationRepository,
             FileStorageService fileStorageService,
-            UserNotificationService userNotificationService) {
+            UserNotificationService userNotificationService,
+            EmailNotificationService emailNotificationService) {
         this.ticketRepository = ticketRepository;
         this.ticketMessageRepository = ticketMessageRepository;
         this.ticketAttachmentRepository = ticketAttachmentRepository;
@@ -72,6 +75,7 @@ public class TicketServiceImpl  implements TicketService{
         this.adminNotificationRepository = adminNotificationRepository;
         this.fileStorageService = fileStorageService;
         this.userNotificationService = userNotificationService;
+        this.emailNotificationService = emailNotificationService;
     }
 
     @Transactional
@@ -99,6 +103,7 @@ public class TicketServiceImpl  implements TicketService{
         adminNotificationRepository.save(new AdminNotification(null,
                 "New ticket: " + ticket.getSubject(),
                 "Ticket " + ticket.getTicketCode() + " created by " + user.getEmail()));
+        notifyAdminsNewTicket(ticket, user);
         return getForUser(userId, ticket.getTicketCode());
     }
 
@@ -427,6 +432,16 @@ public class TicketServiceImpl  implements TicketService{
                     return TicketResponse.from(ticket, messages);
                 })
                 .toList();
+    }
+
+    private void notifyAdminsNewTicket(Ticket ticket, UserAccount user) {
+        List<UserAccount> admins = userAccountRepository.findByRoleIn(List.of(UserRole.ADMIN, UserRole.SUPER_ADMIN));
+        for (UserAccount admin : admins) {
+            emailNotificationService.sendUserNotification(admin,
+                "New ticket: " + ticket.getSubject(),
+                "Ticket " + ticket.getTicketCode() + " created by " + user.getEmail(),
+                "/admin/tickets/" + ticket.getTicketCode());
+        }
     }
 
     private Ticket ensureTicketExists(String ticketCode) {

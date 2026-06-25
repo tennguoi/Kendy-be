@@ -27,6 +27,8 @@ public interface UserAccountRepository extends JpaRepository<UserAccount, Long> 
 
     List<UserAccount> findAllByRoleInOrderByCreatedAtDesc(List<UserRole> roles, Pageable pageable);
 
+    List<UserAccount> findByRoleIn(List<UserRole> roles);
+
     @Query("""
             select u from UserAccount u
             where (cast(:status as string) is null or u.status = :status)

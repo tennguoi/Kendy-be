@@ -8,6 +8,7 @@ public record UserNotificationSettingsResponse(
         boolean ticketUpdates,
         boolean walletUpdates,
         boolean securityUpdates,
+        boolean serviceUpdates,
         boolean emailNotifications) {
     public static UserNotificationSettingsResponse from(UserNotificationSettings settings) {
         return new UserNotificationSettingsResponse(
@@ -16,6 +17,7 @@ public record UserNotificationSettingsResponse(
                 settings.isTicketUpdates(),
                 settings.isWalletUpdates(),
                 settings.isSecurityUpdates(),
+                settings.isServiceUpdates(),
                 settings.isEmailNotifications());
     }
 }

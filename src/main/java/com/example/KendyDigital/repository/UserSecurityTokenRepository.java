@@ -6,6 +6,8 @@ import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface UserSecurityTokenRepository extends JpaRepository<UserSecurityToken, Long> {
+    boolean existsByTokenHash(String tokenHash);
+
     Optional<UserSecurityToken> findByTokenHashAndTypeAndUsedAtIsNull(String tokenHash, UserSecurityTokenType type);
 
     Optional<UserSecurityToken> findByUser_IdAndTokenHashAndTypeAndUsedAtIsNull(Long userId, String tokenHash,

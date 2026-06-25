@@ -16,6 +16,7 @@ import com.example.KendyDigital.model.deposit.DepositRequest;
 import com.example.KendyDigital.model.deposit.DepositStatus;
 import com.example.KendyDigital.model.order.OrderRecord;
 import com.example.KendyDigital.model.user.UserAccount;
+import com.example.KendyDigital.model.user.UserRole;
 import com.example.KendyDigital.model.user.UserStatus;
 import com.example.KendyDigital.repository.CheckoutSessionRepository;
 import com.example.KendyDigital.repository.DepositRequestRepository;
@@ -28,11 +29,13 @@ import com.example.KendyDigital.service.coupon.AppliedCoupon;
 import com.example.KendyDigital.service.coupon.CouponService;
 import com.example.KendyDigital.service.deposit.DepositService;
 import com.example.KendyDigital.service.inventory.AccountInventoryService;
+import com.example.KendyDigital.service.notification.EmailNotificationService;
 import com.example.KendyDigital.service.notification.UserNotificationService;
 import com.example.KendyDigital.service.order.OrderService;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Instant;
+import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -53,6 +56,7 @@ public class CheckoutServiceImpl  implements CheckoutService{
     private final UserNotificationService userNotificationService;
     private final AdminNotificationRepository adminNotificationRepository;
     private final CouponService couponService;
+    private final EmailNotificationService emailNotificationService;
 
     public CheckoutServiceImpl(CheckoutSessionRepository checkoutSessionRepository,
             DepositRequestRepository depositRequestRepository,
@@ -66,7 +70,8 @@ public class CheckoutServiceImpl  implements CheckoutService{
             AuditService auditService,
             AccountInventoryService accountInventoryService,
             UserNotificationService userNotificationService,
-            CouponService couponService) {
+            CouponService couponService,
+            EmailNotificationService emailNotificationService) {
         this.checkoutSessionRepository = checkoutSessionRepository;
         this.depositRequestRepository = depositRequestRepository;
         this.orderRepository = orderRepository;
@@ -80,6 +85,7 @@ public class CheckoutServiceImpl  implements CheckoutService{
         this.accountInventoryService = accountInventoryService;
         this.userNotificationService = userNotificationService;
         this.couponService = couponService;
+        this.emailNotificationService = emailNotificationService;
     }
 
     @Transactional
@@ -226,6 +232,7 @@ public class CheckoutServiceImpl  implements CheckoutService{
                         + " đã thanh toán cho " + checkout.getService().getName()
                         + " nhưng order chưa tạo. Lý do: "
                         + (reason == null || reason.isBlank() ? "không xác định" : reason)));
+        notifyAdminsCheckoutIssue(checkout, reason);
         auditService.recordSystem(
                 "CHECKOUT_WALLET_CREDITED_WITHOUT_ORDER",
                 "CHECKOUT_SESSION",
@@ -246,6 +253,17 @@ public class CheckoutServiceImpl  implements CheckoutService{
                 checkout.getCouponCode()), checkout.getId());
         return orderRepository.findByUser_IdAndIdempotencyKey(checkout.getUser().getId(), idempotencyKey)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Checkout order not found"));
+    }
+
+    private void notifyAdminsCheckoutIssue(CheckoutSession checkout, String reason) {
+        List<UserAccount> admins = userAccountRepository.findByRoleIn(List.of(UserRole.ADMIN, UserRole.SUPER_ADMIN));
+        for (UserAccount admin : admins) {
+            emailNotificationService.sendUserNotification(admin,
+                "Checkout wallet-credited without order",
+                "Checkout " + checkout.getCheckoutCode() + " of user #" + checkout.getUser().getId()
+                    + " paid for " + checkout.getService().getName() + " but order not created. Reason: " + reason,
+                "/admin/checkouts");
+        }
     }
 
     private void validateServiceForCheckout(ServiceItem service) {

@@ -4,6 +4,7 @@ import com.example.KendyDigital.dto.auth.request.AuthEmailRequest;
 import com.example.KendyDigital.dto.auth.request.AuthForgotPasswordRequest;
 import com.example.KendyDigital.dto.auth.request.AuthResetPasswordRequest;
 import com.example.KendyDigital.dto.auth.request.AuthVerifyEmailRequest;
+import com.example.KendyDigital.dto.auth.request.AuthVerifyPasswordResetRequest;
 import com.example.KendyDigital.dto.auth.request.TwoFactorDisableRequest;
 import com.example.KendyDigital.dto.auth.request.TwoFactorVerifyRequest;
 import com.example.KendyDigital.dto.auth.response.AuthSessionResponse;
@@ -100,16 +101,37 @@ public class UserSecurityServiceImpl  implements UserSecurityService{
         if (user.isEmpty()) {
             return new SecurityTokenResponse("If the email exists, a reset token has been issued.", null, null);
         }
-        IssuedSecurityToken issued = issueSecurityToken(user.get(), UserSecurityTokenType.PASSWORD_RESET,
-                PASSWORD_RESET_TTL);
+        String code;
+        String codeHash;
+        do {
+            code = sixDigitCode();
+            codeHash = sha256(code);
+        } while (securityTokenRepository.existsByTokenHash(codeHash));
+        Instant expiresAt = Instant.now().plus(PASSWORD_RESET_TTL);
+        securityTokenRepository.save(new UserSecurityToken(
+                user.get(),
+                UserSecurityTokenType.PASSWORD_RESET,
+                codeHash,
+                expiresAt));
         auditService.recordSystem("USER_PASSWORD_RESET_REQUESTED", "USER", user.get().getId(), null);
-        emailNotificationService.sendPasswordReset(user.get(), issued.token(), issued.expiresAt());
+        emailNotificationService.sendPasswordReset(user.get(), code, expiresAt);
         return new SecurityTokenResponse("If the email exists, a reset token has been issued.", null, null);
     }
 
     @Transactional
-    public AuthUserResponse resetPassword(AuthResetPasswordRequest request) {
+    public SecurityTokenResponse verifyPasswordReset(AuthVerifyPasswordResetRequest request) {
         UserSecurityToken token = requireUsableToken(request.token(), UserSecurityTokenType.PASSWORD_RESET);
+        UserAccount user = token.getUser();
+        token.markUsed();
+        IssuedSecurityToken issued = issueSecurityToken(user, UserSecurityTokenType.PASSWORD_RESET_CONFIRMED,
+                PASSWORD_RESET_TTL);
+        auditService.recordSystem("USER_PASSWORD_RESET_TOKEN_VERIFIED", "USER", user.getId(), null);
+        return new SecurityTokenResponse("Password reset token verified.", issued.expiresAt(), issued.token());
+    }
+
+    @Transactional
+    public AuthUserResponse resetPassword(AuthResetPasswordRequest request) {
+        UserSecurityToken token = requireUsableToken(request.token(), UserSecurityTokenType.PASSWORD_RESET_CONFIRMED);
         UserAccount user = token.getUser();
         user.changePasswordHash(passwordEncoder.encode(request.newPassword()));
         token.markUsed();
@@ -188,6 +210,8 @@ public class UserSecurityServiceImpl  implements UserSecurityService{
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Session not found"));
         session.revoke();
         auditService.recordSystem("USER_SESSION_REVOKED", "AUTH_SESSION", session.getId(), "userId=" + userId);
+        emailNotificationService.sendSecurityAlert(session.getUser(), "Session revoked",
+                "A session on your account has been revoked.");
     }
 
     @Transactional
@@ -195,6 +219,9 @@ public class UserSecurityServiceImpl  implements UserSecurityService{
         authSessionRepository.findAllByUser_IdAndRevokedAtIsNull(userId)
                 .forEach(AuthSession::revoke);
         auditService.recordSystem("USER_SESSIONS_REVOKED", "USER", userId, null);
+        UserAccount user = requireUser(userId);
+        emailNotificationService.sendSecurityAlert(user, "All sessions revoked",
+                "All sessions on your account have been revoked. You need to log in again.");
     }
 
     @Transactional
@@ -225,6 +252,8 @@ public class UserSecurityServiceImpl  implements UserSecurityService{
         }
         user.enableTwoFactor(user.getTwoFactorSecret(), user.getBackupCodes());
         auditService.recordSystem("USER_2FA_ENABLED", "USER", user.getId(), null);
+        emailNotificationService.sendSecurityAlert(user, "Two-factor authentication enabled",
+                "Two-factor authentication has been enabled on your account.");
         return AuthUserResponse.from(user);
     }
 

@@ -7,14 +7,18 @@ import com.example.KendyDigital.dto.warranty.response.WarrantyRequestResponse;
 import com.example.KendyDigital.model.admin.AdminNotification;
 import com.example.KendyDigital.model.inventory.AccountCredential;
 import com.example.KendyDigital.model.order.OrderRecord;
+import com.example.KendyDigital.model.user.UserAccount;
+import com.example.KendyDigital.model.user.UserRole;
 import com.example.KendyDigital.model.order.OrderStatus;
 import com.example.KendyDigital.model.warranty.WarrantyRequest;
 import com.example.KendyDigital.model.warranty.WarrantyRequestStatus;
 import com.example.KendyDigital.repository.AdminNotificationRepository;
 import com.example.KendyDigital.repository.OrderRepository;
+import com.example.KendyDigital.repository.UserAccountRepository;
 import com.example.KendyDigital.repository.WarrantyRequestRepository;
 import com.example.KendyDigital.service.audit.AuditService;
 import com.example.KendyDigital.service.inventory.AccountInventoryService;
+import com.example.KendyDigital.service.notification.EmailNotificationService;
 import com.example.KendyDigital.service.notification.UserNotificationService;
 import com.example.KendyDigital.service.order.OrderService;
 import java.time.Instant;
@@ -37,6 +41,8 @@ public class WarrantyServiceImpl implements WarrantyService {
     private final AuditService auditService;
     private final AdminNotificationRepository adminNotificationRepository;
     private final UserNotificationService userNotificationService;
+    private final EmailNotificationService emailNotificationService;
+    private final UserAccountRepository userAccountRepository;
 
     public WarrantyServiceImpl(WarrantyRequestRepository warrantyRequestRepository,
             OrderRepository orderRepository,
@@ -44,7 +50,9 @@ public class WarrantyServiceImpl implements WarrantyService {
             OrderService orderService,
             AuditService auditService,
             AdminNotificationRepository adminNotificationRepository,
-            UserNotificationService userNotificationService) {
+            UserNotificationService userNotificationService,
+            EmailNotificationService emailNotificationService,
+            UserAccountRepository userAccountRepository) {
         this.warrantyRequestRepository = warrantyRequestRepository;
         this.orderRepository = orderRepository;
         this.accountInventoryService = accountInventoryService;
@@ -52,6 +60,8 @@ public class WarrantyServiceImpl implements WarrantyService {
         this.auditService = auditService;
         this.adminNotificationRepository = adminNotificationRepository;
         this.userNotificationService = userNotificationService;
+        this.emailNotificationService = emailNotificationService;
+        this.userAccountRepository = userAccountRepository;
     }
 
     @Transactional
@@ -84,7 +94,18 @@ public class WarrantyServiceImpl implements WarrantyService {
         adminNotificationRepository.save(new AdminNotification(null,
                 "Yêu cầu bảo hành mới " + order.getOrderCode(),
                 "User #" + userId + " gửi bảo hành cho " + order.getService().getName()));
+        notifyAdminsNewWarranty(warrantyRequest, order.getUser());
         return WarrantyRequestResponse.from(warrantyRequest);
+    }
+
+    private void notifyAdminsNewWarranty(WarrantyRequest warrantyRequest, UserAccount user) {
+        List<UserAccount> admins = userAccountRepository.findByRoleIn(List.of(UserRole.ADMIN, UserRole.SUPER_ADMIN));
+        for (UserAccount admin : admins) {
+            emailNotificationService.sendUserNotification(admin,
+                "New warranty request: " + warrantyRequest.getOrder().getOrderCode(),
+                "User #" + user.getId() + " sent warranty for " + warrantyRequest.getOrder().getService().getName(),
+                "/admin/warranty");
+        }
     }
 
     @Transactional(readOnly = true)

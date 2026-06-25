@@ -6,5 +6,6 @@ public record UserNotificationSettingsRequest(
         Boolean ticketUpdates,
         Boolean walletUpdates,
         Boolean securityUpdates,
+        Boolean serviceUpdates,
         Boolean emailNotifications) {
 }

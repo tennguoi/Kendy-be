@@ -224,11 +224,6 @@ public class OrderServiceImpl implements OrderService {
                     "Đơn " + order.getOrderCode() + " đã hoàn thành. Vào Tài khoản của tôi để xem thông tin đăng nhập.",
                     "ORDER",
                     "/locker");
-            emailNotificationService.sendUserNotification(user,
-                    "Tài khoản đã được giao",
-                    "Đơn " + order.getOrderCode()
-                            + " đã hoàn thành. Thông tin đăng nhập đã có trong mục Tài khoản của tôi.",
-                    "/locker");
         } else {
             Ticket supportTicket = createManualOrderTicket(order, user);
             order.attachSupportTicket(supportTicket);

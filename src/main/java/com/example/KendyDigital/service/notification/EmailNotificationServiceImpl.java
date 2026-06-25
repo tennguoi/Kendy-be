@@ -25,7 +25,12 @@ import org.springframework.stereotype.Service;
 @Service
 public class EmailNotificationServiceImpl  implements EmailNotificationService{
     private static final Logger LOGGER = LoggerFactory.getLogger(EmailNotificationService.class);
-    private static final String HTML_WRAP = "<!DOCTYPE html><html><head><meta charset=\"utf-8\"><style>body{font-family:Arial,sans-serif;line-height:1.6;color:#333;padding:24px;max-width:600px;margin:0 auto}</style></head><body>%s</body></html>";
+    private static final String PASSWORD_RESET_FALLBACK = "Use code %s to reset your password. Valid until %s.";
+    private static final String EMAIL_VERIFY_FALLBACK = "Verify your email by visiting: %s . This link expires at: %s.";
+    private static final String TWO_FACTOR_FALLBACK = "Your verification code is: %s. This code expires at: %s.";
+    private static final String DEPOSIT_FALLBACK = "Your deposit %s (%s VND) has been %s. Valid until: %s.";
+    private static final String WALLET_FALLBACK = "Your wallet has been %sd %s VND. Reason: %s. Admin: %d.";
+    private static final String ACCOUNT_FALLBACK = "Your account has been %s: %s. Reason: %s.";
 
     private final ObjectProvider<JavaMailSender> mailSenderProvider;
     private final AppEmailProperties properties;
@@ -47,12 +52,13 @@ public class EmailNotificationServiceImpl  implements EmailNotificationService{
 
     @Async("mailExecutor")
     public void sendPasswordReset(UserAccount user, String token, Instant expiresAt) {
-        String link = frontendUrl("/reset-password?token=" + encode(token));
+        String code = token;
+        String link = frontendUrl("/reset-password");
         String subject = template("password_reset", "email.template.password_reset.subject",
-                "Reset your KendyDigital password", user, link, token, expiresAt, null);
+                "Reset your KendyDigital password", user, link, token, expiresAt, code);
         String body = loadHtmlTemplate("password_reset",
-                "<h2>Reset password</h2><p>Click the link below to reset your password:</p><p><a href=\"{{link}}\">{{link}}</a></p><p>This link expires at: {{expiresAt}}</p>",
-                user, link, token, expiresAt, null);
+                String.format(PASSWORD_RESET_FALLBACK, code, expiresAt),
+                user, link, token, expiresAt, code);
         send(user.getEmail(), subject, body);
     }
 
@@ -62,7 +68,7 @@ public class EmailNotificationServiceImpl  implements EmailNotificationService{
         String subject = template("email_verification", "email.template.email_verification.subject",
                 "Verify your KendyDigital email", user, link, token, expiresAt, null);
         String body = loadHtmlTemplate("email_verification",
-                "<h2>Verify your email</h2><p>Click the link below to verify your email address:</p><p><a href=\"{{link}}\">{{link}}</a></p><p>This link expires at: {{expiresAt}}</p>",
+                String.format(EMAIL_VERIFY_FALLBACK, link, expiresAt),
                 user, link, token, expiresAt, null);
         send(user.getEmail(), subject, body);
     }
@@ -72,26 +78,62 @@ public class EmailNotificationServiceImpl  implements EmailNotificationService{
         String subject = template("two_factor", "email.template.two_factor.subject",
                 "Your KendyDigital 2FA code", user, null, null, expiresAt, code);
         String body = loadHtmlTemplate("two_factor",
-                "<h2>Two-factor authentication</h2><p>Your verification code is:</p><h1 style=\"font-size:32px;letter-spacing:4px;color:#2563eb\">{{code}}</h1><p>This code expires at: {{expiresAt}}</p><p>If you did not request this code, secure your account immediately.</p>",
+                String.format(TWO_FACTOR_FALLBACK, code, expiresAt),
                 user, null, null, expiresAt, code);
         send(user.getEmail(), subject, body);
     }
 
     @Async("mailExecutor")
     public void sendSecurityAlert(UserAccount user, String title, String message) {
-        String body = String.format("<h2>%s</h2><p>%s</p>", escapeHtml(title), escapeHtml(message));
+        String body = loadHtmlTemplate("security_alert",
+                "<h2>" + escapeHtml(title) + "</h2><p>" + escapeHtml(message) + "</p>",
+                user, null, null, null, null);
         send(user.getEmail(), title, body);
     }
 
     @Async("mailExecutor")
     public void sendUserNotification(UserAccount user, String title, String message, String actionUrl) {
-        StringBuilder body = new StringBuilder();
-        body.append("<h2>").append(escapeHtml(title)).append("</h2>");
-        body.append("<p>").append(escapeHtml(message == null ? "" : message)).append("</p>");
+        StringBuilder fallback = new StringBuilder();
+        fallback.append("<h2>").append(escapeHtml(title)).append("</h2>");
+        fallback.append("<p>").append(escapeHtml(message == null ? "" : message)).append("</p>");
         if (actionUrl != null && !actionUrl.isBlank()) {
-            body.append("<p><a href=\"").append(escapeHtml(frontendUrl(actionUrl))).append("\">Open</a></p>");
+            fallback.append("<p><a href=\"").append(escapeHtml(frontendUrl(actionUrl))).append("\">Open</a></p>");
         }
-        send(user.getEmail(), title, body.toString());
+        String body = loadHtmlTemplate("user_notification", fallback.toString(), user, null, null, null, null);
+        send(user.getEmail(), title, body);
+    }
+
+    @Async("mailExecutor")
+    public void sendDepositNotification(UserAccount user, String depositCode, String amount, String status, Instant expiresAt) {
+        String subject = template("deposit_created", "email.template.deposit_created.subject",
+                "Deposit " + status + ": " + depositCode, user, null, null, expiresAt, null);
+        String link = frontendUrl("/wallet");
+        String body = loadHtmlTemplate("deposit_created",
+                String.format(DEPOSIT_FALLBACK, depositCode, amount, status, expiresAt),
+                user, link, null, expiresAt, null);
+        send(user.getEmail(), subject, body);
+    }
+
+    @Async("mailExecutor")
+    public void sendWalletAdjusted(UserAccount user, String direction, String amount, String reason, Long adminUserId) {
+        String subject = template("wallet_adjusted", "email.template.wallet_adjusted.subject",
+                "Wallet " + direction + " of " + amount, user, null, null, null, null);
+        String link = frontendUrl("/wallet");
+        String body = loadHtmlTemplate("wallet_adjusted",
+                String.format(WALLET_FALLBACK, direction, amount, reason, adminUserId),
+                user, link, null, null, null);
+        send(user.getEmail(), subject, body);
+    }
+
+    @Async("mailExecutor")
+    public void sendAccountStatusChanged(UserAccount user, String changeType, String newValue, String reason) {
+        String subject = template("account_status_changed", "email.template.account_status_changed.subject",
+                "Account " + changeType + " updated", user, null, null, null, null);
+        String link = frontendUrl("/account/security");
+        String body = loadHtmlTemplate("account_status_changed",
+                String.format(ACCOUNT_FALLBACK, changeType, newValue, reason),
+                user, link, null, null, null);
+        send(user.getEmail(), subject, body);
     }
 
     private void send(String to, String subject, String bodyHtml) {
@@ -136,14 +178,20 @@ public class EmailNotificationServiceImpl  implements EmailNotificationService{
         Optional<ContentItem> template = contentItemRepository.findByTypeAndSlug(ContentType.EMAIL_TEMPLATE, slug);
         String html = template.map(ContentItem::getContent)
                 .filter(content -> content != null && !content.isBlank())
-                .orElse(fallbackHtml);
-        String wrapped = html.contains("<!DOCTYPE") || html.contains("<html") ? html : String.format(HTML_WRAP, html);
-        return wrapped
+                .orElseGet(() -> systemSettingRepository.findById("email.template." + slug + ".body")
+                        .map(setting -> setting.getValue())
+                        .filter(value -> value != null && !value.isBlank())
+                        .orElse(null));
+        if (html == null || html.isBlank()) {
+            html = fallbackHtml;
+        }
+        return html
                 .replace("{{name}}", nullToBlank(user.getName()))
                 .replace("{{email}}", nullToBlank(user.getEmail()))
                 .replace("{{link}}", nullToBlank(link))
                 .replace("{{token}}", nullToBlank(token))
                 .replace("{{code}}", nullToBlank(code))
+                .replace("{{brand}}", brandName())
                 .replace("{{expiresAt}}", expiresAt == null ? "" : expiresAt.toString());
     }
 
@@ -161,7 +209,15 @@ public class EmailNotificationServiceImpl  implements EmailNotificationService{
                 .replace("{{link}}", nullToBlank(link))
                 .replace("{{token}}", nullToBlank(token))
                 .replace("{{code}}", nullToBlank(code))
+                .replace("{{brand}}", brandName())
                 .replace("{{expiresAt}}", expiresAt == null ? "" : expiresAt.toString());
+    }
+
+    private String brandName() {
+        return systemSettingRepository.findById("brand.name")
+                .map(s -> s.getValue())
+                .filter(v -> !v.isBlank())
+                .orElse("KendyDigital");
     }
 
     private String escapeHtml(String value) {

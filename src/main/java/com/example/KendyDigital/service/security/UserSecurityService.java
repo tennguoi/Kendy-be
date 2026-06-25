@@ -3,6 +3,7 @@ package com.example.KendyDigital.service.security;
 import com.example.KendyDigital.dto.auth.request.AuthEmailRequest;
 import com.example.KendyDigital.dto.auth.request.AuthForgotPasswordRequest;
 import com.example.KendyDigital.dto.auth.request.AuthResetPasswordRequest;
+import com.example.KendyDigital.dto.auth.request.AuthVerifyPasswordResetRequest;
 import com.example.KendyDigital.dto.auth.request.AuthVerifyEmailRequest;
 import com.example.KendyDigital.dto.auth.request.TwoFactorDisableRequest;
 import com.example.KendyDigital.dto.auth.request.TwoFactorVerifyRequest;
@@ -22,6 +23,7 @@ import java.util.Optional;
 
 public interface UserSecurityService {
     SecurityTokenResponse forgotPassword(AuthForgotPasswordRequest request);
+    SecurityTokenResponse verifyPasswordReset(AuthVerifyPasswordResetRequest request);
     AuthUserResponse resetPassword(AuthResetPasswordRequest request);
     SecurityTokenResponse resendVerification(AuthEmailRequest request);
     SecurityTokenResponse sendEmailVerification(UserAccount user);

@@ -42,6 +42,9 @@ public class UserNotificationSettings extends TimestampedEntity {
     @Column(name = "security_updates", nullable = false)
     private boolean securityUpdates = true;
 
+    @Column(name = "service_updates")
+    private boolean serviceUpdates = true;
+
     @Column(name = "email_notifications", nullable = false)
     private boolean emailNotifications = true;
 
@@ -50,7 +53,7 @@ public class UserNotificationSettings extends TimestampedEntity {
     }
 
     public void update(Boolean orderUpdates, Boolean depositUpdates, Boolean ticketUpdates, Boolean walletUpdates,
-            Boolean securityUpdates, Boolean emailNotifications) {
+            Boolean securityUpdates, Boolean serviceUpdates, Boolean emailNotifications) {
         if (orderUpdates != null) {
             this.orderUpdates = orderUpdates;
         }
@@ -65,6 +68,9 @@ public class UserNotificationSettings extends TimestampedEntity {
         }
         if (securityUpdates != null) {
             this.securityUpdates = securityUpdates;
+        }
+        if (serviceUpdates != null) {
+            this.serviceUpdates = serviceUpdates;
         }
         if (emailNotifications != null) {
             this.emailNotifications = emailNotifications;

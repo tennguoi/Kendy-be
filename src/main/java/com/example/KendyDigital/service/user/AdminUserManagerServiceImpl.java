@@ -14,6 +14,7 @@ import com.example.KendyDigital.repository.TicketRepository;
 import com.example.KendyDigital.repository.UserAccountRepository;
 import com.example.KendyDigital.repository.WalletTransactionRepository;
 import com.example.KendyDigital.service.audit.AuditService;
+import com.example.KendyDigital.service.notification.UserNotificationService;
 import java.util.List;
 import java.util.Locale;
 import org.springframework.data.domain.PageRequest;
@@ -30,19 +31,22 @@ public class AdminUserManagerServiceImpl  implements AdminUserManagerService{
     private final WalletTransactionRepository walletTransactionRepository;
     private final TicketRepository ticketRepository;
     private final AuditService auditService;
+    private final UserNotificationService userNotificationService;
 
     public AdminUserManagerServiceImpl(UserAccountRepository userAccountRepository,
             OrderRepository orderRepository,
             DepositRequestRepository depositRequestRepository,
             WalletTransactionRepository walletTransactionRepository,
             TicketRepository ticketRepository,
-            AuditService auditService) {
+            AuditService auditService,
+            UserNotificationService userNotificationService) {
         this.userAccountRepository = userAccountRepository;
         this.orderRepository = orderRepository;
         this.depositRequestRepository = depositRequestRepository;
         this.walletTransactionRepository = walletTransactionRepository;
         this.ticketRepository = ticketRepository;
         this.auditService = auditService;
+        this.userNotificationService = userNotificationService;
     }
 
     @Transactional(readOnly = true)
@@ -105,6 +109,9 @@ public class AdminUserManagerServiceImpl  implements AdminUserManagerService{
                 "USER",
                 user.getId(),
                 "status=" + request.status() + ",reason=" + blankToNull(request.reason()));
+        userNotificationService.create(user.getId(), "Account status changed",
+            "Your account status has been changed to " + request.status() + ". Reason: " + blankToNull(request.reason()),
+            "SECURITY", "/account/security");
         return AdminUserResponse.from(user);
     }
 
@@ -122,6 +129,9 @@ public class AdminUserManagerServiceImpl  implements AdminUserManagerService{
                 "USER",
                 user.getId(),
                 "role=" + request.role() + ",reason=" + blankToNull(request.reason()));
+        userNotificationService.create(user.getId(), "Account role changed",
+            "Your account role has been changed to " + request.role(),
+            "SECURITY", "/account/security");
         return AdminUserResponse.from(user);
     }
 

@@ -8,6 +8,7 @@ import com.example.KendyDigital.dto.auth.request.AuthRegisterRequest;
 import com.example.KendyDigital.dto.auth.request.AuthResetPasswordRequest;
 import com.example.KendyDigital.dto.auth.request.AuthTwoFactorEmailRequest;
 import com.example.KendyDigital.dto.auth.request.AuthVerifyEmailRequest;
+import com.example.KendyDigital.dto.auth.request.AuthVerifyPasswordResetRequest;
 import com.example.KendyDigital.dto.auth.request.OAuthTwoFactorVerifyRequest;
 import com.example.KendyDigital.dto.auth.response.AuthTokenResponse;
 import com.example.KendyDigital.dto.auth.response.AuthUserResponse;
@@ -77,6 +78,11 @@ public class AuthController {
     @PostMapping("/forgot-password")
     public SecurityTokenResponse forgotPassword(@Valid @RequestBody AuthForgotPasswordRequest request) {
         return userSecurityService.forgotPassword(request);
+    }
+
+    @PostMapping("/verify-password-reset")
+    public SecurityTokenResponse verifyPasswordReset(@Valid @RequestBody AuthVerifyPasswordResetRequest request) {
+        return userSecurityService.verifyPasswordReset(request);
     }
 
     @PostMapping("/reset-password")

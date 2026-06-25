@@ -13,6 +13,7 @@ import com.example.KendyDigital.model.wallet.WalletTransactionType;
 import com.example.KendyDigital.repository.DepositRequestRepository;
 import com.example.KendyDigital.repository.UserAccountRepository;
 import com.example.KendyDigital.service.audit.AuditService;
+import com.example.KendyDigital.service.notification.UserNotificationService;
 import com.example.KendyDigital.service.wallet.WalletLedgerService;
 import java.time.Instant;
 import java.util.List;
@@ -29,15 +30,18 @@ public class AdminDepositManagerServiceImpl  implements AdminDepositManagerServi
     private final UserAccountRepository userAccountRepository;
     private final WalletLedgerService walletLedgerService;
     private final AuditService auditService;
+    private final UserNotificationService userNotificationService;
 
     public AdminDepositManagerServiceImpl(DepositRequestRepository depositRequestRepository,
             UserAccountRepository userAccountRepository,
             WalletLedgerService walletLedgerService,
-            AuditService auditService) {
+            AuditService auditService,
+            UserNotificationService userNotificationService) {
         this.depositRequestRepository = depositRequestRepository;
         this.userAccountRepository = userAccountRepository;
         this.walletLedgerService = walletLedgerService;
         this.auditService = auditService;
+        this.userNotificationService = userNotificationService;
     }
 
     @Transactional(readOnly = true)
@@ -97,6 +101,10 @@ public class AdminDepositManagerServiceImpl  implements AdminDepositManagerServi
                     "DEPOSIT_REQUEST",
                     deposit.getId(),
                     "reason=" + request.reason());
+            userAccountRepository.findById(deposit.getUser().getId()).ifPresent(u ->
+                userNotificationService.create(u.getId(), "Deposit cancelled",
+                    "Deposit " + deposit.getDepositCode() + " has been cancelled by admin. Reason: " + request.reason(),
+                    "DEPOSIT", "/wallet"));
         }
         return DepositResponse.from(deposit);
     }
@@ -118,6 +126,10 @@ public class AdminDepositManagerServiceImpl  implements AdminDepositManagerServi
                 "DEPOSIT_REQUEST",
                 deposit.getId(),
                 "minutes=" + request.minutes() + ",reason=" + request.reason());
+        userAccountRepository.findById(deposit.getUser().getId()).ifPresent(u ->
+            userNotificationService.create(u.getId(), "Deposit extended",
+                "Deposit " + deposit.getDepositCode() + " has been extended by " + request.minutes() + " minutes. Reason: " + request.reason(),
+                "DEPOSIT", "/wallet"));
         return DepositResponse.from(deposit);
     }
 
@@ -158,6 +170,9 @@ public class AdminDepositManagerServiceImpl  implements AdminDepositManagerServi
                 deposit.getId(),
                 "userId=" + user.getId() + ",walletTransactionId=" + walletTransaction.getId()
                         + ",reason=" + request.reason());
+        userNotificationService.create(user.getId(), "Deposit credited",
+            "Deposit " + deposit.getDepositCode() + " has been credited manually. Amount: " + deposit.getAmount() + " VND. Reason: " + request.reason(),
+            "DEPOSIT", "/wallet");
         return DepositResponse.from(deposit);
     }
 
