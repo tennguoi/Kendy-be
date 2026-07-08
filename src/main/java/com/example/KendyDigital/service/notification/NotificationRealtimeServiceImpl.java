@@ -1,7 +1,9 @@
 package com.example.KendyDigital.service.notification;
 
 import com.example.KendyDigital.dto.notification.response.UserNotificationResponse;
+import com.example.KendyDigital.dto.notification.response.AdminNotificationResponse;
 import com.example.KendyDigital.model.user.UserAccount;
+import com.example.KendyDigital.model.user.UserRole;
 import com.example.KendyDigital.service.auth.AuthTokenService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
@@ -21,10 +23,12 @@ import org.springframework.web.socket.handler.TextWebSocketHandler;
 @Service
 public class NotificationRealtimeServiceImpl extends TextWebSocketHandler  implements NotificationRealtimeService{
     private static final String USER_ID_ATTRIBUTE = "userId";
+    private static final String ADMIN_ATTRIBUTE = "admin";
 
     private final AuthTokenService authTokenService;
     private final ObjectMapper objectMapper;
     private final Map<Long, Set<WebSocketSession>> sessionsByUser = new ConcurrentHashMap<>();
+    private final Set<Long> adminUserIds = ConcurrentHashMap.newKeySet();
 
     public NotificationRealtimeServiceImpl(AuthTokenService authTokenService, ObjectMapper objectMapper) {
         this.authTokenService = authTokenService;
@@ -41,6 +45,11 @@ public class NotificationRealtimeServiceImpl extends TextWebSocketHandler  imple
 
         Long userId = user.get().getId();
         session.getAttributes().put(USER_ID_ATTRIBUTE, userId);
+        boolean admin = user.get().getRole() == UserRole.ADMIN || user.get().getRole() == UserRole.SUPER_ADMIN;
+        session.getAttributes().put(ADMIN_ATTRIBUTE, admin);
+        if (admin) {
+            adminUserIds.add(userId);
+        }
         sessionsByUser.computeIfAbsent(userId, ignored -> ConcurrentHashMap.newKeySet()).add(session);
         session.sendMessage(jsonMessage(Map.of("type", "notifications.connected")));
     }
@@ -78,6 +87,37 @@ public class NotificationRealtimeServiceImpl extends TextWebSocketHandler  imple
         sessions.removeIf(session -> !send(session, message));
     }
 
+    public void publishAdminNotification(AdminNotificationResponse notification) {
+        Map<String, Object> payload = Map.of(
+                "type", "admin.notification.created",
+                "notification", adminNotificationPayload(notification));
+        TextMessage message;
+        try {
+            message = jsonMessage(payload);
+        } catch (IOException exception) {
+            return;
+        }
+
+        if (notification.adminUserId() != null) {
+            Set<WebSocketSession> sessions = sessionsByUser.get(notification.adminUserId());
+            if (sessions != null) {
+                sessions.removeIf(session -> !Boolean.TRUE.equals(session.getAttributes().get(ADMIN_ATTRIBUTE))
+                        || !send(session, message));
+            }
+            return;
+        }
+
+        for (Long adminUserId : Set.copyOf(adminUserIds)) {
+            Set<WebSocketSession> sessions = sessionsByUser.get(adminUserId);
+            if (sessions == null || sessions.isEmpty()) {
+                adminUserIds.remove(adminUserId);
+                continue;
+            }
+            sessions.removeIf(session -> !Boolean.TRUE.equals(session.getAttributes().get(ADMIN_ATTRIBUTE))
+                    || !send(session, message));
+        }
+    }
+
     private boolean send(WebSocketSession session, TextMessage message) {
         if (!session.isOpen()) {
             return false;
@@ -101,6 +141,7 @@ public class NotificationRealtimeServiceImpl extends TextWebSocketHandler  imple
             sessions.remove(session);
             if (sessions.isEmpty()) {
                 sessionsByUser.remove(id);
+                adminUserIds.remove(id);
             }
         }
     }
@@ -116,6 +157,16 @@ public class NotificationRealtimeServiceImpl extends TextWebSocketHandler  imple
                 "message", nullSafe(notification.message()),
                 "type", nullSafe(notification.type()),
                 "actionUrl", nullSafe(notification.actionUrl()),
+                "readAt", notification.readAt() == null ? "" : notification.readAt().toString(),
+                "createdAt", notification.createdAt() == null ? "" : notification.createdAt().toString());
+    }
+
+    private Map<String, Object> adminNotificationPayload(AdminNotificationResponse notification) {
+        return Map.of(
+                "id", notification.id(),
+                "adminUserId", notification.adminUserId() == null ? "" : notification.adminUserId(),
+                "title", nullSafe(notification.title()),
+                "message", nullSafe(notification.message()),
                 "readAt", notification.readAt() == null ? "" : notification.readAt().toString(),
                 "createdAt", notification.createdAt() == null ? "" : notification.createdAt().toString());
     }

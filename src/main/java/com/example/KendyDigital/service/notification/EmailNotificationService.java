@@ -2,6 +2,7 @@ package com.example.KendyDigital.service.notification;
 
 import com.example.KendyDigital.model.user.UserAccount;
 import java.time.Instant;
+import java.util.Map;
 
 public interface EmailNotificationService {
     void sendPasswordReset(UserAccount user, String token, Instant expiresAt);
@@ -12,4 +13,6 @@ public interface EmailNotificationService {
     void sendDepositNotification(UserAccount user, String depositCode, String amount, String status, Instant expiresAt);
     void sendWalletAdjusted(UserAccount user, String direction, String amount, String reason, Long adminUserId);
     void sendAccountStatusChanged(UserAccount user, String changeType, String newValue, String reason);
+    void sendTestEmail(String to, String slug, Map<String, String> placeholders);
+    void sendRawEmail(String to, String subject, String html);
 }

@@ -6,6 +6,7 @@ import com.example.KendyDigital.dto.order.request.CancelOrderRequest;
 import com.example.KendyDigital.dto.order.request.CreateOrderRequest;
 import com.example.KendyDigital.dto.order.request.ExtendOrderRequest;
 import com.example.KendyDigital.dto.order.request.ManualOrderWorkflowRequest;
+import com.example.KendyDigital.dto.order.request.ManualOrderTaskStatusRequest;
 import com.example.KendyDigital.dto.order.request.OrderNoteRequest;
 import com.example.KendyDigital.dto.order.request.RefundOrderRequest;
 import com.example.KendyDigital.dto.order.request.ReprocessOrderRequest;
@@ -34,5 +35,6 @@ public interface OrderService {
     OrderResponse extend(String orderCode, Long adminUserId, ExtendOrderRequest request);
     OrderResponse reprocess(String orderCode, Long adminUserId, ReprocessOrderRequest request);
     OrderResponse updateManualWorkflow(String orderCode, Long adminUserId, ManualOrderWorkflowRequest request);
+    OrderResponse updateManualTask(String orderCode, Long adminUserId, Long taskId, ManualOrderTaskStatusRequest request);
     List<OrderResponse> bulkRefund(Long adminUserId, BulkRefundOrdersRequest request);
 }

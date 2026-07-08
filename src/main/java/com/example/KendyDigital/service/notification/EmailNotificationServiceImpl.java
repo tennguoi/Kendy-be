@@ -8,16 +8,19 @@ import com.example.KendyDigital.model.user.UserAccount;
 import com.example.KendyDigital.repository.ContentItemRepository;
 import com.example.KendyDigital.repository.EmailLogRepository;
 import com.example.KendyDigital.repository.SystemSettingRepository;
+import jakarta.mail.internet.InternetAddress;
 import jakarta.mail.internet.MimeMessage;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import java.util.Map;
 import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.mail.MailException;
 import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.mail.javamail.JavaMailSenderImpl;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
@@ -136,6 +139,30 @@ public class EmailNotificationServiceImpl  implements EmailNotificationService{
         send(user.getEmail(), subject, body);
     }
 
+    @Async("mailExecutor")
+    public void sendTestEmail(String to, String slug, Map<String, String> placeholders) {
+        String fallbackHtml = "<h2>Test email: " + slug + "</h2><p>This is a test email template.</p>";
+        String html = loadHtmlTemplate(slug, fallbackHtml, dummyUser(), null, null, null, null);
+        for (var entry : placeholders.entrySet()) {
+            html = html.replace("{{" + entry.getKey() + "}}",
+                    entry.getValue() == null ? "" : entry.getValue());
+        }
+        String subject = "Test email — " + slug;
+        send(to, subject, html);
+    }
+
+    @Async("mailExecutor")
+    public void sendRawEmail(String to, String subject, String html) {
+        send(to, subject, html);
+    }
+
+    private static UserAccount dummyUser() {
+        var user = new UserAccount() {};
+        user.setName("Test User");
+        user.setEmail("test@example.com");
+        return user;
+    }
+
     private void send(String to, String subject, String bodyHtml) {
         if (!properties.isEnabled()) {
             LOGGER.debug("Email disabled. Skipped sending '{}' to {}", subject, to);
@@ -152,7 +179,17 @@ public class EmailNotificationServiceImpl  implements EmailNotificationService{
         try {
             MimeMessage mimeMessage = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, "utf-8");
-            helper.setFrom(properties.getFrom());
+            // GMail SMTP always overrides From to match the authenticated user.
+            // So use the SMTP username as the From email with a friendly display name.
+            String fromEmail = properties.getFrom();
+            String fromName = "KendyDigital";
+            if (mailSender instanceof JavaMailSenderImpl impl) {
+                String smtpUser = impl.getUsername();
+                if (smtpUser != null && !smtpUser.isBlank()) {
+                    fromEmail = smtpUser;
+                }
+            }
+            helper.setFrom(new InternetAddress(fromEmail, fromName));
             helper.setTo(to);
             helper.setSubject(subject);
             helper.setText(bodyHtml, true);

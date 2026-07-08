@@ -138,7 +138,7 @@ public class ContentController {
 
     private String normalizeSlug(String value) {
         return value.trim().toLowerCase(Locale.ROOT)
-                .replaceAll("[^a-z0-9\\-]+", "-")
+                .replaceAll("[^a-z0-9_\\-]+", "-")
                 .replaceAll("-+", "-")
                 .replaceAll("(^-|-$)", "");
     }

@@ -110,8 +110,18 @@ public class OrderRecord extends TimestampedEntity {
     @JoinColumn(name = "assigned_admin_id")
     private UserAccount assignedAdmin;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "manual_workflow_status", length = 32)
+    private ManualWorkflowStatus manualWorkflowStatus;
+
     @Column(name = "manual_checklist", columnDefinition = "TEXT")
     private String manualChecklist;
+
+    @Column(name = "deadline_reminder_sent_at")
+    private Instant deadlineReminderSentAt;
+
+    @Column(name = "deadline_overdue_notified_at")
+    private Instant deadlineOverdueNotifiedAt;
 
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "support_ticket_id")
@@ -215,7 +225,7 @@ public class OrderRecord extends TimestampedEntity {
     }
 
     public void updateManualWorkflow(UserAccount assignedAdmin, Instant processingDeadlineAt,
-            String manualChecklist, String adminNote) {
+            String manualChecklist, String adminNote, ManualWorkflowStatus manualWorkflowStatus) {
         if (assignedAdmin != null) {
             this.assignedAdmin = assignedAdmin;
         }
@@ -228,9 +238,25 @@ public class OrderRecord extends TimestampedEntity {
         if (adminNote != null) {
             this.adminNote = adminNote;
         }
+        if (manualWorkflowStatus != null) {
+            this.manualWorkflowStatus = manualWorkflowStatus;
+        }
     }
 
     public void attachSupportTicket(Ticket supportTicket) {
         this.supportTicket = supportTicket;
+    }
+
+    public void initializeManualWorkflow(Instant processingDeadlineAt) {
+        this.manualWorkflowStatus = ManualWorkflowStatus.NEW_REQUEST;
+        this.processingDeadlineAt = processingDeadlineAt;
+    }
+
+    public void markDeadlineReminderSent() {
+        this.deadlineReminderSentAt = Instant.now();
+    }
+
+    public void markDeadlineOverdueNotified() {
+        this.deadlineOverdueNotifiedAt = Instant.now();
     }
 }

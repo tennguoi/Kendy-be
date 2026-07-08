@@ -46,15 +46,31 @@ public class EncryptedCredentialAttributeConverter implements AttributeConverter
             return dbData;
         }
         try {
-            byte[] payload = Base64.getUrlDecoder().decode(dbData.substring(PREFIX.length()));
-            byte[] iv = Arrays.copyOfRange(payload, 0, IV_LENGTH);
-            byte[] encrypted = Arrays.copyOfRange(payload, IV_LENGTH, payload.length);
-            Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
-            cipher.init(Cipher.DECRYPT_MODE, new SecretKeySpec(KEY, "AES"), new GCMParameterSpec(TAG_LENGTH_BITS, iv));
-            return new String(cipher.doFinal(encrypted), StandardCharsets.UTF_8);
-        } catch (Exception exception) {
+            return decrypt(dbData, KEY);
+        } catch (Exception primaryException) {
+            // Thử các khóa cũ dùng trong quá trình phát triển (local development fallback keys)
+            String[] fallbackKeys = {
+                "local-dev-only-kendy-credential-key-change-in-production",
+                "local-dev-fallback-kendy-credential-key",
+                "test-only-kendy-credential-key"
+            };
+            for (String fallbackKeyStr : fallbackKeys) {
+                try {
+                    return decrypt(dbData, sha256(fallbackKeyStr));
+                } catch (Exception ignored) {
+                }
+            }
             return "[Encrypted - Key Mismatch: " + dbData.substring(0, Math.min(dbData.length(), 20)) + "...]";
         }
+    }
+
+    private String decrypt(String dbData, byte[] keyBytes) throws Exception {
+        byte[] payload = Base64.getUrlDecoder().decode(dbData.substring(PREFIX.length()));
+        byte[] iv = Arrays.copyOfRange(payload, 0, IV_LENGTH);
+        byte[] encrypted = Arrays.copyOfRange(payload, IV_LENGTH, payload.length);
+        Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
+        cipher.init(Cipher.DECRYPT_MODE, new SecretKeySpec(keyBytes, "AES"), new GCMParameterSpec(TAG_LENGTH_BITS, iv));
+        return new String(cipher.doFinal(encrypted), StandardCharsets.UTF_8);
     }
 
     private static byte[] resolveKey() {

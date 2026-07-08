@@ -186,4 +186,36 @@ public interface OrderRepository extends JpaRepository<OrderRecord, Long> {
     @Query("select coalesce(sum(o.service.costPrice), 0) from OrderRecord o where o.status = :status and o.createdAt >= :from and o.createdAt < :to")
     BigDecimal sumCostPriceByStatusBetween(@Param("status") OrderStatus status, @Param("from") java.time.Instant from,
             @Param("to") java.time.Instant to);
+
+    @Query("""
+            select o from OrderRecord o
+            join fetch o.user
+            join fetch o.service s
+            left join fetch o.assignedAdmin
+            where s.type = com.example.KendyDigital.model.catalog.ServiceType.MANUAL
+              and o.status in (com.example.KendyDigital.model.order.OrderStatus.PENDING_PAYMENT,
+                               com.example.KendyDigital.model.order.OrderStatus.PROCESSING)
+              and o.processingDeadlineAt is not null
+              and o.deadlineReminderSentAt is null
+              and o.processingDeadlineAt > :now
+              and o.processingDeadlineAt <= :warningTime
+            order by o.processingDeadlineAt asc
+            """)
+    List<OrderRecord> findManualOrdersDueSoon(@Param("now") java.time.Instant now,
+            @Param("warningTime") java.time.Instant warningTime, Pageable pageable);
+
+    @Query("""
+            select o from OrderRecord o
+            join fetch o.user
+            join fetch o.service s
+            left join fetch o.assignedAdmin
+            where s.type = com.example.KendyDigital.model.catalog.ServiceType.MANUAL
+              and o.status in (com.example.KendyDigital.model.order.OrderStatus.PENDING_PAYMENT,
+                               com.example.KendyDigital.model.order.OrderStatus.PROCESSING)
+              and o.processingDeadlineAt is not null
+              and o.deadlineOverdueNotifiedAt is null
+              and o.processingDeadlineAt <= :now
+            order by o.processingDeadlineAt asc
+            """)
+    List<OrderRecord> findManualOrdersOverdue(@Param("now") java.time.Instant now, Pageable pageable);
 }

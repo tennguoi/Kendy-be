@@ -7,10 +7,14 @@ import com.example.KendyDigital.dto.order.request.CancelOrderRequest;
 import com.example.KendyDigital.dto.order.request.CreateOrderRequest;
 import com.example.KendyDigital.dto.order.request.ExtendOrderRequest;
 import com.example.KendyDigital.dto.order.request.ManualOrderWorkflowRequest;
+import com.example.KendyDigital.dto.order.request.ManualOrderTaskRequest;
+import com.example.KendyDigital.dto.order.request.ManualOrderTaskStatusRequest;
 import com.example.KendyDigital.dto.order.request.OrderNoteRequest;
 import com.example.KendyDigital.dto.order.request.RefundOrderRequest;
 import com.example.KendyDigital.dto.order.request.ReprocessOrderRequest;
+import com.example.KendyDigital.dto.order.response.ManualOrderTaskResponse;
 import com.example.KendyDigital.dto.order.response.OrderResponse;
+import com.example.KendyDigital.dto.notification.response.AdminNotificationResponse;
 import com.example.KendyDigital.model.catalog.ServiceCtaType;
 import com.example.KendyDigital.model.catalog.ServiceItem;
 import com.example.KendyDigital.model.catalog.ServiceStatus;
@@ -18,6 +22,7 @@ import com.example.KendyDigital.model.catalog.ServiceStockStatus;
 import com.example.KendyDigital.model.catalog.ServiceType;
 import com.example.KendyDigital.model.admin.AdminNotification;
 import com.example.KendyDigital.model.inventory.AccountCredential;
+import com.example.KendyDigital.model.order.ManualOrderTask;
 import com.example.KendyDigital.model.order.OrderEvent;
 import com.example.KendyDigital.model.order.OrderRecord;
 import com.example.KendyDigital.model.order.OrderStatus;
@@ -32,6 +37,7 @@ import com.example.KendyDigital.model.user.UserStatus;
 import com.example.KendyDigital.model.wallet.WalletTransaction;
 import com.example.KendyDigital.model.wallet.WalletTransactionType;
 import com.example.KendyDigital.repository.AdminNotificationRepository;
+import com.example.KendyDigital.repository.ManualOrderTaskRepository;
 import com.example.KendyDigital.repository.OrderEventRepository;
 import com.example.KendyDigital.repository.OrderRepository;
 import com.example.KendyDigital.repository.ServiceItemRepository;
@@ -44,6 +50,7 @@ import com.example.KendyDigital.service.coupon.CouponService;
 import com.example.KendyDigital.service.entitlement.EntitlementService;
 import com.example.KendyDigital.service.inventory.AccountInventoryService;
 import com.example.KendyDigital.service.notification.EmailNotificationService;
+import com.example.KendyDigital.service.notification.NotificationRealtimeService;
 import com.example.KendyDigital.service.notification.UserNotificationService;
 import com.example.KendyDigital.service.wallet.WalletLedgerService;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -79,6 +86,8 @@ public class OrderServiceImpl implements OrderService {
     private final CouponService couponService;
     private final OrderEventRepository orderEventRepository;
     private final EntitlementService entitlementService;
+    private final ManualOrderTaskRepository manualOrderTaskRepository;
+    private final NotificationRealtimeService notificationRealtimeService;
 
     public OrderServiceImpl(OrderRepository orderRepository,
             UserAccountRepository userAccountRepository,
@@ -95,7 +104,9 @@ public class OrderServiceImpl implements OrderService {
             TicketMessageRepository ticketMessageRepository,
             CouponService couponService,
             OrderEventRepository orderEventRepository,
-            EntitlementService entitlementService) {
+            EntitlementService entitlementService,
+            ManualOrderTaskRepository manualOrderTaskRepository,
+            NotificationRealtimeService notificationRealtimeService) {
         this.orderRepository = orderRepository;
         this.userAccountRepository = userAccountRepository;
         this.serviceItemRepository = serviceItemRepository;
@@ -112,6 +123,8 @@ public class OrderServiceImpl implements OrderService {
         this.couponService = couponService;
         this.orderEventRepository = orderEventRepository;
         this.entitlementService = entitlementService;
+        this.manualOrderTaskRepository = manualOrderTaskRepository;
+        this.notificationRealtimeService = notificationRealtimeService;
     }
 
     @Transactional
@@ -131,7 +144,7 @@ public class OrderServiceImpl implements OrderService {
                     .findByUser_IdAndIdempotencyKey(userId, idempotencyKey)
                     .orElse(null);
             if (existingOrder != null) {
-                return OrderResponse.from(existingOrder);
+                return toResponse(existingOrder);
             }
         }
 
@@ -225,6 +238,8 @@ public class OrderServiceImpl implements OrderService {
                     "ORDER",
                     "/locker");
         } else {
+            order.initializeManualWorkflow(Instant.now().plusSeconds(24 * 60 * 60));
+            createDefaultManualTasks(order);
             Ticket supportTicket = createManualOrderTicket(order, user);
             order.attachSupportTicket(supportTicket);
             userNotificationService.create(userId,
@@ -242,7 +257,7 @@ public class OrderServiceImpl implements OrderService {
                 "ORDER",
                 order.getId(),
                 "walletTransactionId=" + walletTransaction.getId());
-        return OrderResponse.from(order);
+        return toResponse(order);
     }
 
     @Transactional(readOnly = true)
@@ -257,7 +272,7 @@ public class OrderServiceImpl implements OrderService {
                 : orderRepository.findAllByUser_IdAndStatusOrderByCreatedAtDesc(userId, status, paged(page, size));
         return orders
                 .stream()
-                .map(OrderResponse::from)
+                .map(this::toResponse)
                 .toList();
     }
 
@@ -271,7 +286,7 @@ public class OrderServiceImpl implements OrderService {
                         status,
                         paged(page, size))
                 .stream()
-                .map(OrderResponse::from)
+                .map(this::toResponse)
                 .toList();
     }
 
@@ -288,7 +303,7 @@ public class OrderServiceImpl implements OrderService {
                         ? orderRepository.findAllByOrderByCreatedAtDesc(page(limit))
                         : orderRepository.findAllByStatusOrderByCreatedAtDesc(status, page(limit));
         return orders.stream()
-                .map(OrderResponse::from)
+                .map(this::toResponse)
                 .toList();
     }
 
@@ -304,7 +319,7 @@ public class OrderServiceImpl implements OrderService {
                         null,
                         page(limit))
                 .stream()
-                .map(OrderResponse::from)
+                .map(this::toResponse)
                 .toList();
     }
 
@@ -315,13 +330,13 @@ public class OrderServiceImpl implements OrderService {
         if (!order.getUser().getId().equals(userId)) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found");
         }
-        return OrderResponse.from(order);
+        return toResponse(order);
     }
 
     @Transactional(readOnly = true)
     public OrderResponse getByCodeForAdmin(String orderCode) {
         return orderRepository.findByOrderCode(orderCode)
-                .map(OrderResponse::from)
+                .map(this::toResponse)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found"));
     }
 
@@ -354,7 +369,7 @@ public class OrderServiceImpl implements OrderService {
                 "Order " + order.getOrderCode() + " was cancelled and refunded.",
                 "ORDER",
                 "/orders/" + order.getOrderCode());
-        return OrderResponse.from(order);
+        return toResponse(order);
     }
 
     @Transactional
@@ -374,7 +389,7 @@ public class OrderServiceImpl implements OrderService {
                 order.getId(),
                 "adminNote=" + blankToNull(request.adminNote()));
         notifyOrderUser(order, "Order completed", "Order " + order.getOrderCode() + " has been completed.");
-        return OrderResponse.from(order);
+        return toResponse(order);
     }
 
     @Transactional
@@ -394,7 +409,7 @@ public class OrderServiceImpl implements OrderService {
                 order.getId(),
                 "adminNote=" + blankToNull(request.adminNote()));
         notifyOrderUser(order, "Order failed", "Order " + order.getOrderCode() + " could not be completed.");
-        return OrderResponse.from(order);
+        return toResponse(order);
     }
 
     @Transactional
@@ -420,7 +435,7 @@ public class OrderServiceImpl implements OrderService {
                 order.getId(),
                 "refundTransactionId=" + refundTransaction.getId() + ",reason=" + reason);
         notifyOrderUser(order, "Order cancelled", "Order " + order.getOrderCode() + " was cancelled and refunded.");
-        return OrderResponse.from(order);
+        return toResponse(order);
     }
 
     @Transactional
@@ -460,7 +475,7 @@ public class OrderServiceImpl implements OrderService {
                 order.getId(),
                 "refundTransactionId=" + refundTransaction.getId() + ",reason=" + request.reason());
         notifyOrderUser(order, "Order refunded", "Order " + order.getOrderCode() + " has been refunded.");
-        return OrderResponse.from(order);
+        return toResponse(order);
     }
 
     @Transactional
@@ -469,7 +484,7 @@ public class OrderServiceImpl implements OrderService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found"));
         order.updateAdminNote(request.note().trim());
         auditService.recordAdmin(adminUserId, "ORDER_ADMIN_NOTE_UPDATED", "ORDER", order.getId(), request.note());
-        return OrderResponse.from(order);
+        return toResponse(order);
     }
 
     @Transactional
@@ -478,7 +493,7 @@ public class OrderServiceImpl implements OrderService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found"));
         order.updateUserNote(request.note().trim());
         auditService.recordAdmin(adminUserId, "ORDER_USER_NOTE_UPDATED", "ORDER", order.getId(), request.note());
-        return OrderResponse.from(order);
+        return toResponse(order);
     }
 
     @Transactional
@@ -494,7 +509,7 @@ public class OrderServiceImpl implements OrderService {
         order.extendProcessing(baseTime.plusSeconds(request.minutes() * 60L), request.reason().trim());
         auditService.recordAdmin(adminUserId, "ORDER_EXTENDED", "ORDER", order.getId(),
                 "minutes=" + request.minutes() + ",reason=" + request.reason());
-        return OrderResponse.from(order);
+        return toResponse(order);
     }
 
     @Transactional
@@ -509,7 +524,7 @@ public class OrderServiceImpl implements OrderService {
         orderEventRepository.save(new OrderEvent(order, oldStatus, order.getStatus(), adminUserId, "ADMIN", request.reason()));
         auditService.recordAdmin(adminUserId, "ORDER_REPROCESSED", "ORDER", order.getId(),
                 "reason=" + request.reason());
-        return OrderResponse.from(order);
+        return toResponse(order);
     }
 
     @Transactional
@@ -531,10 +546,38 @@ public class OrderServiceImpl implements OrderService {
                 assignedAdmin,
                 request.processingDeadlineAt(),
                 request.manualChecklist(),
-                blankToNull(request.adminNote()));
+                blankToNull(request.adminNote()),
+                request.manualWorkflowStatus());
+        syncManualTasks(order, assignedAdmin == null ? userAccountRepository.findById(adminUserId).orElse(null) : assignedAdmin,
+                request.tasks());
         auditService.recordAdmin(adminUserId, "ORDER_MANUAL_WORKFLOW_UPDATED", "ORDER", order.getId(),
                 "assignedAdminId=" + request.assignedAdminId());
-        return OrderResponse.from(order);
+        return toResponse(order);
+    }
+
+    @Transactional
+    public OrderResponse updateManualTask(String orderCode, Long adminUserId, Long taskId,
+            ManualOrderTaskStatusRequest request) {
+        OrderRecord order = orderRepository.findByOrderCodeForUpdate(orderCode)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found"));
+        if (order.getService().getType() != ServiceType.MANUAL) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Only manual service orders have tasks");
+        }
+        ManualOrderTask task = manualOrderTaskRepository.findById(taskId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Manual task not found"));
+        if (!task.getOrder().getId().equals(order.getId())) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Manual task not found");
+        }
+        UserAccount admin = userAccountRepository.findById(adminUserId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Admin not found"));
+        if (Boolean.TRUE.equals(request.completed())) {
+            task.markCompleted(admin);
+        } else {
+            task.reopen();
+        }
+        auditService.recordAdmin(adminUserId, "ORDER_MANUAL_TASK_UPDATED", "ORDER", order.getId(),
+                "taskId=" + taskId + ",completed=" + request.completed());
+        return toResponse(order);
     }
 
     @Transactional
@@ -542,6 +585,71 @@ public class OrderServiceImpl implements OrderService {
         return request.orderCodes().stream()
                 .map(code -> refund(code, adminUserId, new RefundOrderRequest(request.reason())))
                 .toList();
+    }
+
+    private OrderResponse toResponse(OrderRecord order) {
+        List<ManualOrderTaskResponse> tasks = order.getService().getType() == ServiceType.MANUAL
+                ? manualOrderTaskRepository.findAllByOrder_IdOrderBySortOrderAscIdAsc(order.getId())
+                        .stream()
+                        .map(ManualOrderTaskResponse::from)
+                        .toList()
+                : List.of();
+        return OrderResponse.from(order, tasks);
+    }
+
+    private void createDefaultManualTasks(OrderRecord order) {
+        if (!manualOrderTaskRepository.findAllByOrder_IdOrderBySortOrderAscIdAsc(order.getId()).isEmpty()) {
+            return;
+        }
+        List<String> titles = List.of(
+                "Xác nhận brief/yêu cầu",
+                "Kiểm tra điều kiện xử lý",
+                "Chốt scope, giá và deadline",
+                "Triển khai dịch vụ",
+                "Gửi kết quả cho khách",
+                "Nghiệm thu/hoàn tất");
+        for (int i = 0; i < titles.size(); i++) {
+            manualOrderTaskRepository.save(new ManualOrderTask(order, titles.get(i), i + 1));
+        }
+    }
+
+    private void syncManualTasks(OrderRecord order, UserAccount admin, List<ManualOrderTaskRequest> taskRequests) {
+        if (taskRequests == null) {
+            return;
+        }
+        List<Long> keptIds = new java.util.ArrayList<>();
+        int index = 1;
+        for (ManualOrderTaskRequest taskRequest : taskRequests) {
+            String title = blankToNull(taskRequest.title());
+            if (title == null) {
+                continue;
+            }
+            ManualOrderTask task = null;
+            if (taskRequest.id() != null) {
+                task = manualOrderTaskRepository.findById(taskRequest.id()).orElse(null);
+                if (task != null && !task.getOrder().getId().equals(order.getId())) {
+                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Manual task belongs to another order");
+                }
+            }
+            if (task == null) {
+                task = manualOrderTaskRepository.save(new ManualOrderTask(order, title,
+                        taskRequest.sortOrder() == null ? index : taskRequest.sortOrder()));
+            } else {
+                task.update(title, taskRequest.sortOrder() == null ? index : taskRequest.sortOrder());
+            }
+            if (Boolean.TRUE.equals(taskRequest.completed()) && !task.isCompleted()) {
+                task.markCompleted(admin);
+            } else if (Boolean.FALSE.equals(taskRequest.completed()) && task.isCompleted()) {
+                task.reopen();
+            }
+            keptIds.add(task.getId());
+            index++;
+        }
+        if (keptIds.isEmpty()) {
+            manualOrderTaskRepository.deleteAllByOrder_Id(order.getId());
+        } else {
+            manualOrderTaskRepository.deleteAllByOrder_IdAndIdNotIn(order.getId(), keptIds);
+        }
     }
 
     private WalletTransaction createRefundTransaction(OrderRecord order, Long createdBy, String description) {
@@ -615,7 +723,8 @@ public class OrderServiceImpl implements OrderService {
         String title = "Đơn thủ công mới " + order.getOrderCode();
         String message = "User #" + order.getUser().getId() + " đặt " + order.getService().getName()
                 + ". Cần xử lý ngoài thực tế rồi cập nhật trạng thái đơn.";
-        adminNotificationRepository.save(new AdminNotification(null, title, message));
+        AdminNotification notification = adminNotificationRepository.save(new AdminNotification(null, title, message));
+        notificationRealtimeService.publishAdminNotification(AdminNotificationResponse.from(notification));
         userAccountRepository.findAllByRoleInOrderByCreatedAtDesc(
                         List.of(UserRole.ADMIN, UserRole.SUPER_ADMIN),
                         PageRequest.of(0, 50))

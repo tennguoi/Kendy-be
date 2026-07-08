@@ -1,0 +1,10 @@
+.git
+.vscode
+target
+.mvn/wrapper/maven-wrapper.jar
+.env
+.env.*
+!.env.example
+*.log
+spring-boot-dev.log
+spring-boot-dev.err.log

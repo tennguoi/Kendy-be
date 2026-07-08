@@ -4,6 +4,7 @@ import com.example.KendyDigital.common.CodeGenerator;
 import com.example.KendyDigital.dto.ticket.request.AdminTicketUpdateRequest;
 import com.example.KendyDigital.dto.ticket.request.CreateTicketMessageRequest;
 import com.example.KendyDigital.dto.ticket.request.CreateTicketRequest;
+import com.example.KendyDigital.dto.notification.response.AdminNotificationResponse;
 import com.example.KendyDigital.dto.ticket.response.TicketAttachmentResponse;
 import com.example.KendyDigital.dto.ticket.response.TicketMessageResponse;
 import com.example.KendyDigital.dto.ticket.response.TicketResponse;
@@ -24,6 +25,7 @@ import com.example.KendyDigital.repository.*;
 import com.example.KendyDigital.service.audit.AuditService;
 import com.example.KendyDigital.service.file.FileStorageService;
 import com.example.KendyDigital.service.notification.EmailNotificationService;
+import com.example.KendyDigital.service.notification.NotificationRealtimeService;
 import com.example.KendyDigital.service.notification.UserNotificationService;
 import java.util.ArrayList;
 import java.util.List;
@@ -51,6 +53,7 @@ public class TicketServiceImpl  implements TicketService{
     private final FileStorageService fileStorageService;
     private final UserNotificationService userNotificationService;
     private final EmailNotificationService emailNotificationService;
+    private final NotificationRealtimeService notificationRealtimeService;
 
     public TicketServiceImpl(TicketRepository ticketRepository,
             TicketMessageRepository ticketMessageRepository,
@@ -63,7 +66,8 @@ public class TicketServiceImpl  implements TicketService{
             AdminNotificationRepository adminNotificationRepository,
             FileStorageService fileStorageService,
             UserNotificationService userNotificationService,
-            EmailNotificationService emailNotificationService) {
+            EmailNotificationService emailNotificationService,
+            NotificationRealtimeService notificationRealtimeService) {
         this.ticketRepository = ticketRepository;
         this.ticketMessageRepository = ticketMessageRepository;
         this.ticketAttachmentRepository = ticketAttachmentRepository;
@@ -76,6 +80,7 @@ public class TicketServiceImpl  implements TicketService{
         this.fileStorageService = fileStorageService;
         this.userNotificationService = userNotificationService;
         this.emailNotificationService = emailNotificationService;
+        this.notificationRealtimeService = notificationRealtimeService;
     }
 
     @Transactional
@@ -100,9 +105,10 @@ public class TicketServiceImpl  implements TicketService{
                 request.message().trim()));
 
         auditService.recordSystem("TICKET_CREATED", "TICKET", ticket.getId(), "userId=" + userId);
-        adminNotificationRepository.save(new AdminNotification(null,
+        AdminNotification notification = adminNotificationRepository.save(new AdminNotification(null,
                 "New ticket: " + ticket.getSubject(),
                 "Ticket " + ticket.getTicketCode() + " created by " + user.getEmail()));
+        notificationRealtimeService.publishAdminNotification(AdminNotificationResponse.from(notification));
         notifyAdminsNewTicket(ticket, user);
         return getForUser(userId, ticket.getTicketCode());
     }
@@ -176,9 +182,10 @@ public class TicketServiceImpl  implements TicketService{
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Only closed or resolved tickets can be reopened");
         }
         ticket.reopen();
-        adminNotificationRepository.save(new AdminNotification(null,
+        AdminNotification notification = adminNotificationRepository.save(new AdminNotification(null,
                 "Ticket reopened: " + ticket.getSubject(),
                 "Ticket " + ticket.getTicketCode() + " reopened by user"));
+        notificationRealtimeService.publishAdminNotification(AdminNotificationResponse.from(notification));
         auditService.recordSystem("TICKET_REOPENED_BY_USER", "TICKET", ticket.getId(), "userId=" + userId);
         return toResponse(ticket);
     }

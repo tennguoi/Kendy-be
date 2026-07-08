@@ -9,11 +9,13 @@ import java.util.stream.Collectors;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.security.config.oauth2.client.CommonOAuth2Provider;
 import org.springframework.security.oauth2.client.InMemoryOAuth2AuthorizedClientService;
 import org.springframework.security.oauth2.client.OAuth2AuthorizedClientService;
 import org.springframework.security.oauth2.client.registration.ClientRegistration;
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
+import org.springframework.security.oauth2.core.AuthorizationGrantType;
+import org.springframework.security.oauth2.core.ClientAuthenticationMethod;
+import org.springframework.security.oauth2.core.oidc.IdTokenClaimNames;
 
 @Configuration
 public class OAuth2ClientConfig {
@@ -21,17 +23,34 @@ public class OAuth2ClientConfig {
     ClientRegistrationRepository clientRegistrationRepository(AppOAuth2Properties properties) {
         List<ClientRegistration> registrations = new ArrayList<>();
         if (configured(properties.getGoogle())) {
-            registrations.add(CommonOAuth2Provider.GOOGLE.getBuilder("google")
+            registrations.add(ClientRegistration.withRegistrationId("google")
                     .clientId(properties.getGoogle().getClientId())
                     .clientSecret(properties.getGoogle().getClientSecret())
+                    .clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_BASIC)
+                    .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
+                    .redirectUri("{baseUrl}/{action}/oauth2/code/{registrationId}")
                     .scope("openid", "profile", "email")
+                    .authorizationUri("https://accounts.google.com/o/oauth2/v2/auth?prompt=select_account")
+                    .tokenUri("https://oauth2.googleapis.com/token")
+                    .userInfoUri("https://www.googleapis.com/oauth2/v3/userinfo")
+                    .userNameAttributeName(IdTokenClaimNames.SUB)
+                    .jwkSetUri("https://www.googleapis.com/oauth2/v3/certs")
+                    .clientName("Google")
                     .build());
         }
         if (configured(properties.getGithub())) {
-            registrations.add(CommonOAuth2Provider.GITHUB.getBuilder("github")
+            registrations.add(ClientRegistration.withRegistrationId("github")
                     .clientId(properties.getGithub().getClientId())
                     .clientSecret(properties.getGithub().getClientSecret())
+                    .clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_BASIC)
+                    .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
+                    .redirectUri("{baseUrl}/{action}/oauth2/code/{registrationId}")
                     .scope("read:user", "user:email")
+                    .authorizationUri("https://github.com/login/oauth/authorize")
+                    .tokenUri("https://github.com/login/oauth/access_token")
+                    .userInfoUri("https://api.github.com/user")
+                    .userNameAttributeName("id")
+                    .clientName("GitHub")
                     .build());
         }
         return new OptionalClientRegistrationRepository(registrations);
