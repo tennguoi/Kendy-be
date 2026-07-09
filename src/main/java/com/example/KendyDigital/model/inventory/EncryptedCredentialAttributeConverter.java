@@ -11,9 +11,12 @@ import java.util.Base64;
 import javax.crypto.Cipher;
 import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Converter
 public class EncryptedCredentialAttributeConverter implements AttributeConverter<String, String> {
+    private static final Logger LOG = LoggerFactory.getLogger(EncryptedCredentialAttributeConverter.class);
     private static final String PREFIX = "enc:v1:";
     private static final int IV_LENGTH = 12;
     private static final int TAG_LENGTH_BITS = 128;
@@ -48,18 +51,23 @@ public class EncryptedCredentialAttributeConverter implements AttributeConverter
         try {
             return decrypt(dbData, KEY);
         } catch (Exception primaryException) {
-            // Thử các khóa cũ dùng trong quá trình phát triển (local development fallback keys)
-            String[] fallbackKeys = {
-                "local-dev-only-kendy-credential-key-change-in-production",
-                "local-dev-fallback-kendy-credential-key",
-                "test-only-kendy-credential-key"
-            };
+            String[] fallbackKeys = isProduction()
+                    ? new String[0]
+                    : new String[] {
+                            "local-dev-only-kendy-credential-key-change-in-production",
+                            "local-dev-fallback-kendy-credential-key",
+                            "test-only-kendy-credential-key"
+                    };
             for (String fallbackKeyStr : fallbackKeys) {
                 try {
+                    LOG.warn("CREDENTIAL_DECRYPT_FALLBACK: decrypting with dev/test key '{}...'",
+                            fallbackKeyStr.substring(0, Math.min(fallbackKeyStr.length(), 20)));
                     return decrypt(dbData, sha256(fallbackKeyStr));
                 } catch (Exception ignored) {
                 }
             }
+            LOG.error("CREDENTIAL_DECRYPT_FAILURE: cannot decrypt credential data with any available key. "
+                    + "Check CREDENTIAL_ENCRYPTION_KEY environment variable.");
             return "[Encrypted - Key Mismatch: " + dbData.substring(0, Math.min(dbData.length(), 20)) + "...]";
         }
     }
@@ -204,6 +212,19 @@ public class EncryptedCredentialAttributeConverter implements AttributeConverter
             return true;
         }
         return System.getProperty("surefire.test.class.path") != null;
+    }
+
+    private static boolean isProduction() {
+        String activeProfiles = firstNonBlank(
+                System.getProperty("spring.profiles.active"),
+                System.getenv("SPRING_PROFILES_ACTIVE"));
+        if (activeProfiles != null) {
+            return Arrays.stream(activeProfiles.split(","))
+                    .map(String::trim)
+                    .anyMatch(profile -> profile.equalsIgnoreCase("prod")
+                            || profile.equalsIgnoreCase("production"));
+        }
+        return false;
     }
 
     private static byte[] tryDecodeBase64(String value) {

@@ -22,9 +22,14 @@ public class OAuth2AuthenticationFailureHandler implements AuthenticationFailure
     @Override
     public void onAuthenticationFailure(HttpServletRequest request, HttpServletResponse response,
             AuthenticationException exception) throws IOException, ServletException {
+        String message = exception.getMessage();
+        if (message == null || message.isBlank()) {
+            message = "OAuth login failed";
+        }
+        message = message.replaceAll("[\\r\\n\\t]", "_");
         String separator = properties.getFailureRedirectUrl().contains("?") ? "&" : "?";
         response.sendRedirect(properties.getFailureRedirectUrl()
                 + separator
-                + "oauthError=" + URLEncoder.encode(exception.getMessage(), StandardCharsets.UTF_8));
+                + "oauthError=" + URLEncoder.encode(message, StandardCharsets.UTF_8));
     }
 }

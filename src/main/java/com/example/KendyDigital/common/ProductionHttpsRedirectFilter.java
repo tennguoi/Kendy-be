@@ -6,6 +6,8 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.net.InetAddress;
+import java.util.Set;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Profile;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
@@ -16,6 +18,20 @@ import org.springframework.web.filter.OncePerRequestFilter;
 @Profile({"prod", "production"})
 @Order(Ordered.HIGHEST_PRECEDENCE)
 public class ProductionHttpsRedirectFilter extends OncePerRequestFilter {
+
+    private final String canonicalHost;
+    private static final Set<String> ALLOWED_HOSTS = Set.of(
+            "kendydigital.com",
+            "www.kendydigital.com",
+            "api.kendydigital.com",
+            "admin.kendydigital.com",
+            "localhost");
+
+    public ProductionHttpsRedirectFilter(
+            @Value("${app.canonical-host:kendydigital.com}") String canonicalHost) {
+        this.canonicalHost = canonicalHost;
+    }
+
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
@@ -26,8 +42,12 @@ public class ProductionHttpsRedirectFilter extends OncePerRequestFilter {
             return;
         }
 
+        String host = request.getServerName();
+        if (!ALLOWED_HOSTS.contains(host)) {
+            host = canonicalHost;
+        }
         String query = request.getQueryString();
-        String location = "https://" + request.getServerName() + request.getRequestURI()
+        String location = "https://" + host + request.getRequestURI()
                 + (query == null || query.isBlank() ? "" : "?" + query);
         response.setStatus(HttpServletResponse.SC_PERMANENT_REDIRECT);
         response.setHeader("Location", location);

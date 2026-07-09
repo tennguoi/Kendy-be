@@ -64,26 +64,26 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
     }
 
     private String successUrl(AuthTokenResponse token) {
-        String separator = properties.getSuccessRedirectUrl().contains("?") ? "&" : "?";
         return properties.getSuccessRedirectUrl()
-                + separator
-                + "token=" + encode(token.accessToken())
+                + "#token=" + encode(token.accessToken())
                 + "&expiresAt=" + encode(token.expiresAt().toString());
     }
 
     private String failureUrl(RuntimeException exception) {
+        String message = exception.getMessage();
+        if (message == null || message.isBlank()) {
+            message = "OAuth login failed";
+        }
+        message = message.replaceAll("[\\r\\n\\t]", "_");
         String separator = properties.getFailureRedirectUrl().contains("?") ? "&" : "?";
-        String message = exception.getMessage() == null ? "OAuth login failed" : exception.getMessage();
         return properties.getFailureRedirectUrl()
                 + separator
                 + "oauthError=" + encode(message);
     }
 
     private String twoFactorUrl(OAuthTwoFactorRequiredException exception) {
-        String separator = properties.getSuccessRedirectUrl().contains("?") ? "&" : "?";
         return properties.getSuccessRedirectUrl()
-                + separator
-                + "oauth2fa=" + encode(exception.challengeToken())
+                + "#oauth2fa=" + encode(exception.challengeToken())
                 + "&expiresAt=" + encode(exception.expiresAt().toString())
                 + "&email=" + encode(exception.email())
                 + "&provider=" + encode(exception.provider());

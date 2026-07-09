@@ -9,6 +9,7 @@ import com.example.KendyDigital.service.notification.EmailNotificationService;
 import jakarta.validation.Valid;
 import java.util.Map;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -17,6 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
 @RestController
+@PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
 public class EmailTestController {
     private final EmailNotificationService emailNotificationService;
     private final ContentItemRepository contentItemRepository;

@@ -54,6 +54,9 @@ public class UserSecurityToken extends TimestampedEntity {
     @Column(name = "used_at")
     private Instant usedAt;
 
+    @Column(name = "failed_attempts", nullable = false, columnDefinition = "integer default 0")
+    private int failedAttempts = 0;
+
     public UserSecurityToken(UserAccount user, UserSecurityTokenType type, String tokenHash, Instant expiresAt) {
         this.user = user;
         this.type = type;
@@ -67,5 +70,13 @@ public class UserSecurityToken extends TimestampedEntity {
 
     public void markUsed() {
         this.usedAt = Instant.now();
+    }
+
+    public void incrementFailedAttempts() {
+        this.failedAttempts++;
+    }
+
+    public int getFailedAttempts() {
+        return failedAttempts;
     }
 }

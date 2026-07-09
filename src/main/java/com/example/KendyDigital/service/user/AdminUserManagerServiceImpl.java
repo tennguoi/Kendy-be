@@ -6,6 +6,7 @@ import com.example.KendyDigital.dto.user.response.AdminUserDetailResponse;
 import com.example.KendyDigital.dto.user.response.AdminUserResponse;
 import com.example.KendyDigital.model.deposit.DepositStatus;
 import com.example.KendyDigital.model.user.UserAccount;
+import com.example.KendyDigital.model.user.UserRole;
 import com.example.KendyDigital.model.user.UserStatus;
 import com.example.KendyDigital.model.wallet.WalletTransactionType;
 import com.example.KendyDigital.repository.DepositRequestRepository;
@@ -119,6 +120,12 @@ public class AdminUserManagerServiceImpl  implements AdminUserManagerService{
     public AdminUserResponse updateUserRole(Long adminUserId, Long targetUserId, AdminUserRoleUpdateRequest request) {
         if (adminUserId.equals(targetUserId)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Admin cannot change own role");
+        }
+        UserAccount adminUser = userAccountRepository.findByIdForUpdate(adminUserId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Admin not found"));
+        if (adminUser.getRole() != UserRole.SUPER_ADMIN) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                    "Only SUPER_ADMIN can change user roles");
         }
         UserAccount user = userAccountRepository.findByIdForUpdate(targetUserId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));

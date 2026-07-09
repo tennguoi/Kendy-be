@@ -22,16 +22,16 @@ public class SePayWebhookSecurityMonitor {
     }
 
     public void received(String ipAddress, int payloadBytes) {
-        LOGGER.info("SePay webhook received ip={} payloadBytes={}", ipAddress, payloadBytes);
+        LOGGER.info("SePay webhook received ip={} payloadBytes={}", safe(ipAddress), payloadBytes);
     }
 
     public void accepted(String ipAddress, Long sepayId, String referenceCode) {
         LOGGER.info("SePay webhook accepted ip={} sepayId={} referenceCode={}",
-                ipAddress, sepayId, safe(referenceCode));
+                safe(ipAddress), sepayId, safe(referenceCode));
     }
 
     public void rejected(String ipAddress, String reason, boolean signatureFailure) {
-        LOGGER.warn("SePay webhook rejected ip={} reason={}", ipAddress, safe(reason));
+        LOGGER.warn("SePay webhook rejected ip={} reason={}", safe(ipAddress), safe(reason));
         if (!signatureFailure) {
             return;
         }
@@ -49,7 +49,7 @@ public class SePayWebhookSecurityMonitor {
         int count = counter.count().get();
         if (count == threshold || count % threshold == 0) {
             LOGGER.error("SECURITY ALERT: repeated invalid SePay webhook signatures ip={} count={} windowSeconds={}",
-                    ipAddress, count, rejectionWindowSeconds());
+                    safe(ipAddress), count, rejectionWindowSeconds());
         }
     }
 

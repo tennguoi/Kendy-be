@@ -179,17 +179,36 @@ public class EmailNotificationServiceImpl  implements EmailNotificationService{
         try {
             MimeMessage mimeMessage = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, "utf-8");
-            // GMail SMTP always overrides From to match the authenticated user.
-            // So use the SMTP username as the From email with a friendly display name.
-            String fromEmail = properties.getFrom();
-            String fromName = "KendyDigital";
-            if (mailSender instanceof JavaMailSenderImpl impl) {
-                String smtpUser = impl.getUsername();
-                if (smtpUser != null && !smtpUser.isBlank()) {
-                    fromEmail = smtpUser;
+
+            String fromConfig = properties.getFrom();
+            InternetAddress fromAddress = null;
+
+            if (fromConfig != null && !fromConfig.isBlank()) {
+                try {
+                    InternetAddress[] parsed = InternetAddress.parse(fromConfig);
+                    if (parsed.length > 0) {
+                        fromAddress = parsed[0];
+                        if (fromAddress.getPersonal() == null || fromAddress.getPersonal().isBlank()) {
+                            fromAddress.setPersonal("KendyDigital", "UTF-8");
+                        }
+                    }
+                } catch (Exception e) {
+                    LOGGER.warn("Failed to parse app.email.from '{}', falling back: {}", fromConfig, e.getMessage());
                 }
             }
-            helper.setFrom(new InternetAddress(fromEmail, fromName));
+
+            if (fromAddress == null) {
+                String fallbackEmail = "no-reply@kendydigital.local";
+                if (mailSender instanceof JavaMailSenderImpl impl) {
+                    String smtpUser = impl.getUsername();
+                    if (smtpUser != null && !smtpUser.isBlank()) {
+                        fallbackEmail = smtpUser;
+                    }
+                }
+                fromAddress = new InternetAddress(fallbackEmail, "KendyDigital", "UTF-8");
+            }
+
+            helper.setFrom(fromAddress);
             helper.setTo(to);
             helper.setSubject(subject);
             helper.setText(bodyHtml, true);

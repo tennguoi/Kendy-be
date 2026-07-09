@@ -60,6 +60,8 @@ public class UserSecurityServiceImpl  implements UserSecurityService{
     private static final Duration OAUTH_2FA_CHALLENGE_TTL = Duration.ofMinutes(10);
     private static final String EMAIL_TWO_FACTOR_SECRET = "EMAIL_2FA";
     private static final String API_KEY_PREFIX = "kdy_";
+    private static final int MAX_OTP_ATTEMPTS = 5;
+    private static final long BRUTE_FORCE_DELAY_MILLIS = 1000;
 
     private final UserAccountRepository userAccountRepository;
     private final AuthSessionRepository authSessionRepository;
@@ -410,12 +412,30 @@ public class UserSecurityServiceImpl  implements UserSecurityService{
         if (code == null || code.isBlank()) {
             return false;
         }
+
+        List<UserSecurityToken> pendingTokens = securityTokenRepository
+                .findByUser_IdAndTypeAndUsedAtIsNullOrderByCreatedAtDesc(
+                        user.getId(), UserSecurityTokenType.EMAIL_2FA);
+
+        for (UserSecurityToken pending : pendingTokens) {
+            if (pending.getFailedAttempts() >= MAX_OTP_ATTEMPTS) {
+                pending.markUsed();
+                auditService.recordSystem("USER_2FA_EMAIL_CODE_LOCKED", "USER", user.getId(),
+                        "Too many failed attempts: " + pending.getFailedAttempts());
+            }
+        }
+
         Optional<UserSecurityToken> token = securityTokenRepository
                 .findByUser_IdAndTokenHashAndTypeAndUsedAtIsNull(
                         user.getId(), sha256(code.trim()), UserSecurityTokenType.EMAIL_2FA);
+
         if (token.isEmpty() || !token.get().isUsable()) {
+            pendingTokens.stream().filter(t -> t.getUsedAt() == null).findFirst()
+                    .ifPresent(UserSecurityToken::incrementFailedAttempts);
+            sleep(BRUTE_FORCE_DELAY_MILLIS);
             return false;
         }
+
         token.get().markUsed();
         auditService.recordSystem("USER_2FA_EMAIL_CODE_VERIFIED", "USER", user.getId(), null);
         return true;
@@ -452,11 +472,21 @@ public class UserSecurityServiceImpl  implements UserSecurityService{
     private UserSecurityToken requireUsableToken(String token, UserSecurityTokenType type) {
         UserSecurityToken securityToken = securityTokenRepository
                 .findByTokenHashAndTypeAndUsedAtIsNull(sha256(token.trim()), type)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid token"));
-        if (!securityToken.isUsable()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Token expired");
+                .orElse(null);
+        if (securityToken == null || !securityToken.isUsable()) {
+            sleep(BRUTE_FORCE_DELAY_MILLIS);
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    securityToken == null ? "Invalid token" : "Token expired");
         }
         return securityToken;
+    }
+
+    private void sleep(long millis) {
+        try {
+            Thread.sleep(millis);
+        } catch (InterruptedException ignored) {
+            Thread.currentThread().interrupt();
+        }
     }
 
     private boolean verifyTwoFactorOrBackup(UserAccount user, String code) {

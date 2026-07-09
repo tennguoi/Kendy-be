@@ -30,6 +30,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 @Component
 public class RateLimitFilter extends OncePerRequestFilter {
     private static final long WINDOW_SECONDS = 60;
+    private static final int MAX_COUNTER_ENTRIES = 10_000;
 
     private final RateLimitProperties properties;
     private final SystemSettingRepository systemSettingRepository;
@@ -49,7 +50,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
         this.objectMapper = objectMapper;
     }
 
-    @Scheduled(fixedDelay = 60000)
+    @Scheduled(fixedDelay = 30000)
     public void cleanExpired() {
         long now = Instant.now().getEpochSecond();
         counters.entrySet().removeIf(entry -> now - entry.getValue().windowStartedAt() >= WINDOW_SECONDS);
@@ -73,6 +74,15 @@ public class RateLimitFilter extends OncePerRequestFilter {
             }
             filterChain.doFilter(request, response);
             return;
+        }
+
+        if (counters.size() >= MAX_COUNTER_ENTRIES) {
+            long now = Instant.now().getEpochSecond();
+            counters.entrySet().removeIf(entry -> now - entry.getValue().windowStartedAt() >= WINDOW_SECONDS);
+            if (counters.size() >= MAX_COUNTER_ENTRIES) {
+                filterChain.doFilter(request, response);
+                return;
+            }
         }
 
         WindowCounter counter = counters.compute(key, (ignored, existing) -> {
@@ -142,7 +152,8 @@ public class RateLimitFilter extends OncePerRequestFilter {
     private String clientIp(HttpServletRequest request) {
         String forwardedFor = request.getHeader("X-Forwarded-For");
         if (isTrustedProxy(request.getRemoteAddr()) && forwardedFor != null && !forwardedFor.isBlank()) {
-            return forwardedFor.split(",")[0].trim();
+            String[] parts = forwardedFor.split(",");
+            return parts[parts.length - 1].trim();
         }
         return request.getRemoteAddr();
     }

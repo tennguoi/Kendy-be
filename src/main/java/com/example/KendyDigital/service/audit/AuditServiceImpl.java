@@ -24,8 +24,9 @@ public class AuditServiceImpl  implements AuditService{
                 jakarta.servlet.http.HttpServletRequest request =
                         ((org.springframework.web.context.request.ServletRequestAttributes) attributes).getRequest();
                 String forwardedFor = request.getHeader("X-Forwarded-For");
-                if (forwardedFor != null && !forwardedFor.isBlank()) {
-                    return forwardedFor.split(",")[0].trim();
+                if (isTrustedProxy(request.getRemoteAddr()) && forwardedFor != null && !forwardedFor.isBlank()) {
+                    String[] parts = forwardedFor.split(",");
+                    return parts[parts.length - 1].trim();
                 }
                 return request.getRemoteAddr();
             }
@@ -33,6 +34,16 @@ public class AuditServiceImpl  implements AuditService{
             // Ignore when not in request context
         }
         return null;
+    }
+
+    private boolean isTrustedProxy(String address) {
+        if (address == null) return false;
+        if ("127.0.0.1".equals(address) || "0:0:0:0:0:0:0:1".equals(address) || "::1".equals(address)) return true;
+        try {
+            return java.net.InetAddress.getByName(address).isSiteLocalAddress();
+        } catch (Exception exception) {
+            return false;
+        }
     }
 
     @Transactional

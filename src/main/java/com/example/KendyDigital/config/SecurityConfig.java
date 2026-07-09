@@ -10,6 +10,7 @@ import com.example.KendyDigital.security.OAuth2AuthenticationFailureHandler;
 import com.example.KendyDigital.security.OAuth2AuthenticationSuccessHandler;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -29,25 +30,41 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 @EnableMethodSecurity
 public class SecurityConfig {
         @Bean
+        @Order(1)
+        SecurityFilterChain oauth2Security(HttpSecurity http,
+                        OAuth2AuthenticationSuccessHandler oAuth2AuthenticationSuccessHandler,
+                        OAuth2AuthenticationFailureHandler oAuth2AuthenticationFailureHandler)
+                        throws Exception {
+                http.securityMatcher("/oauth2/**", "/login/oauth2/**")
+                                .sessionManagement(session -> session
+                                                .sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
+                                .authorizeHttpRequests(auth -> auth.anyRequest().permitAll())
+                                .oauth2Login(oauth2 -> oauth2
+                                                .successHandler(oAuth2AuthenticationSuccessHandler)
+                                                .failureHandler(oAuth2AuthenticationFailureHandler))
+                                .httpBasic(basic -> basic.disable())
+                                .formLogin(form -> form.disable());
+                return http.build();
+        }
+
+        @Bean
+        @Order(2)
         SecurityFilterChain apiSecurity(HttpSecurity http,
                         BearerTokenAuthenticationFilter bearerTokenAuthenticationFilter,
                         ApiKeyAuthenticationFilter apiKeyAuthenticationFilter,
-                        OAuth2AuthenticationSuccessHandler oAuth2AuthenticationSuccessHandler,
-                        OAuth2AuthenticationFailureHandler oAuth2AuthenticationFailureHandler,
                         RequestIdFilter requestIdFilter, RateLimitFilter rateLimitFilter,
                         MaintenanceModeFilter maintenanceModeFilter, ServerTimeFilter serverTimeFilter)
                         throws Exception {
                 http.csrf(csrf -> csrf.disable())
                                 .cors(Customizer.withDefaults())
                                 .sessionManagement(session -> session
-                                                .sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
+                                                .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                                 .authorizeHttpRequests(auth -> auth
                                                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                                                 .requestMatchers("/ws/**").permitAll()
                                                 .requestMatchers("/swagger-ui.html", "/swagger-ui/**",
                                                                 "/v3/api-docs/**")
                                                 .hasRole("SUPER_ADMIN")
-                                                .requestMatchers("/oauth2/**", "/login/oauth2/**").permitAll()
                                                 .requestMatchers(HttpMethod.GET, "/api/time").permitAll()
                                                 .requestMatchers("/api/auth/register", "/api/auth/login",
                                                                 "/api/auth/2fa/email-code",
@@ -84,9 +101,6 @@ public class SecurityConfig {
                                 .addFilterBefore(bearerTokenAuthenticationFilter,
                                                 UsernamePasswordAuthenticationFilter.class)
                                 .addFilterAfter(rateLimitFilter, BearerTokenAuthenticationFilter.class)
-                                .oauth2Login(oauth2 -> oauth2
-                                                .successHandler(oAuth2AuthenticationSuccessHandler)
-                                                .failureHandler(oAuth2AuthenticationFailureHandler))
                                 .httpBasic(basic -> basic.disable())
                                 .formLogin(form -> form.disable());
 
