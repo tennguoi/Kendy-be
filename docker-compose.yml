@@ -7,7 +7,7 @@ services:
     restart: always
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD must be set in .env or shell}
+      POSTGRES_PASSWORD: 123
       POSTGRES_DB: kendy
     ports:
       - "5432:5432"
@@ -22,7 +22,7 @@ services:
       - "6379:6379"
 
   backend:
-    build: .
+    build: ./be
     container_name: kendy_backend
     restart: always
     depends_on:
@@ -30,16 +30,18 @@ services:
       - redis
     ports:
       - "8080:8080"
+    volumes:
+      # Mount the .vscode config directory so the auto-resolver can read launch.json
+      - ./be/.vscode:/app/.vscode
     environment:
       - DB_URL=jdbc:postgresql://db:5432/kendy?preferQueryMode=simple
       - DB_USERNAME=postgres
-      - DB_PASSWORD=${DB_PASSWORD:?DB_PASSWORD must be set in .env or shell}
+      - DB_PASSWORD=123
       - REDIS_HOST=redis
       - APP_REDIS_ENABLED=true
-      - CREDENTIAL_ENCRYPTION_KEY=${CREDENTIAL_ENCRYPTION_KEY:?CREDENTIAL_ENCRYPTION_KEY must be set in .env or shell}
 
   frontend:
-    build: ../fe
+    build: ./fe
     container_name: kendy_frontend
     restart: always
     ports:
