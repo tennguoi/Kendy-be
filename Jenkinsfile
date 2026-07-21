@@ -1,6 +1,10 @@
 pipeline {
   agent any
 
+  options {
+    disableConcurrentBuilds()
+  }
+
   environment {
     REGISTRY              = 'docker.io'
     IMAGE_NAME            = 'tennguoi2/kendy-backend'
@@ -8,7 +12,6 @@ pipeline {
     DOCKERHUB_CREDENTIALS = 'dockerhub-credentials'
     APP_DIR_LINUX         = '/Kendy-deploy'
     APP_DIR_WIN           = 'C:/Kendy-deploy'
-    // Cache riêng cho Trivy
     TRIVY_CACHE_DIR       = "${WORKSPACE}/.trivy-cache"
   }
 
@@ -20,10 +23,11 @@ pipeline {
           env.BACKEND_IMAGE = "${env.REGISTRY}/${env.IMAGE_NAME}:${env.IMAGE_TAG}"
           env.APP_DIR = isUnix() ? env.APP_DIR_LINUX : env.APP_DIR_WIN
           echo "Đang chạy trên: ${isUnix() ? 'Linux' : 'Windows'} | APP_DIR = ${env.APP_DIR}"
+          // Tạo thư mục cache - dùng PowerShell cho Windows
           if (isUnix()) {
             sh "mkdir -p ${env.TRIVY_CACHE_DIR}"
           } else {
-            bat "if not exist ${env.TRIVY_CACHE_DIR} mkdir ${env.TRIVY_CACHE_DIR}"
+            powershell "New-Item -ItemType Directory -Force -Path ${env.TRIVY_CACHE_DIR}"
           }
         }
       }
