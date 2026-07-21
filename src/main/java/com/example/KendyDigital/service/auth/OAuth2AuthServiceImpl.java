@@ -48,7 +48,7 @@ public class OAuth2AuthServiceImpl  implements OAuth2AuthService{
     }
 
     @Transactional(noRollbackFor = OAuthTwoFactorRequiredException.class)
-    public AuthTokenResponse login(String registrationId, Map<String, Object> attributes, String accessToken) {
+    public AuthTokenResponse login(String registrationId, Map<String, Object> attributes, String accessToken, String acceptLanguage) {
         OAuthProfile profile = profile(registrationId, attributes, accessToken);
         UserAccount user = userAccountRepository
                 .findByOauthProviderAndOauthProviderId(profile.provider(), profile.providerId())
@@ -63,6 +63,7 @@ public class OAuth2AuthServiceImpl  implements OAuth2AuthService{
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Account is locked");
         }
         user.linkOAuth(profile.provider(), profile.providerId(), profile.avatarUrl());
+        user.setLocale(resolveLocale(acceptLanguage));
         if (profile.emailVerified()) {
             user.verifyEmail();
         }
@@ -193,6 +194,20 @@ public class OAuth2AuthServiceImpl  implements OAuth2AuthService{
             normalizedLogin = "github-user";
         }
         return providerId + "+" + normalizedLogin + "@users.noreply.github.com";
+    }
+
+    private String resolveLocale(String acceptLanguage) {
+        if (acceptLanguage == null || acceptLanguage.isBlank()) {
+            return "vi";
+        }
+        String lang = acceptLanguage.split(",")[0].trim().toLowerCase(Locale.ROOT);
+        if (lang.startsWith("en")) {
+            return "en";
+        }
+        if (lang.startsWith("vi")) {
+            return "vi";
+        }
+        return "vi";
     }
 
     private String randomPassword() {

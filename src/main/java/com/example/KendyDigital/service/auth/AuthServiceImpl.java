@@ -42,7 +42,7 @@ public class AuthServiceImpl  implements AuthService{
     }
 
     @Transactional
-    public AuthUserResponse register(AuthRegisterRequest request) {
+    public AuthUserResponse register(AuthRegisterRequest request, String acceptLanguage) {
         String email = normalizeEmail(request.email());
         if (userAccountRepository.existsByEmailIgnoreCase(email)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Email already exists");
@@ -53,13 +53,14 @@ public class AuthServiceImpl  implements AuthService{
                 email,
                 blankToNull(request.phone()),
                 passwordEncoder.encode(request.password()));
+        user.setLocale(resolveLocale(acceptLanguage));
         UserAccount saved = userAccountRepository.save(user);
         userSecurityService.sendEmailVerification(saved);
         return AuthUserResponse.from(saved);
     }
 
     @Transactional
-    public AuthTokenResponse login(AuthLoginRequest request) {
+    public AuthTokenResponse login(AuthLoginRequest request, String acceptLanguage) {
         UserAccount user = userAccountRepository.findByEmailIgnoreCase(normalizeEmail(request.email()))
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid credentials"));
 
@@ -77,6 +78,8 @@ public class AuthServiceImpl  implements AuthService{
         if (user.getStatus() != UserStatus.ACTIVE) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Account is not active");
         }
+
+        user.setLocale(resolveLocale(acceptLanguage));
 
         if (requiresLoginTwoFactor(user)) {
             if (request.twoFactorCode() != null && !request.twoFactorCode().isBlank()) {
@@ -153,5 +156,19 @@ public class AuthServiceImpl  implements AuthService{
 
     private String blankToNull(String value) {
         return value == null || value.isBlank() ? null : value.trim();
+    }
+
+    private String resolveLocale(String acceptLanguage) {
+        if (acceptLanguage == null || acceptLanguage.isBlank()) {
+            return "vi";
+        }
+        String lang = acceptLanguage.split(",")[0].trim().toLowerCase(Locale.ROOT);
+        if (lang.startsWith("en")) {
+            return "en";
+        }
+        if (lang.startsWith("vi")) {
+            return "vi";
+        }
+        return "vi";
     }
 }

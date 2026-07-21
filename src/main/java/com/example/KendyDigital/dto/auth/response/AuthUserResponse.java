@@ -19,7 +19,8 @@ public record AuthUserResponse(
         boolean twoFactorEnabled,
         Instant emailVerifiedAt,
         String oauthProvider,
-        String avatarUrl) {
+        String avatarUrl,
+        String locale) {
     public static AuthUserResponse from(UserAccount user) {
         return new AuthUserResponse(
                 user.getId(),
@@ -33,6 +34,7 @@ public record AuthUserResponse(
                 user.isTwoFactorEnabled(),
                 user.getEmailVerifiedAt(),
                 user.getOauthProvider(),
-                user.getAvatarUrl());
+                user.getAvatarUrl(),
+                user.getLocale());
     }
 }

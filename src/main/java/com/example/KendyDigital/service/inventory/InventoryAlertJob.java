@@ -7,7 +7,9 @@ import com.example.KendyDigital.repository.AdminNotificationRepository;
 import com.example.KendyDigital.repository.UserAccountRepository;
 import com.example.KendyDigital.service.notification.EmailNotificationService;
 import java.util.List;
+import java.util.Locale;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.MessageSource;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -19,6 +21,7 @@ public class InventoryAlertJob {
     private final AdminNotificationRepository adminNotificationRepository;
     private final UserAccountRepository userAccountRepository;
     private final EmailNotificationService emailNotificationService;
+    private final MessageSource messageSource;
     private final boolean enabled;
     private final int lowStockThreshold;
     private final int expiringDays;
@@ -27,6 +30,7 @@ public class InventoryAlertJob {
             AdminNotificationRepository adminNotificationRepository,
             UserAccountRepository userAccountRepository,
             EmailNotificationService emailNotificationService,
+            MessageSource messageSource,
             @Value("${app.inventory.alert-enabled:true}") boolean enabled,
             @Value("${app.inventory.low-stock-threshold:2}") int lowStockThreshold,
             @Value("${app.inventory.expiring-days:7}") int expiringDays) {
@@ -34,6 +38,7 @@ public class InventoryAlertJob {
         this.adminNotificationRepository = adminNotificationRepository;
         this.userAccountRepository = userAccountRepository;
         this.emailNotificationService = emailNotificationService;
+        this.messageSource = messageSource;
         this.enabled = enabled;
         this.lowStockThreshold = lowStockThreshold;
         this.expiringDays = expiringDays;
@@ -52,11 +57,13 @@ public class InventoryAlertJob {
             return;
         }
 
-        String title = "Cảnh báo kho tài khoản";
-        String message = "Low stock: " + summary.lowStockServices()
-                + ", sắp hết hạn trong " + expiringDays + " ngày: " + summary.expiringCredentials()
-                + ", reservation quá hạn đã nhả: " + summary.reserveReleased()
-                + ". Vào Admin > Dịch vụ để kiểm tra kho.";
+        Locale defaultLocale = Locale.forLanguageTag("vi");
+        String title = messageSource.getMessage("admin.notification.inventory.alert.title",
+                null, defaultLocale);
+        String message = messageSource.getMessage("admin.notification.inventory.alert.body",
+                new Object[]{summary.lowStockServices(), expiringDays,
+                        summary.expiringCredentials(), summary.reserveReleased()},
+                defaultLocale);
         adminNotificationRepository.save(new AdminNotification(null, title, message));
         userAccountRepository.findAllByRoleInOrderByCreatedAtDesc(
                         List.of(UserRole.ADMIN, UserRole.SUPER_ADMIN),

@@ -125,7 +125,7 @@ class OrderRaceConditionIntegrationTest {
 
     private UserAccount createUser(String username, String email) {
         var resp = authService.register(
-                new AuthRegisterRequest(username, email, null, "password123"));
+                new AuthRegisterRequest(username, email, null, "password123"), null);
         return userAccountRepository.findById(resp.id()).orElseThrow();
     }
 

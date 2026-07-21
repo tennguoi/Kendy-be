@@ -10,6 +10,8 @@ import com.example.KendyDigital.repository.UserAccountRepository;
 import com.example.KendyDigital.repository.UserNotificationRepository;
 import com.example.KendyDigital.repository.UserNotificationSettingsRepository;
 import java.util.List;
+import java.util.Locale;
+import org.springframework.context.MessageSource;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -25,17 +27,20 @@ public class UserNotificationServiceImpl  implements UserNotificationService{
     private final UserAccountRepository userAccountRepository;
     private final EmailNotificationService emailNotificationService;
     private final NotificationRealtimeService notificationRealtimeService;
+    private final MessageSource messageSource;
 
     public UserNotificationServiceImpl(UserNotificationRepository userNotificationRepository,
             UserNotificationSettingsRepository settingsRepository,
             UserAccountRepository userAccountRepository,
             EmailNotificationService emailNotificationService,
-            NotificationRealtimeService notificationRealtimeService) {
+            NotificationRealtimeService notificationRealtimeService,
+            MessageSource messageSource) {
         this.userNotificationRepository = userNotificationRepository;
         this.settingsRepository = settingsRepository;
         this.userAccountRepository = userAccountRepository;
         this.emailNotificationService = emailNotificationService;
         this.notificationRealtimeService = notificationRealtimeService;
+        this.messageSource = messageSource;
     }
 
     @Transactional(readOnly = true)
@@ -104,6 +109,26 @@ public class UserNotificationServiceImpl  implements UserNotificationService{
                         notification.getMessage(), notification.getActionUrl());
             }
         }
+    }
+
+    @Transactional
+    public void createLocalized(Long userId, String titleKey, String messageKey,
+            Object[] titleArgs, Object[] messageArgs, String type, String actionUrl) {
+        UserAccount user = userAccountRepository.findById(userId).orElse(null);
+        if (user != null) {
+            Locale locale = resolveLocale(user);
+            String title = messageSource.getMessage(titleKey, titleArgs, locale);
+            String message = messageSource.getMessage(messageKey, messageArgs, locale);
+            create(userId, title, message, type, actionUrl);
+        }
+    }
+
+    private Locale resolveLocale(UserAccount user) {
+        String lang = user.getLocale();
+        if (lang != null && !lang.isBlank()) {
+            return Locale.forLanguageTag(lang);
+        }
+        return Locale.forLanguageTag("vi");
     }
 
     private boolean shouldSendEmail(Long userId, String type) {

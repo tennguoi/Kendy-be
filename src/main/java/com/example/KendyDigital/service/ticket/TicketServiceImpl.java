@@ -40,7 +40,7 @@ import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
 @Service
-public class TicketServiceImpl  implements TicketService{
+public class TicketServiceImpl implements TicketService {
     private final TicketRepository ticketRepository;
     private final TicketMessageRepository ticketMessageRepository;
     private final TicketAttachmentRepository ticketAttachmentRepository;
@@ -131,13 +131,13 @@ public class TicketServiceImpl  implements TicketService{
             TicketPriority priority, int page, int size) {
         String normalizedQuery = normalizeQuery(query);
         List<Ticket> tickets = ticketRepository.searchUser(
-                        userId,
-                        likePattern(normalizedQuery),
-                        parseLongOrNull(normalizedQuery),
-                        status,
-                        category,
-                        priority,
-                        paged(page, size));
+                userId,
+                likePattern(normalizedQuery),
+                parseLongOrNull(normalizedQuery),
+                status,
+                category,
+                priority,
+                paged(page, size));
         return toResponseList(tickets);
     }
 
@@ -210,13 +210,13 @@ public class TicketServiceImpl  implements TicketService{
             TicketPriority priority, Long userId, Integer limit) {
         String normalizedQuery = normalizeQuery(query);
         List<Ticket> tickets = ticketRepository.searchAdmin(
-                        likePattern(normalizedQuery),
-                        parseLongOrNull(normalizedQuery),
-                        status,
-                        category,
-                        priority,
-                        userId,
-                        page(limit));
+                likePattern(normalizedQuery),
+                parseLongOrNull(normalizedQuery),
+                status,
+                category,
+                priority,
+                userId,
+                page(limit));
         return toResponseList(tickets);
     }
 
@@ -236,7 +236,8 @@ public class TicketServiceImpl  implements TicketService{
         UserAccount admin = userAccountRepository.findById(adminUserId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Admin not found"));
         ticket.adminReplied(admin);
-        ticketMessageRepository.save(new TicketMessage(ticket, admin, TicketSenderRole.ADMIN, request.message().trim()));
+        ticketMessageRepository
+                .save(new TicketMessage(ticket, admin, TicketSenderRole.ADMIN, request.message().trim()));
         auditService.recordAdmin(adminUserId, "TICKET_REPLIED", "TICKET", ticket.getId(), null);
         userNotificationService.create(ticket.getUser().getId(),
                 "Ticket replied: " + ticket.getSubject(),
@@ -294,6 +295,20 @@ public class TicketServiceImpl  implements TicketService{
         Ticket ticket = ensureTicketExists(ticketCode);
         ensureOwner(ticket, userId);
         TicketAttachment attachment = requireAttachment(ticket, attachmentId);
+        if (attachment.getStoredFile() == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Attachment file not found");
+        }
+        return fileStorageService.getById(attachment.getStoredFile().getId());
+    }
+
+    @Transactional(readOnly = true)
+    public StoredFile getAttachmentFileForAdmin(String ticketCode, Long attachmentId) {
+        Ticket ticket = ensureTicketExists(ticketCode);
+        TicketAttachment attachment = ticketAttachmentRepository.findById(attachmentId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Attachment not found"));
+        if (!attachment.getTicket().getId().equals(ticket.getId())) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Attachment not found");
+        }
         if (attachment.getStoredFile() == null) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Attachment file not found");
         }
@@ -397,7 +412,8 @@ public class TicketServiceImpl  implements TicketService{
                 .count();
         double averageMinutes = tickets.stream()
                 .filter(ticket -> ticket.getClosedAt() != null)
-                .mapToLong(ticket -> java.time.Duration.between(ticket.getCreatedAt(), ticket.getClosedAt()).toMinutes())
+                .mapToLong(
+                        ticket -> java.time.Duration.between(ticket.getCreatedAt(), ticket.getClosedAt()).toMinutes())
                 .average()
                 .orElse(0);
         return java.util.Map.of(
@@ -445,9 +461,9 @@ public class TicketServiceImpl  implements TicketService{
         List<UserAccount> admins = userAccountRepository.findByRoleIn(List.of(UserRole.ADMIN, UserRole.SUPER_ADMIN));
         for (UserAccount admin : admins) {
             emailNotificationService.sendUserNotification(admin,
-                "New ticket: " + ticket.getSubject(),
-                "Ticket " + ticket.getTicketCode() + " created by " + user.getEmail(),
-                "/admin/tickets/" + ticket.getTicketCode());
+                    "New ticket: " + ticket.getSubject(),
+                    "Ticket " + ticket.getTicketCode() + " created by " + user.getEmail(),
+                    "/admin/tickets/" + ticket.getTicketCode());
         }
     }
 

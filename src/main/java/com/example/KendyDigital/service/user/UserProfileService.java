@@ -15,4 +15,5 @@ public interface UserProfileService {
     UserDashboardResponse dashboard(Long userId);
     Map<String, Object> exportPersonalData(Long userId);
     Map<String, Object> deleteAccount(Long userId);
+    AuthUserResponse updateLocale(Long userId, String locale);
 }

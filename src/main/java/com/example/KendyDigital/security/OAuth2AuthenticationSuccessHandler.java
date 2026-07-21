@@ -40,10 +40,12 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
             return;
         }
         try {
+            String acceptLanguage = request.getHeader("Accept-Language");
             AuthTokenResponse authToken = oAuth2AuthService.login(
                     token.getAuthorizedClientRegistrationId(),
                     token.getPrincipal().getAttributes(),
-                    accessToken(token));
+                    accessToken(token),
+                    acceptLanguage);
             response.sendRedirect(successUrl(authToken));
         } catch (OAuthTwoFactorRequiredException exception) {
             response.sendRedirect(twoFactorUrl(exception));

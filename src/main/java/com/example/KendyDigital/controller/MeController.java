@@ -24,6 +24,7 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -57,6 +58,14 @@ public class MeController {
     public AuthUserResponse uploadAvatar(Authentication authentication,
             @RequestPart("file") MultipartFile file) {
         return userProfileService.uploadAvatar(CurrentUser.require(authentication).userId(), file);
+    }
+
+    @PatchMapping("/api/me/locale")
+    public AuthUserResponse updateLocale(Authentication authentication,
+            @RequestBody Map<String, String> body) {
+        return userProfileService.updateLocale(
+                CurrentUser.require(authentication).userId(),
+                body.get("locale"));
     }
 
     @PostMapping("/api/me/change-password")

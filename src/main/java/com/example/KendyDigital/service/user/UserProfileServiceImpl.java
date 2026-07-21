@@ -118,6 +118,13 @@ public class UserProfileServiceImpl  implements UserProfileService{
     }
 
     @Transactional
+    public AuthUserResponse updateLocale(Long userId, String locale) {
+        UserAccount user = getUser(userId);
+        user.setLocale(locale);
+        return AuthUserResponse.from(user);
+    }
+
+    @Transactional
     public AuthUserResponse changePassword(Long userId, ChangePasswordRequest request) {
         UserAccount user = getUser(userId);
         if (!passwordEncoder.matches(request.currentPassword(), user.getPasswordHash())) {

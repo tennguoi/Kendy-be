@@ -146,6 +146,20 @@ public class TicketController {
         return ticketService.listAttachments(ticketCode);
     }
 
+    @GetMapping("/api/admin/tickets/{ticketCode}/attachments/{attachmentId}/download")
+    public ResponseEntity<byte[]> downloadAttachment(Authentication authentication,
+            @PathVariable String ticketCode, @PathVariable Long attachmentId) {
+        StoredFile file = ticketService.getAttachmentFileForAdmin(ticketCode, attachmentId);
+        return fileResponse(file, file.getContent());
+    }
+
+    @GetMapping("/api/admin/tickets/{ticketCode}/attachments/{attachmentId}/preview")
+    public ResponseEntity<byte[]> previewAttachment(Authentication authentication,
+            @PathVariable String ticketCode, @PathVariable Long attachmentId) {
+        StoredFile file = ticketService.getAttachmentFileForAdmin(ticketCode, attachmentId);
+        return fileResponse(file, ticketService.previewBytes(file));
+    }
+
     @PostMapping(value = "/api/admin/tickets/{ticketCode}/attachments", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public TicketAttachmentResponse uploadAttachmentAdmin(Authentication authentication, @PathVariable String ticketCode,
             @RequestPart("file") MultipartFile file) {
@@ -204,9 +218,13 @@ public class TicketController {
         MediaType mediaType = file.getContentType() == null
                 ? MediaType.APPLICATION_OCTET_STREAM
                 : MediaType.parseMediaType(file.getContentType());
+        boolean isImage = file.getContentType() != null
+                && file.getContentType().startsWith("image/");
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION,
-                        ContentDisposition.attachment().filename(file.getFileName()).build().toString())
+                        isImage
+                                ? ContentDisposition.inline().filename(file.getFileName()).build().toString()
+                                : ContentDisposition.attachment().filename(file.getFileName()).build().toString())
                 .contentType(mediaType)
                 .body(content);
     }

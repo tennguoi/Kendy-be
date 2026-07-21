@@ -36,6 +36,8 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Instant;
 import java.util.List;
+import java.util.Locale;
+import org.springframework.context.MessageSource;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -57,6 +59,7 @@ public class CheckoutServiceImpl  implements CheckoutService{
     private final AdminNotificationRepository adminNotificationRepository;
     private final CouponService couponService;
     private final EmailNotificationService emailNotificationService;
+    private final MessageSource messageSource;
 
     public CheckoutServiceImpl(CheckoutSessionRepository checkoutSessionRepository,
             DepositRequestRepository depositRequestRepository,
@@ -71,7 +74,8 @@ public class CheckoutServiceImpl  implements CheckoutService{
             AccountInventoryService accountInventoryService,
             UserNotificationService userNotificationService,
             CouponService couponService,
-            EmailNotificationService emailNotificationService) {
+            EmailNotificationService emailNotificationService,
+            MessageSource messageSource) {
         this.checkoutSessionRepository = checkoutSessionRepository;
         this.depositRequestRepository = depositRequestRepository;
         this.orderRepository = orderRepository;
@@ -86,6 +90,7 @@ public class CheckoutServiceImpl  implements CheckoutService{
         this.userNotificationService = userNotificationService;
         this.couponService = couponService;
         this.emailNotificationService = emailNotificationService;
+        this.messageSource = messageSource;
     }
 
     @Transactional
@@ -213,25 +218,28 @@ public class CheckoutServiceImpl  implements CheckoutService{
 
     private void markWalletCredited(CheckoutSession checkout, String reason) {
         accountInventoryService.releaseReservationForCheckout(checkout.getId());
-        String message = "Thanh toán đã được cộng vào ví, nhưng đơn "
-                + checkout.getService().getName()
-                + " chưa được tạo tự động. Lý do: "
-                + (reason == null || reason.isBlank() ? "không còn hàng khả dụng" : reason)
-                + ". Bạn có thể đặt lại bằng số dư ví hoặc liên hệ admin hỗ trợ.";
-        checkout.markWalletCredited(message);
-        userNotificationService.create(
+        Locale defaultLocale = Locale.forLanguageTag("vi");
+        String reasonText = reason == null || reason.isBlank() ? "out of stock" : reason;
+        String userMessage = messageSource.getMessage("notification.checkout.wallet_credited.body",
+                new Object[]{checkout.getService().getName(), reasonText},
+                Locale.forLanguageTag("vi"));
+        checkout.markWalletCredited(userMessage);
+        userNotificationService.createLocalized(
                 checkout.getUser().getId(),
-                "Tiền đã vào ví, đơn chưa tạo",
-                message,
+                "notification.checkout.wallet_credited.title",
+                "notification.checkout.wallet_credited.body",
+                null,
+                new Object[]{checkout.getService().getName(), reasonText},
                 "DEPOSIT",
                 "/wallet");
+        String adminReason = reason == null || reason.isBlank() ? "unknown" : reason;
         adminNotificationRepository.save(new AdminNotification(null,
-                "Checkout đã cộng ví nhưng chưa tạo đơn",
-                "Checkout " + checkout.getCheckoutCode()
-                        + " của user #" + checkout.getUser().getId()
-                        + " đã thanh toán cho " + checkout.getService().getName()
-                        + " nhưng order chưa tạo. Lý do: "
-                        + (reason == null || reason.isBlank() ? "không xác định" : reason)));
+                messageSource.getMessage("admin.notification.checkout.wallet_credited.title",
+                        null, defaultLocale),
+                messageSource.getMessage("admin.notification.checkout.wallet_credited.body",
+                        new Object[]{checkout.getCheckoutCode(), checkout.getUser().getId(),
+                                checkout.getService().getName(), adminReason},
+                        defaultLocale)));
         notifyAdminsCheckoutIssue(checkout, reason);
         auditService.recordSystem(
                 "CHECKOUT_WALLET_CREDITED_WITHOUT_ORDER",
@@ -256,13 +264,16 @@ public class CheckoutServiceImpl  implements CheckoutService{
     }
 
     private void notifyAdminsCheckoutIssue(CheckoutSession checkout, String reason) {
+        String adminTitle = messageSource.getMessage("admin.notification.checkout.wallet_credited.title",
+                null, Locale.forLanguageTag("vi"));
+        String adminBody = messageSource.getMessage("admin.notification.checkout.wallet_credited.body",
+                new Object[]{checkout.getCheckoutCode(), checkout.getUser().getId(),
+                        checkout.getService().getName(),
+                        reason == null || reason.isBlank() ? "unknown" : reason},
+                Locale.forLanguageTag("vi"));
         List<UserAccount> admins = userAccountRepository.findByRoleIn(List.of(UserRole.ADMIN, UserRole.SUPER_ADMIN));
         for (UserAccount admin : admins) {
-            emailNotificationService.sendUserNotification(admin,
-                "Checkout wallet-credited without order",
-                "Checkout " + checkout.getCheckoutCode() + " of user #" + checkout.getUser().getId()
-                    + " paid for " + checkout.getService().getName() + " but order not created. Reason: " + reason,
-                "/admin/checkouts");
+            emailNotificationService.sendUserNotification(admin, adminTitle, adminBody, "/admin/checkouts");
         }
     }
 

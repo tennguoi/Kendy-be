@@ -92,6 +92,9 @@ public class UserAccount extends TimestampedEntity {
     @Column(name = "locked_until")
     private Instant lockedUntil;
 
+    @Column(name = "locale", length = 10)
+    private String locale;
+
     @Column(name = "admin_permissions", columnDefinition = "TEXT")
     private String adminPermissions;
 

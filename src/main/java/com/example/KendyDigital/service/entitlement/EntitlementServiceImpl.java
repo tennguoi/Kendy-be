@@ -22,6 +22,8 @@ import com.example.KendyDigital.service.ticket.TicketService;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.Locale;
+import org.springframework.context.MessageSource;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -39,19 +41,22 @@ public class EntitlementServiceImpl implements EntitlementService {
     private final AuditService auditService;
     private final UserNotificationService userNotificationService;
     private final AdminNotificationRepository adminNotificationRepository;
+    private final MessageSource messageSource;
 
     public EntitlementServiceImpl(UserEntitlementRepository entitlementRepository,
             OrderRepository orderRepository,
             TicketService ticketService,
             AuditService auditService,
             UserNotificationService userNotificationService,
-            AdminNotificationRepository adminNotificationRepository) {
+            AdminNotificationRepository adminNotificationRepository,
+            MessageSource messageSource) {
         this.entitlementRepository = entitlementRepository;
         this.orderRepository = orderRepository;
         this.ticketService = ticketService;
         this.auditService = auditService;
         this.userNotificationService = userNotificationService;
         this.adminNotificationRepository = adminNotificationRepository;
+        this.messageSource = messageSource;
     }
 
     @Override
@@ -175,9 +180,11 @@ public class EntitlementServiceImpl implements EntitlementService {
         synchronizeCredentialStatus(entitlement);
         auditService.recordAdmin(adminUserId, "ENTITLEMENT_" + request.action(), "ENTITLEMENT",
                 entitlement.getId(), reason);
-        userNotificationService.create(entitlement.getUser().getId(),
-                "Cập nhật quyền truy cập",
-                entitlement.getService().getName() + " đã chuyển sang " + entitlement.getStatus(),
+        userNotificationService.createLocalized(entitlement.getUser().getId(),
+                "notification.entitlement.updated.title",
+                "notification.entitlement.updated.body",
+                null,
+                new Object[]{entitlement.getService().getName(), entitlement.getStatus()},
                 "SERVICE",
                 "/locker");
         return UserEntitlementResponse.from(entitlement);
@@ -207,9 +214,11 @@ public class EntitlementServiceImpl implements EntitlementService {
                 .findAllByStatusAndExpiresAtIsNotNullAndExpiresAtBetweenOrderByExpiresAtAsc(
                         EntitlementStatus.ACTIVE, now, warningUntil, PageRequest.of(0, 500))) {
             entitlement.markExpiring();
-            userNotificationService.create(entitlement.getUser().getId(),
-                    "Dịch vụ sắp hết hạn",
-                    entitlement.getService().getName() + " sẽ hết hạn vào " + entitlement.getExpiresAt(),
+            userNotificationService.createLocalized(entitlement.getUser().getId(),
+                    "notification.entitlement.expiring.title",
+                    "notification.entitlement.expiring.body",
+                    null,
+                    new Object[]{entitlement.getService().getName(), entitlement.getExpiresAt()},
                     "SERVICE",
                     "/locker");
             changed++;
@@ -222,16 +231,20 @@ public class EntitlementServiceImpl implements EntitlementService {
             if (credential != null && credential.getStatus() == AccountCredentialStatus.DELIVERED) {
                 credential.changeStatus(AccountCredentialStatus.EXPIRED);
             }
+            Locale defaultLocale = Locale.forLanguageTag("vi");
             adminNotificationRepository.save(new AdminNotification(
                     null,
-                    "Cần thu hồi quyền truy cập",
-                    "Entitlement #" + entitlement.getId() + " - "
-                            + entitlement.getService().getName() + " đã hết hạn. Strategy: "
-                            + entitlement.getAccessStrategy()));
-            userNotificationService.create(entitlement.getUser().getId(),
-                    "Dịch vụ đã hết hạn",
-                    entitlement.getService().getName()
-                            + " đã bị tạm ngưng. Gia hạn để tiếp tục sử dụng.",
+                    messageSource.getMessage("admin.notification.entitlement.expired.title",
+                            null, defaultLocale),
+                    messageSource.getMessage("admin.notification.entitlement.expired.body",
+                            new Object[]{entitlement.getId(), entitlement.getService().getName(),
+                                    entitlement.getAccessStrategy()},
+                            defaultLocale)));
+            userNotificationService.createLocalized(entitlement.getUser().getId(),
+                    "notification.entitlement.expired.title",
+                    "notification.entitlement.expired.body",
+                    null,
+                    new Object[]{entitlement.getService().getName()},
                     "SERVICE",
                     "/locker");
             auditService.recordSystem("ENTITLEMENT_EXPIRED", "ENTITLEMENT", entitlement.getId(), null);

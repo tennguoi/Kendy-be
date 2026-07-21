@@ -13,4 +13,5 @@ public interface UserNotificationService {
     UserNotificationSettingsResponse settings(Long userId);
     UserNotificationSettingsResponse updateSettings(Long userId, UserNotificationSettingsRequest request);
     void create(Long userId, String title, String message, String type, String actionUrl);
+    void createLocalized(Long userId, String titleKey, String messageKey, Object[] titleArgs, Object[] messageArgs, String type, String actionUrl);
 }

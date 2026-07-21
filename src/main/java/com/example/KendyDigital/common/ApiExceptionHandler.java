@@ -59,15 +59,44 @@ public class ApiExceptionHandler {
                 fieldErrors));
     }
 
-    @ExceptionHandler(IllegalArgumentException.class)
-    ResponseEntity<ApiError> handleIllegalArgument(IllegalArgumentException exception, WebRequest request) {
-        Locale locale = request.getLocale();
-        String message = messageSource.getMessage(ErrorCode.BAD_REQUEST.getMessageKey(), null, locale);
+    @ExceptionHandler(org.springframework.http.converter.HttpMessageNotReadableException.class)
+    ResponseEntity<ApiError> handleHttpMessageNotReadable(org.springframework.http.converter.HttpMessageNotReadableException exception, WebRequest request) {
+        String userFriendlyMessage = "Dữ liệu gửi lên không hợp lệ hoặc thiếu thông tin bắt buộc.";
+        Throwable cause = exception.getCause();
+        if (cause instanceof com.fasterxml.jackson.databind.exc.InvalidFormatException ife) {
+            String fieldName = ife.getPath().stream()
+                    .map(com.fasterxml.jackson.databind.JsonMappingException.Reference::getFieldName)
+                    .filter(java.util.Objects::nonNull)
+                    .collect(Collectors.joining("."));
+            userFriendlyMessage = "Giá trị của trường '" + (fieldName.isEmpty() ? "dữ liệu" : fieldName) + "' không đúng định dạng.";
+        } else if (cause instanceof com.fasterxml.jackson.databind.JsonMappingException jme) {
+            String fieldName = jme.getPath().stream()
+                    .map(com.fasterxml.jackson.databind.JsonMappingException.Reference::getFieldName)
+                    .filter(java.util.Objects::nonNull)
+                    .collect(Collectors.joining("."));
+            userFriendlyMessage = "Trường '" + (fieldName.isEmpty() ? "dữ liệu" : fieldName) + "' không được để trống hoặc sai kiểu dữ liệu.";
+        }
+
         return ResponseEntity.badRequest().body(ApiError.of(
                 HttpStatus.BAD_REQUEST.value(),
                 HttpStatus.BAD_REQUEST.getReasonPhrase(),
                 ErrorCode.BAD_REQUEST.name(),
-                message + ": " + exception.getMessage()));
+                userFriendlyMessage));
+    }
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    ResponseEntity<ApiError> handleIllegalArgument(IllegalArgumentException exception, WebRequest request) {
+        Locale locale = request.getLocale();
+        String message = messageSource.getMessage(ErrorCode.BAD_REQUEST.getMessageKey(), null, locale);
+        String detail = exception.getMessage();
+        if (detail != null && detail.contains("com.example.")) {
+            detail = "Dữ liệu không hợp lệ.";
+        }
+        return ResponseEntity.badRequest().body(ApiError.of(
+                HttpStatus.BAD_REQUEST.value(),
+                HttpStatus.BAD_REQUEST.getReasonPhrase(),
+                ErrorCode.BAD_REQUEST.name(),
+                message + (detail != null ? ": " + detail : "")));
     }
 
     @ExceptionHandler(DataIntegrityViolationException.class)

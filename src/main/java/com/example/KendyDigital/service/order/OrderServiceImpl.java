@@ -62,6 +62,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import org.springframework.context.MessageSource;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -88,6 +89,7 @@ public class OrderServiceImpl implements OrderService {
     private final EntitlementService entitlementService;
     private final ManualOrderTaskRepository manualOrderTaskRepository;
     private final NotificationRealtimeService notificationRealtimeService;
+    private final MessageSource messageSource;
 
     public OrderServiceImpl(OrderRepository orderRepository,
             UserAccountRepository userAccountRepository,
@@ -106,7 +108,8 @@ public class OrderServiceImpl implements OrderService {
             OrderEventRepository orderEventRepository,
             EntitlementService entitlementService,
             ManualOrderTaskRepository manualOrderTaskRepository,
-            NotificationRealtimeService notificationRealtimeService) {
+            NotificationRealtimeService notificationRealtimeService,
+            MessageSource messageSource) {
         this.orderRepository = orderRepository;
         this.userAccountRepository = userAccountRepository;
         this.serviceItemRepository = serviceItemRepository;
@@ -125,6 +128,7 @@ public class OrderServiceImpl implements OrderService {
         this.entitlementService = entitlementService;
         this.manualOrderTaskRepository = manualOrderTaskRepository;
         this.notificationRealtimeService = notificationRealtimeService;
+        this.messageSource = messageSource;
     }
 
     @Transactional
@@ -232,9 +236,11 @@ public class OrderServiceImpl implements OrderService {
                 service.updatePricingMetadata(ServiceStockStatus.OUT_OF_STOCK, service.getCtaType(),
                         service.getPricingBadge(), service.isFeatured(), service.isPublicVisible());
             }
-            userNotificationService.create(userId,
-                    "Tài khoản đã được giao",
-                    "Đơn " + order.getOrderCode() + " đã hoàn thành. Vào Tài khoản của tôi để xem thông tin đăng nhập.",
+            userNotificationService.createLocalized(userId,
+                    "notification.order.credential_delivered.title",
+                    "notification.order.credential_delivered.body",
+                    null,
+                    new Object[]{order.getOrderCode()},
                     "ORDER",
                     "/locker");
         } else {
@@ -242,10 +248,11 @@ public class OrderServiceImpl implements OrderService {
             createDefaultManualTasks(order);
             Ticket supportTicket = createManualOrderTicket(order, user);
             order.attachSupportTicket(supportTicket);
-            userNotificationService.create(userId,
-                    "Đơn thủ công đã được tiếp nhận",
-                    "Đơn " + order.getOrderCode() + " đã được tạo. Ticket "
-                            + supportTicket.getTicketCode() + " dùng để trao đổi yêu cầu xử lý.",
+            userNotificationService.createLocalized(userId,
+                    "notification.order.manual_created.title",
+                    "notification.order.manual_created.body",
+                    null,
+                    new Object[]{order.getOrderCode(), supportTicket.getTicketCode()},
                     "ORDER",
                     "/orders/" + order.getOrderCode());
             notifyAdminsManualOrder(order);
@@ -364,9 +371,11 @@ public class OrderServiceImpl implements OrderService {
                 "ORDER",
                 order.getId(),
                 "refundTransactionId=" + refundTransaction.getId() + ",reason=" + reason);
-        userNotificationService.create(userId,
-                "Order cancelled",
-                "Order " + order.getOrderCode() + " was cancelled and refunded.",
+        userNotificationService.createLocalized(userId,
+                "notification.order.cancelled.title",
+                "notification.order.cancelled.body",
+                null,
+                new Object[]{order.getOrderCode()},
                 "ORDER",
                 "/orders/" + order.getOrderCode());
         return toResponse(order);
@@ -388,7 +397,9 @@ public class OrderServiceImpl implements OrderService {
                 "ORDER",
                 order.getId(),
                 "adminNote=" + blankToNull(request.adminNote()));
-        notifyOrderUser(order, "Order completed", "Order " + order.getOrderCode() + " has been completed.");
+        notifyOrderUser(order,
+                "notification.order.completed.title",
+                "notification.order.completed.body");
         return toResponse(order);
     }
 
@@ -408,7 +419,9 @@ public class OrderServiceImpl implements OrderService {
                 "ORDER",
                 order.getId(),
                 "adminNote=" + blankToNull(request.adminNote()));
-        notifyOrderUser(order, "Order failed", "Order " + order.getOrderCode() + " could not be completed.");
+        notifyOrderUser(order,
+                "notification.order.failed.title",
+                "notification.order.failed.body");
         return toResponse(order);
     }
 
@@ -434,7 +447,9 @@ public class OrderServiceImpl implements OrderService {
                 "ORDER",
                 order.getId(),
                 "refundTransactionId=" + refundTransaction.getId() + ",reason=" + reason);
-        notifyOrderUser(order, "Order cancelled", "Order " + order.getOrderCode() + " was cancelled and refunded.");
+        notifyOrderUser(order,
+                "notification.order.cancelled.title",
+                "notification.order.cancelled.body");
         return toResponse(order);
     }
 
@@ -474,7 +489,9 @@ public class OrderServiceImpl implements OrderService {
                 "ORDER",
                 order.getId(),
                 "refundTransactionId=" + refundTransaction.getId() + ",reason=" + request.reason());
-        notifyOrderUser(order, "Order refunded", "Order " + order.getOrderCode() + " has been refunded.");
+        notifyOrderUser(order,
+                "notification.order.refunded.title",
+                "notification.order.refunded.body");
         return toResponse(order);
     }
 
@@ -714,15 +731,18 @@ public class OrderServiceImpl implements OrderService {
         return PageRequest.of(Math.max(0, page), Math.max(1, Math.min(size, 200)));
     }
 
-    private void notifyOrderUser(OrderRecord order, String title, String message) {
-        userNotificationService.create(order.getUser().getId(), title, message, "ORDER",
+    private void notifyOrderUser(OrderRecord order, String titleKey, String messageKey) {
+        userNotificationService.createLocalized(order.getUser().getId(), titleKey, messageKey,
+                null, new Object[]{order.getOrderCode()}, "ORDER",
                 "/orders/" + order.getOrderCode());
     }
 
     private void notifyAdminsManualOrder(OrderRecord order) {
-        String title = "Đơn thủ công mới " + order.getOrderCode();
-        String message = "User #" + order.getUser().getId() + " đặt " + order.getService().getName()
-                + ". Cần xử lý ngoài thực tế rồi cập nhật trạng thái đơn.";
+        Locale defaultLocale = Locale.forLanguageTag("vi");
+        String title = messageSource.getMessage("admin.notification.order.manual_new.title",
+                new Object[]{order.getOrderCode()}, defaultLocale);
+        String message = messageSource.getMessage("admin.notification.order.manual_new.body",
+                new Object[]{order.getUser().getId(), order.getService().getName()}, defaultLocale);
         AdminNotification notification = adminNotificationRepository.save(new AdminNotification(null, title, message));
         notificationRealtimeService.publishAdminNotification(AdminNotificationResponse.from(notification));
         userAccountRepository.findAllByRoleInOrderByCreatedAtDesc(

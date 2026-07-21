@@ -23,6 +23,8 @@ import com.example.KendyDigital.service.notification.UserNotificationService;
 import com.example.KendyDigital.service.order.OrderService;
 import java.time.Instant;
 import java.util.List;
+import java.util.Locale;
+import org.springframework.context.MessageSource;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -43,6 +45,7 @@ public class WarrantyServiceImpl implements WarrantyService {
     private final UserNotificationService userNotificationService;
     private final EmailNotificationService emailNotificationService;
     private final UserAccountRepository userAccountRepository;
+    private final MessageSource messageSource;
 
     public WarrantyServiceImpl(WarrantyRequestRepository warrantyRequestRepository,
             OrderRepository orderRepository,
@@ -52,7 +55,8 @@ public class WarrantyServiceImpl implements WarrantyService {
             AdminNotificationRepository adminNotificationRepository,
             UserNotificationService userNotificationService,
             EmailNotificationService emailNotificationService,
-            UserAccountRepository userAccountRepository) {
+            UserAccountRepository userAccountRepository,
+            MessageSource messageSource) {
         this.warrantyRequestRepository = warrantyRequestRepository;
         this.orderRepository = orderRepository;
         this.accountInventoryService = accountInventoryService;
@@ -62,6 +66,7 @@ public class WarrantyServiceImpl implements WarrantyService {
         this.userNotificationService = userNotificationService;
         this.emailNotificationService = emailNotificationService;
         this.userAccountRepository = userAccountRepository;
+        this.messageSource = messageSource;
     }
 
     @Transactional
@@ -91,20 +96,25 @@ public class WarrantyServiceImpl implements WarrantyService {
                 blankToNull(request.evidenceText())));
         auditService.recordSystem("WARRANTY_REQUEST_CREATED", "WARRANTY_REQUEST", warrantyRequest.getId(),
                 "orderId=" + order.getId() + ",userId=" + userId);
+        Locale defaultLocale = Locale.forLanguageTag("vi");
         adminNotificationRepository.save(new AdminNotification(null,
-                "Yêu cầu bảo hành mới " + order.getOrderCode(),
-                "User #" + userId + " gửi bảo hành cho " + order.getService().getName()));
+                messageSource.getMessage("admin.notification.warranty.new.title",
+                        new Object[]{order.getOrderCode()}, defaultLocale),
+                messageSource.getMessage("admin.notification.warranty.new.body",
+                        new Object[]{userId, order.getService().getName()}, defaultLocale)));
         notifyAdminsNewWarranty(warrantyRequest, order.getUser());
         return WarrantyRequestResponse.from(warrantyRequest);
     }
 
     private void notifyAdminsNewWarranty(WarrantyRequest warrantyRequest, UserAccount user) {
+        Locale defaultLocale = Locale.forLanguageTag("vi");
+        String title = messageSource.getMessage("admin.notification.warranty.new.title",
+                new Object[]{warrantyRequest.getOrder().getOrderCode()}, defaultLocale);
+        String body = messageSource.getMessage("admin.notification.warranty.new.body",
+                new Object[]{user.getId(), warrantyRequest.getOrder().getService().getName()}, defaultLocale);
         List<UserAccount> admins = userAccountRepository.findByRoleIn(List.of(UserRole.ADMIN, UserRole.SUPER_ADMIN));
         for (UserAccount admin : admins) {
-            emailNotificationService.sendUserNotification(admin,
-                "New warranty request: " + warrantyRequest.getOrder().getOrderCode(),
-                "User #" + user.getId() + " sent warranty for " + warrantyRequest.getOrder().getService().getName(),
-                "/admin/warranty");
+            emailNotificationService.sendUserNotification(admin, title, body, "/admin/warranty");
         }
     }
 
@@ -144,9 +154,11 @@ public class WarrantyServiceImpl implements WarrantyService {
         }
         auditService.recordAdmin(adminUserId, "WARRANTY_REQUEST_REVIEWED", "WARRANTY_REQUEST",
                 warrantyRequest.getId(), "status=" + warrantyRequest.getStatus());
-        userNotificationService.create(warrantyRequest.getUser().getId(),
-                "Cập nhật bảo hành đơn " + warrantyRequest.getOrder().getOrderCode(),
-                "Yêu cầu bảo hành đã chuyển sang trạng thái " + warrantyRequest.getStatus(),
+        userNotificationService.createLocalized(warrantyRequest.getUser().getId(),
+                "notification.warranty.updated.title",
+                "notification.warranty.updated.body",
+                new Object[]{warrantyRequest.getOrder().getOrderCode()},
+                new Object[]{warrantyRequest.getStatus()},
                 "ORDER",
                 "/orders/" + warrantyRequest.getOrder().getOrderCode());
         return WarrantyRequestResponse.from(warrantyRequest);

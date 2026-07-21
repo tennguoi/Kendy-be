@@ -13,6 +13,8 @@ import com.example.KendyDigital.service.notification.NotificationRealtimeService
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
+import java.util.Locale;
+import org.springframework.context.MessageSource;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -25,17 +27,20 @@ public class ManualOrderDeadlineReminderJob {
     private final UserAccountRepository userAccountRepository;
     private final EmailNotificationService emailNotificationService;
     private final NotificationRealtimeService notificationRealtimeService;
+    private final MessageSource messageSource;
 
     public ManualOrderDeadlineReminderJob(OrderRepository orderRepository,
             AdminNotificationRepository adminNotificationRepository,
             UserAccountRepository userAccountRepository,
             EmailNotificationService emailNotificationService,
-            NotificationRealtimeService notificationRealtimeService) {
+            NotificationRealtimeService notificationRealtimeService,
+            MessageSource messageSource) {
         this.orderRepository = orderRepository;
         this.adminNotificationRepository = adminNotificationRepository;
         this.userAccountRepository = userAccountRepository;
         this.emailNotificationService = emailNotificationService;
         this.notificationRealtimeService = notificationRealtimeService;
+        this.messageSource = messageSource;
     }
 
     @Scheduled(fixedDelayString = "${app.manual-order.deadline-check-interval-ms:60000}")
@@ -56,12 +61,16 @@ public class ManualOrderDeadlineReminderJob {
     }
 
     private void notifyDeadline(OrderRecord order, boolean overdue) {
-        String title = overdue
-                ? "Đơn thủ công quá hạn " + order.getOrderCode()
-                : "Đơn thủ công sắp tới hạn " + order.getOrderCode();
-        String message = "Dịch vụ " + order.getService().getName()
-                + " của user #" + order.getUser().getId()
-                + " có hạn xử lý " + order.getProcessingDeadlineAt() + ".";
+        Locale defaultLocale = Locale.forLanguageTag("vi");
+        String titleKey = overdue
+                ? "admin.notification.order.deadline_overdue.title"
+                : "admin.notification.order.deadline_soon.title";
+        String title = messageSource.getMessage(titleKey,
+                new Object[]{order.getOrderCode()}, defaultLocale);
+        String message = messageSource.getMessage("admin.notification.order.deadline.body",
+                new Object[]{order.getService().getName(), order.getUser().getId(),
+                        order.getProcessingDeadlineAt()},
+                defaultLocale);
         Long targetAdminId = order.getAssignedAdmin() == null ? null : order.getAssignedAdmin().getId();
         AdminNotification notification = adminNotificationRepository.save(new AdminNotification(targetAdminId, title, message));
         notificationRealtimeService.publishAdminNotification(AdminNotificationResponse.from(notification));

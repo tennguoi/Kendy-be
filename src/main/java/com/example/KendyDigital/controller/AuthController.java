@@ -46,13 +46,15 @@ public class AuthController {
     }
 
     @PostMapping("/register")
-    public AuthUserResponse register(@Valid @RequestBody AuthRegisterRequest request) {
-        return authService.register(request);
+    public AuthUserResponse register(@Valid @RequestBody AuthRegisterRequest request,
+            @RequestHeader(name = "Accept-Language", required = false) String acceptLanguage) {
+        return authService.register(request, acceptLanguage);
     }
 
     @PostMapping("/login")
-    public AuthTokenResponse login(@Valid @RequestBody AuthLoginRequest request) {
-        return authService.login(request);
+    public AuthTokenResponse login(@Valid @RequestBody AuthLoginRequest request,
+            @RequestHeader(name = "Accept-Language", required = false) String acceptLanguage) {
+        return authService.login(request, acceptLanguage);
     }
 
     @PostMapping("/2fa/email-code")

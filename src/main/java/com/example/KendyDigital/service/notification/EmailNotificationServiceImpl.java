@@ -13,11 +13,13 @@ import jakarta.mail.internet.MimeMessage;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.context.MessageSource;
 import org.springframework.mail.MailException;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.JavaMailSenderImpl;
@@ -28,60 +30,63 @@ import org.springframework.stereotype.Service;
 @Service
 public class EmailNotificationServiceImpl  implements EmailNotificationService{
     private static final Logger LOGGER = LoggerFactory.getLogger(EmailNotificationService.class);
-    private static final String PASSWORD_RESET_FALLBACK = "Use code %s to reset your password. Valid until %s.";
-    private static final String EMAIL_VERIFY_FALLBACK = "Verify your email by visiting: %s . This link expires at: %s.";
-    private static final String TWO_FACTOR_FALLBACK = "Your verification code is: %s. This code expires at: %s.";
-    private static final String DEPOSIT_FALLBACK = "Your deposit %s (%s VND) has been %s. Valid until: %s.";
-    private static final String WALLET_FALLBACK = "Your wallet has been %sd %s VND. Reason: %s. Admin: %d.";
-    private static final String ACCOUNT_FALLBACK = "Your account has been %s: %s. Reason: %s.";
 
     private final ObjectProvider<JavaMailSender> mailSenderProvider;
     private final AppEmailProperties properties;
     private final EmailLogRepository emailLogRepository;
     private final SystemSettingRepository systemSettingRepository;
     private final ContentItemRepository contentItemRepository;
+    private final MessageSource messageSource;
 
     public EmailNotificationServiceImpl(ObjectProvider<JavaMailSender> mailSenderProvider,
             AppEmailProperties properties,
             EmailLogRepository emailLogRepository,
             SystemSettingRepository systemSettingRepository,
-            ContentItemRepository contentItemRepository) {
+            ContentItemRepository contentItemRepository,
+            MessageSource messageSource) {
         this.mailSenderProvider = mailSenderProvider;
         this.properties = properties;
         this.emailLogRepository = emailLogRepository;
         this.systemSettingRepository = systemSettingRepository;
         this.contentItemRepository = contentItemRepository;
+        this.messageSource = messageSource;
     }
 
     @Async("mailExecutor")
     public void sendPasswordReset(UserAccount user, String token, Instant expiresAt) {
+        Locale locale = userLocale(user);
         String code = token;
         String link = frontendUrl("/reset-password");
         String subject = template("password_reset", "email.template.password_reset.subject",
                 "Reset your KendyDigital password", user, link, token, expiresAt, code);
-        String body = loadHtmlTemplate("password_reset",
-                String.format(PASSWORD_RESET_FALLBACK, code, expiresAt),
+        String fallback = messageSource.getMessage("email.password_reset.fallback",
+                new Object[]{code, expiresAt}, locale);
+        String body = loadHtmlTemplate("password_reset", fallback,
                 user, link, token, expiresAt, code);
         send(user.getEmail(), subject, body);
     }
 
     @Async("mailExecutor")
     public void sendEmailVerification(UserAccount user, String token, Instant expiresAt) {
+        Locale locale = userLocale(user);
         String link = frontendUrl("/verify-email?token=" + encode(token));
         String subject = template("email_verification", "email.template.email_verification.subject",
                 "Verify your KendyDigital email", user, link, token, expiresAt, null);
-        String body = loadHtmlTemplate("email_verification",
-                String.format(EMAIL_VERIFY_FALLBACK, link, expiresAt),
+        String fallback = messageSource.getMessage("email.email_verification.fallback",
+                new Object[]{link, expiresAt}, locale);
+        String body = loadHtmlTemplate("email_verification", fallback,
                 user, link, token, expiresAt, null);
         send(user.getEmail(), subject, body);
     }
 
     @Async("mailExecutor")
     public void sendTwoFactorCode(UserAccount user, String code, Instant expiresAt) {
+        Locale locale = userLocale(user);
         String subject = template("two_factor", "email.template.two_factor.subject",
                 "Your KendyDigital 2FA code", user, null, null, expiresAt, code);
-        String body = loadHtmlTemplate("two_factor",
-                String.format(TWO_FACTOR_FALLBACK, code, expiresAt),
+        String fallback = messageSource.getMessage("email.two_factor.fallback",
+                new Object[]{code, expiresAt}, locale);
+        String body = loadHtmlTemplate("two_factor", fallback,
                 user, null, null, expiresAt, code);
         send(user.getEmail(), subject, body);
     }
@@ -108,33 +113,39 @@ public class EmailNotificationServiceImpl  implements EmailNotificationService{
 
     @Async("mailExecutor")
     public void sendDepositNotification(UserAccount user, String depositCode, String amount, String status, Instant expiresAt) {
+        Locale locale = userLocale(user);
         String subject = template("deposit_created", "email.template.deposit_created.subject",
                 "Deposit " + status + ": " + depositCode, user, null, null, expiresAt, null);
         String link = frontendUrl("/wallet");
-        String body = loadHtmlTemplate("deposit_created",
-                String.format(DEPOSIT_FALLBACK, depositCode, amount, status, expiresAt),
+        String fallback = messageSource.getMessage("email.deposit.fallback",
+                new Object[]{depositCode, amount, status, expiresAt}, locale);
+        String body = loadHtmlTemplate("deposit_created", fallback,
                 user, link, null, expiresAt, null);
         send(user.getEmail(), subject, body);
     }
 
     @Async("mailExecutor")
     public void sendWalletAdjusted(UserAccount user, String direction, String amount, String reason, Long adminUserId) {
+        Locale locale = userLocale(user);
         String subject = template("wallet_adjusted", "email.template.wallet_adjusted.subject",
                 "Wallet " + direction + " of " + amount, user, null, null, null, null);
         String link = frontendUrl("/wallet");
-        String body = loadHtmlTemplate("wallet_adjusted",
-                String.format(WALLET_FALLBACK, direction, amount, reason, adminUserId),
+        String fallback = messageSource.getMessage("email.wallet.fallback",
+                new Object[]{direction, amount, reason, adminUserId}, locale);
+        String body = loadHtmlTemplate("wallet_adjusted", fallback,
                 user, link, null, null, null);
         send(user.getEmail(), subject, body);
     }
 
     @Async("mailExecutor")
     public void sendAccountStatusChanged(UserAccount user, String changeType, String newValue, String reason) {
+        Locale locale = userLocale(user);
         String subject = template("account_status_changed", "email.template.account_status_changed.subject",
                 "Account " + changeType + " updated", user, null, null, null, null);
         String link = frontendUrl("/account/security");
-        String body = loadHtmlTemplate("account_status_changed",
-                String.format(ACCOUNT_FALLBACK, changeType, newValue, reason),
+        String fallback = messageSource.getMessage("email.account.fallback",
+                new Object[]{changeType, newValue, reason}, locale);
+        String body = loadHtmlTemplate("account_status_changed", fallback,
                 user, link, null, null, null);
         send(user.getEmail(), subject, body);
     }
@@ -154,6 +165,14 @@ public class EmailNotificationServiceImpl  implements EmailNotificationService{
     @Async("mailExecutor")
     public void sendRawEmail(String to, String subject, String html) {
         send(to, subject, html);
+    }
+
+    private Locale userLocale(UserAccount user) {
+        String lang = user.getLocale();
+        if (lang != null && !lang.isBlank()) {
+            return Locale.forLanguageTag(lang);
+        }
+        return Locale.forLanguageTag("vi");
     }
 
     private static UserAccount dummyUser() {

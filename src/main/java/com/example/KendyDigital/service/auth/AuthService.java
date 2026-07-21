@@ -8,8 +8,8 @@ import com.example.KendyDigital.dto.auth.response.AuthUserResponse;
 import com.example.KendyDigital.dto.auth.response.SecurityTokenResponse;
 
 public interface AuthService {
-    AuthUserResponse register(AuthRegisterRequest request);
-    AuthTokenResponse login(AuthLoginRequest request);
+    AuthUserResponse register(AuthRegisterRequest request, String acceptLanguage);
+    AuthTokenResponse login(AuthLoginRequest request, String acceptLanguage);
     SecurityTokenResponse sendLoginTwoFactorEmailCode(AuthTwoFactorEmailRequest request);
     void logout(String token);
 }
