@@ -61,14 +61,14 @@ pipeline {
               TRIVY_CACHE_DIR="${TRIVY_CACHE_DIR}" trivy image \
                 --exit-code 1 \
                 --severity HIGH,CRITICAL \
-                --timeout 10m \
+                --timeout 20m \
                 --scanners vuln \
                 "$BACKEND_IMAGE"
             """
           } else {
             bat """
               set TRIVY_CACHE_DIR=${TRIVY_CACHE_DIR}
-              trivy image --exit-code 1 --severity HIGH,CRITICAL --timeout 10m --scanners vuln %BACKEND_IMAGE%
+              trivy image --exit-code 1 --severity HIGH,CRITICAL --timeout 20m --scanners vuln %BACKEND_IMAGE%
             """
           }
         }
