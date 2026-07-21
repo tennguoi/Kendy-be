@@ -28,9 +28,9 @@ pipeline {
       steps {
         script {
           if (isUnix()) {
-            sh './mvnw test'
+            sh './mvnw test -Dspring.profiles.active=test'
           } else {
-            bat 'mvnw.cmd test'
+            bat 'mvnw.cmd test -Dspring.profiles.active=test'
           }
         }
       }
