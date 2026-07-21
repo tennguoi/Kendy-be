@@ -48,6 +48,18 @@ pipeline {
       }
     }
 
+    stage('Scan Image') {
+      steps {
+        script {
+          if (isUnix()) {
+            sh 'trivy image --exit-code 1 --severity HIGH,CRITICAL "$BACKEND_IMAGE"'
+          } else {
+            bat 'trivy image --exit-code 1 --severity HIGH,CRITICAL %BACKEND_IMAGE%'
+          }
+        }
+      }
+    }
+
     stage('Push Image') {
       steps {
         withCredentials([usernamePassword(credentialsId: env.DOCKERHUB_CREDENTIALS, usernameVariable: 'REGISTRY_USER', passwordVariable: 'REGISTRY_PASSWORD')]) {
