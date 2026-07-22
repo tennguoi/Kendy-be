@@ -9,17 +9,12 @@ pipeline {
 
   environment {
     REGISTRY = 'docker.io'
-
-    // Docker Hub repository:
-    // docker.io/tennguoi2/kendy-backend
     IMAGE_NAME = 'tennguoi2/kendy-backend'
 
-    // ID credential trong Jenkins
     DOCKERHUB_CREDENTIALS = 'dockerhub-push-credentials'
 
-    // Thư mục triển khai
-    APP_DIR_LINUX = '/opt/kendy'
-    APP_DIR_WIN   = 'C:/Kendy-deploy'
+    APP_DIR_LINUX = '/opt/Kendy-deploy'
+    APP_DIR_WIN = 'C:/Kendy-deploy'
   }
 
   stages {
@@ -28,7 +23,6 @@ pipeline {
         checkout scm
 
         script {
-          // Hiện tại dùng nhánh dev
           env.IMAGE_TAG = "dev-${env.BUILD_NUMBER}"
 
           env.BACKEND_IMAGE =
@@ -42,11 +36,10 @@ pipeline {
             "${env.WORKSPACE}/.trivy-cache"
 
           echo """
-          Hệ điều hành : ${isUnix() ? 'Linux' : 'Windows'}
-          Image        : ${env.BACKEND_IMAGE}
-          APP_DIR      : ${env.APP_DIR}
-          Trivy cache  : ${env.TRIVY_CACHE_DIR}
-          """.stripIndent()
+Hệ điều hành : ${isUnix() ? 'Linux' : 'Windows'}
+Docker image : ${env.BACKEND_IMAGE}
+Deploy folder: ${env.APP_DIR}
+""".stripIndent()
 
           if (isUnix()) {
             sh '''
@@ -79,7 +72,8 @@ pipeline {
             '''
           } else {
             bat '''
-              mvnw.cmd test -Dspring.profiles.active=test
+              @echo off
+              call mvnw.cmd test -Dspring.profiles.active=test
             '''
           }
         }
@@ -96,16 +90,9 @@ pipeline {
                 .
             '''
           } else {
-            powershell '''
-              $ErrorActionPreference = 'Stop'
-
-              docker build `
-                --tag $env:BACKEND_IMAGE `
-                .
-
-              if ($LASTEXITCODE -ne 0) {
-                throw "Docker build thất bại, exit code: $LASTEXITCODE"
-              }
+            bat '''
+              @echo off
+              docker build --tag "%BACKEND_IMAGE%" .
             '''
           }
         }
@@ -117,8 +104,8 @@ pipeline {
         script {
           if (isUnix()) {
             sh '''
-              TRIVY_CACHE_DIR="$TRIVY_CACHE_DIR" \
               trivy image \
+                --cache-dir "$TRIVY_CACHE_DIR" \
                 --exit-code 1 \
                 --severity HIGH,CRITICAL \
                 --timeout 20m \
@@ -126,19 +113,16 @@ pipeline {
                 "$BACKEND_IMAGE"
             '''
           } else {
-            powershell '''
-              $ErrorActionPreference = 'Stop'
+            bat '''
+              @echo off
 
-              trivy image `
-                --exit-code 1 `
-                --severity HIGH,CRITICAL `
-                --timeout 20m `
-                --scanners vuln `
-                $env:BACKEND_IMAGE
-
-              if ($LASTEXITCODE -ne 0) {
-                throw "Trivy scan thất bại hoặc phát hiện lỗ hổng HIGH/CRITICAL."
-              }
+              trivy image ^
+                --cache-dir "%TRIVY_CACHE_DIR%" ^
+                --exit-code 1 ^
+                --severity HIGH,CRITICAL ^
+                --timeout 20m ^
+                --scanners vuln ^
+                "%BACKEND_IMAGE%"
             '''
           }
         }
@@ -167,88 +151,28 @@ pipeline {
                 docker push "$BACKEND_IMAGE"
               '''
             } else {
-              powershell '''
-                $ErrorActionPreference = 'Stop'
+              bat '''
+                @echo off
 
-                $dockerUser = $env:REGISTRY_USER.Trim()
-                $dockerToken = $env:REGISTRY_PASSWORD.Trim()
+                echo Dang dang nhap Docker Hub voi user %REGISTRY_USER%...
 
-                if ([string]::IsNullOrWhiteSpace($dockerUser)) {
-                  throw 'Docker Hub username đang bị trống.'
-                }
+                <nul set /p "=%REGISTRY_PASSWORD%" | docker login "%REGISTRY%" ^
+                  --username "%REGISTRY_USER%" ^
+                  --password-stdin
 
-                if ([string]::IsNullOrWhiteSpace($dockerToken)) {
-                  throw 'Docker Hub token đang bị trống.'
-                }
+                if errorlevel 1 (
+                  echo Docker Hub login that bai.
+                  exit /b 1
+                )
 
-                Write-Host "Đăng nhập Docker Hub với user: $dockerUser"
+                echo Dang push image %BACKEND_IMAGE%...
 
-                $startInfo =
-                  New-Object System.Diagnostics.ProcessStartInfo
+                docker push "%BACKEND_IMAGE%"
 
-                $startInfo.FileName = 'docker.exe'
-
-                $startInfo.Arguments =
-                  "login docker.io --username `"$dockerUser`" --password-stdin"
-
-                $startInfo.UseShellExecute = $false
-                $startInfo.RedirectStandardInput = $true
-                $startInfo.RedirectStandardOutput = $true
-                $startInfo.RedirectStandardError = $true
-                $startInfo.CreateNoWindow = $true
-
-                $dockerProcess =
-                  New-Object System.Diagnostics.Process
-
-                $dockerProcess.StartInfo = $startInfo
-
-                try {
-                  $null = $dockerProcess.Start()
-
-                  // Gửi token trực tiếp vào stdin của docker.exe
-                  $dockerProcess.StandardInput.Write($dockerToken)
-                  $dockerProcess.StandardInput.Close()
-
-                  $standardOutput =
-                    $dockerProcess.StandardOutput.ReadToEnd()
-
-                  $standardError =
-                    $dockerProcess.StandardError.ReadToEnd()
-
-                  $dockerProcess.WaitForExit()
-
-                  if (
-                    -not [string]::IsNullOrWhiteSpace(
-                      $standardOutput
-                    )
-                  ) {
-                    Write-Host $standardOutput.Trim()
-                  }
-
-                  if (
-                    -not [string]::IsNullOrWhiteSpace(
-                      $standardError
-                    )
-                  ) {
-                    Write-Host $standardError.Trim()
-                  }
-
-                  if ($dockerProcess.ExitCode -ne 0) {
-                    throw "Docker Hub login thất bại, exit code: $($dockerProcess.ExitCode)"
-                  }
-                }
-                finally {
-                  $dockerProcess.Dispose()
-                  $dockerToken = $null
-                }
-
-                Write-Host "Đang push image: $env:BACKEND_IMAGE"
-
-                docker push $env:BACKEND_IMAGE
-
-                if ($LASTEXITCODE -ne 0) {
-                  throw "Docker push thất bại, exit code: $LASTEXITCODE"
-                }
+                if errorlevel 1 (
+                  echo Docker push that bai.
+                  exit /b 1
+                )
               '''
             }
           }
@@ -261,28 +185,30 @@ pipeline {
         script {
           if (isUnix()) {
             sh '''
+              if [ ! -f "$APP_DIR/deploy.sh" ]; then
+                echo "Không tìm thấy $APP_DIR/deploy.sh"
+                exit 1
+              fi
+
               BACKEND_IMAGE="$BACKEND_IMAGE" \
               APP_DIR="$APP_DIR" \
-              "$APP_DIR/deploy.sh"
+              sh "$APP_DIR/deploy.sh"
             '''
           } else {
             powershell '''
               $ErrorActionPreference = 'Stop'
 
-              $deployScript =
+              $deployFile =
                 Join-Path $env:APP_DIR 'deploy.ps1'
 
-              if (-not (Test-Path $deployScript)) {
-                throw "Không tìm thấy file deploy: $deployScript"
+              if (-not (Test-Path $deployFile)) {
+                throw "Không tìm thấy file: $deployFile"
               }
 
               Write-Host "Deploy image: $env:BACKEND_IMAGE"
               Write-Host "Deploy folder: $env:APP_DIR"
 
-              & powershell.exe `
-                -NoProfile `
-                -ExecutionPolicy Bypass `
-                -File $deployScript
+              & $deployFile
 
               if ($LASTEXITCODE -ne 0) {
                 throw "Deploy thất bại, exit code: $LASTEXITCODE"
@@ -298,16 +224,21 @@ pipeline {
     always {
       script {
         if (isUnix()) {
-          sh '''
-            docker logout docker.io || true
-          '''
+          sh(
+            returnStatus: true,
+            script: '''
+              docker logout docker.io >/dev/null 2>&1 || true
+            '''
+          )
         } else {
-          powershell '''
-            docker logout docker.io 2>$null |
-              Out-Null
-
-            exit 0
-          '''
+          bat(
+            returnStatus: true,
+            script: '''
+              @echo off
+              docker logout docker.io >nul 2>&1
+              exit /b 0
+            '''
+          )
         }
       }
     }
@@ -317,7 +248,7 @@ pipeline {
     }
 
     failure {
-      echo '❌ Pipeline thất bại. Kiểm tra Console Output.'
+      echo '❌ Pipeline thất bại. Kiểm tra stage màu đỏ.'
     }
   }
 }
