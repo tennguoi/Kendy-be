@@ -88,11 +88,37 @@ pipeline {
               sh 'printf "%s" "$REGISTRY_PASSWORD" | docker login "$REGISTRY" -u "$DOCKERHUB_USER" --password-stdin'
               sh 'docker push "$BACKEND_IMAGE"'
             } else {
-              bat '''
-                @echo off
-                echo Docker credential user from Jenkins: %REGISTRY_USER%
-                echo Docker login forced user: %DOCKERHUB_USER%
-                <nul set /p docker_password=%REGISTRY_PASSWORD%| docker login %REGISTRY% -u %DOCKERHUB_USER% --password-stdin
+              powershell '''
+                $ErrorActionPreference = 'Stop'
+                $dockerPassword = $env:REGISTRY_PASSWORD.Trim()
+                if ([string]::IsNullOrWhiteSpace($dockerPassword)) {
+                  throw 'Docker Hub credential password is empty.'
+                }
+
+                Write-Host "Docker credential user from Jenkins: $env:REGISTRY_USER"
+                Write-Host "Docker login forced user: $env:DOCKERHUB_USER"
+                Write-Host "Docker token length after trim: $($dockerPassword.Length)"
+
+                $startInfo = New-Object System.Diagnostics.ProcessStartInfo
+                $startInfo.FileName = 'docker.exe'
+                $startInfo.Arguments = "login $env:REGISTRY --username $env:DOCKERHUB_USER --password-stdin"
+                $startInfo.UseShellExecute = $false
+                $startInfo.RedirectStandardInput = $true
+                $startInfo.RedirectStandardOutput = $true
+                $startInfo.RedirectStandardError = $true
+
+                $dockerProcess = New-Object System.Diagnostics.Process
+                $dockerProcess.StartInfo = $startInfo
+                $null = $dockerProcess.Start()
+                $dockerProcess.StandardInput.Write($dockerPassword)
+                $dockerProcess.StandardInput.Close()
+                $standardOutput = $dockerProcess.StandardOutput.ReadToEnd()
+                $standardError = $dockerProcess.StandardError.ReadToEnd()
+                $dockerProcess.WaitForExit()
+
+                if ($standardOutput) { Write-Host $standardOutput.TrimEnd() }
+                if ($standardError) { Write-Host $standardError.TrimEnd() }
+                if ($dockerProcess.ExitCode -ne 0) { exit $dockerProcess.ExitCode }
               '''
               bat "docker push %BACKEND_IMAGE%"
             }
