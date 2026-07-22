@@ -9,7 +9,7 @@ pipeline {
     REGISTRY              = 'docker.io'
     IMAGE_NAME            = 'tennguoi2/kendy-backend'
     IMAGE_TAG             = "dev-${env.BUILD_NUMBER}"
-    DOCKERHUB_CREDENTIALS = 'dockerhub-credentials'
+    DOCKERHUB_CREDENTIALS = 'dockerhub-push-credentials'
     DOCKERHUB_USER        = 'tennguoi2'
     APP_DIR_LINUX         = '/Kendy-deploy'
     APP_DIR_WIN           = 'C:/Kendy-deploy'
