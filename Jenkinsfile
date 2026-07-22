@@ -84,10 +84,10 @@ pipeline {
         withCredentials([usernamePassword(credentialsId: env.DOCKERHUB_CREDENTIALS, usernameVariable: 'REGISTRY_USER', passwordVariable: 'REGISTRY_PASSWORD')]) {
           script {
             if (isUnix()) {
-              sh 'echo "$REGISTRY_PASSWORD" | docker login "$REGISTRY" -u "$REGISTRY_USER" --password-stdin'
+              sh 'printf "%s" "$REGISTRY_PASSWORD" | docker login "$REGISTRY" -u "$REGISTRY_USER" --password-stdin'
               sh 'docker push "$BACKEND_IMAGE"'
             } else {
-              bat "echo %REGISTRY_PASSWORD% | docker login %REGISTRY% -u %REGISTRY_USER% --password-stdin"
+              powershell '$env:REGISTRY_PASSWORD | docker login $env:REGISTRY -u $env:REGISTRY_USER --password-stdin'
               bat "docker push %BACKEND_IMAGE%"
             }
           }
