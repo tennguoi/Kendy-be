@@ -95,6 +95,19 @@ pipeline {
                   throw 'Docker Hub credential password is empty.'
                 }
 
+                $sha = [System.Security.Cryptography.SHA256]::Create()
+                try {
+                  $tokenBytes = [System.Text.Encoding]::UTF8.GetBytes($dockerPassword)
+                  $hashBytes = $sha.ComputeHash($tokenBytes)
+                  $tokenHash = ($hashBytes | ForEach-Object { $_.ToString('x2') }) -join ''
+                } finally {
+                  $sha.Dispose()
+                  if ($tokenBytes) {
+                    [Array]::Clear($tokenBytes, 0, $tokenBytes.Length)
+                  }
+                }
+
+                Write-Host "Jenkins token SHA256: $tokenHash"
                 Write-Host "Docker credential user from Jenkins: $env:REGISTRY_USER"
                 Write-Host "Docker login forced user: $env:DOCKERHUB_USER"
                 Write-Host "Docker token length after trim: $($dockerPassword.Length)"
