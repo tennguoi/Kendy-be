@@ -11,16 +11,20 @@ import org.springframework.web.socket.config.annotation.WebSocketHandlerRegistry
 public class WebSocketConfig implements WebSocketConfigurer {
     private final AppSecurityProperties securityProperties;
     private final NotificationRealtimeServiceImpl notificationRealtimeService;
+    private final WebSocketHandshakeInterceptor handshakeInterceptor;
 
     public WebSocketConfig(AppSecurityProperties securityProperties,
-            NotificationRealtimeServiceImpl notificationRealtimeService) {
+            NotificationRealtimeServiceImpl notificationRealtimeService,
+            WebSocketHandshakeInterceptor handshakeInterceptor) {
         this.securityProperties = securityProperties;
         this.notificationRealtimeService = notificationRealtimeService;
+        this.handshakeInterceptor = handshakeInterceptor;
     }
 
     @Override
     public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
         registry.addHandler(notificationRealtimeService, "/ws/notifications")
+                .addInterceptors(handshakeInterceptor)
                 .setAllowedOrigins(securityProperties.getCorsAllowedOrigins().toArray(String[]::new));
     }
 }

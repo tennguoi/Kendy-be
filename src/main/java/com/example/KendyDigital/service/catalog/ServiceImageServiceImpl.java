@@ -3,7 +3,7 @@ package com.example.KendyDigital.service.catalog;
 import com.cloudinary.Cloudinary;
 import com.cloudinary.utils.ObjectUtils;
 import com.example.KendyDigital.dto.catalog.response.ServiceImageUploadResponse;
-import com.example.KendyDigital.service.file.UploadedFileValidator;
+import com.example.KendyDigital.service.file_integrations.UploadedFileValidator;
 import java.io.IOException;
 import java.util.Map;
 import java.util.Set;

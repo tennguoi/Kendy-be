@@ -3,6 +3,7 @@ package com.example.KendyDigital.config;
 import com.example.KendyDigital.common.MaintenanceModeFilter;
 import com.example.KendyDigital.common.RateLimitFilter;
 import com.example.KendyDigital.common.RequestIdFilter;
+import com.example.KendyDigital.common.SecurityHeadersFilter;
 import com.example.KendyDigital.common.ServerTimeFilter;
 import com.example.KendyDigital.security.ApiKeyAuthenticationFilter;
 import com.example.KendyDigital.security.BearerTokenAuthenticationFilter;
@@ -24,6 +25,8 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+
+import java.util.List;
 
 @Configuration
 @EnableWebSecurity
@@ -53,7 +56,8 @@ public class SecurityConfig {
                         BearerTokenAuthenticationFilter bearerTokenAuthenticationFilter,
                         ApiKeyAuthenticationFilter apiKeyAuthenticationFilter,
                         RequestIdFilter requestIdFilter, RateLimitFilter rateLimitFilter,
-                        MaintenanceModeFilter maintenanceModeFilter, ServerTimeFilter serverTimeFilter)
+                        MaintenanceModeFilter maintenanceModeFilter, ServerTimeFilter serverTimeFilter,
+                        SecurityHeadersFilter securityHeadersFilter)
                         throws Exception {
                 http.csrf(csrf -> csrf.disable())
                                 .cors(Customizer.withDefaults())
@@ -93,13 +97,16 @@ public class SecurityConfig {
                                                 .contentSecurityPolicy(csp -> csp.policyDirectives(
                                                                 "default-src 'self'; frame-ancestors 'none'"))
                                                 .httpStrictTransportSecurity(
-                                                                hsts -> hsts.includeSubDomains(true).preload(true)))
+                                                                hsts -> hsts.includeSubDomains(true).preload(true))
+                                                .contentTypeOptions(contentTypeOptions -> contentTypeOptions.disable()) // We'll add custom header via filter
+                                                .referrerPolicy(referrer -> referrer.policy(org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter.ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN)))
                                 .addFilterBefore(requestIdFilter, UsernamePasswordAuthenticationFilter.class)
                                 .addFilterBefore(serverTimeFilter, RequestIdFilter.class)
                                 .addFilterBefore(maintenanceModeFilter, UsernamePasswordAuthenticationFilter.class)
                                 .addFilterBefore(apiKeyAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
                                 .addFilterBefore(bearerTokenAuthenticationFilter,
                                                 UsernamePasswordAuthenticationFilter.class)
+                                .addFilterBefore(securityHeadersFilter, UsernamePasswordAuthenticationFilter.class)
                                 .addFilterAfter(rateLimitFilter, BearerTokenAuthenticationFilter.class)
                                 .httpBasic(basic -> basic.disable())
                                 .formLogin(form -> form.disable());
@@ -116,8 +123,8 @@ public class SecurityConfig {
         CorsConfigurationSource corsConfigurationSource(AppSecurityProperties properties) {
                 CorsConfiguration configuration = new CorsConfiguration();
                 configuration.setAllowedOrigins(properties.getCorsAllowedOrigins());
-                configuration.addAllowedMethod("*");
-                configuration.addAllowedHeader("*");
+                configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
+                configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "X-Requested-With", "Accept", "Origin", "X-Api-Key", "Accept-Language"));
                 configuration.setAllowCredentials(true);
                 configuration.addExposedHeader(RequestIdFilter.REQUEST_ID_HEADER);
                 configuration.addExposedHeader(ServerTimeFilter.SERVER_TIME_HEADER);

@@ -2,6 +2,7 @@ package com.example.KendyDigital.common;
 
 import com.example.KendyDigital.common.error.ApiError;
 import com.example.KendyDigital.common.error.ErrorCode;
+import com.example.KendyDigital.config.AppSecurityProperties;
 import com.example.KendyDigital.config.RateLimitProperties;
 import com.example.KendyDigital.repository.SystemSettingRepository;
 import com.example.KendyDigital.security.AuthenticatedUser;
@@ -11,9 +12,12 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.time.Instant;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.time.Duration;
@@ -33,21 +37,26 @@ public class RateLimitFilter extends OncePerRequestFilter {
     private static final int MAX_COUNTER_ENTRIES = 10_000;
 
     private final RateLimitProperties properties;
+    private final AppSecurityProperties securityProperties;
     private final SystemSettingRepository systemSettingRepository;
     private final ObjectProvider<StringRedisTemplate> redisTemplateProvider;
     private final MessageSource messageSource;
     private final ObjectMapper objectMapper;
     private final Map<String, WindowCounter> counters = new ConcurrentHashMap<>();
     private final Map<String, CachedSetting> settingCache = new ConcurrentHashMap<>();
+    private final Set<String> trustedProxyAddresses;
 
-    public RateLimitFilter(RateLimitProperties properties, SystemSettingRepository systemSettingRepository,
+    public RateLimitFilter(RateLimitProperties properties, AppSecurityProperties securityProperties,
+            SystemSettingRepository systemSettingRepository,
             ObjectProvider<StringRedisTemplate> redisTemplateProvider,
             MessageSource messageSource, ObjectMapper objectMapper) {
         this.properties = properties;
+        this.securityProperties = securityProperties;
         this.systemSettingRepository = systemSettingRepository;
         this.redisTemplateProvider = redisTemplateProvider;
         this.messageSource = messageSource;
         this.objectMapper = objectMapper;
+        this.trustedProxyAddresses = Set.copyOf(securityProperties.getTrustedProxies());
     }
 
     @Scheduled(fixedDelay = 30000)
@@ -108,7 +117,9 @@ public class RateLimitFilter extends OncePerRequestFilter {
         if ("POST".equals(method) && ("/api/auth/login".equals(path) || "/api/auth/register".equals(path)
                 || "/api/auth/forgot-password".equals(path) || "/api/auth/verify-password-reset".equals(path)
                 || "/api/auth/reset-password".equals(path)
-                || "/api/auth/resend-verification".equals(path))) {
+                || "/api/auth/resend-verification".equals(path)
+                || "/api/auth/verify-email".equals(path)
+                || "/api/auth/2fa/email-code".equals(path))) {
             return configuredLimit("rate_limit.auth_per_minute", properties.getAuthPerMinute());
         }
         if ("POST".equals(method) && "/api/webhooks/sepay".equals(path)) {
@@ -117,8 +128,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
         if ("POST".equals(method) && "/api/deposits".equals(path)) {
             return configuredLimit("rate_limit.deposit_per_minute", properties.getDepositPerMinute());
         }
-        if ("POST".equals(method) && ("/api/orders".equals(path)
-                || "/api/auth/2fa/email-code".equals(path))) {
+        if ("POST".equals(method) && ("/api/orders".equals(path))) {
             return configuredLimit("rate_limit.finance_per_minute", properties.getFinancePerMinute());
         }
         if (path.startsWith("/api/tickets") || path.startsWith("/api/warranty-requests")) {
@@ -128,6 +138,18 @@ public class RateLimitFilter extends OncePerRequestFilter {
             return configuredLimit("rate_limit.renewal_per_minute", properties.getRenewalPerMinute());
         }
         if ("POST".equals(method) && path.startsWith("/api/admin/credentials/") && path.endsWith("/reveal")) {
+            return configuredLimit("rate_limit.finance_per_minute", properties.getFinancePerMinute());
+        }
+        // 2FA and security-sensitive endpoints
+        if ("POST".equals(method) && (path.startsWith("/api/me/2fa/") || path.startsWith("/api/auth/2fa/"))) {
+            return configuredLimit("rate_limit.auth_per_minute", properties.getAuthPerMinute());
+        }
+        // API key management
+        if (path.startsWith("/api/me/api-keys")) {
+            return configuredLimit("rate_limit.auth_per_minute", properties.getAuthPerMinute());
+        }
+        // Admin bulk operations
+        if ("POST".equals(method) && (path.startsWith("/api/admin/users/bulk-") || path.startsWith("/api/admin/admins/bulk-"))) {
             return configuredLimit("rate_limit.finance_per_minute", properties.getFinancePerMinute());
         }
         return 0;
@@ -150,25 +172,40 @@ public class RateLimitFilter extends OncePerRequestFilter {
     }
 
     private String clientIp(HttpServletRequest request) {
+        String remoteAddr = request.getRemoteAddr();
         String forwardedFor = request.getHeader("X-Forwarded-For");
-        if (isTrustedProxy(request.getRemoteAddr()) && forwardedFor != null && !forwardedFor.isBlank()) {
+        if (isTrustedProxy(remoteAddr) && forwardedFor != null && !forwardedFor.isBlank()) {
             String[] parts = forwardedFor.split(",");
+            // Get the first non-trusted proxy IP (client IP)
+            for (int i = parts.length - 1; i >= 0; i--) {
+                String ip = parts[i].trim();
+                if (!isTrustedProxy(ip)) {
+                    return ip;
+                }
+            }
+            // All proxies are trusted, return the last one
             return parts[parts.length - 1].trim();
         }
-        return request.getRemoteAddr();
-    }
-
-    private boolean isLoopback(String address) {
-        return "127.0.0.1".equals(address) || "0:0:0:0:0:0:0:1".equals(address) || "::1".equals(address);
+        return remoteAddr;
     }
 
     private boolean isTrustedProxy(String address) {
-        if (isLoopback(address)) return true;
-        try {
-            return java.net.InetAddress.getByName(address).isSiteLocalAddress();
-        } catch (Exception exception) {
-            return false;
+        if (address == null) return false;
+        if ("127.0.0.1".equals(address) || "0:0:0:0:0:0:0:1".equals(address) || "::1".equals(address)) {
+            return true;
         }
+        if (trustedProxyAddresses.contains(address)) {
+            return true;
+        }
+        // Check CIDR notation if needed
+        try {
+            InetAddress inetAddress = InetAddress.getByName(address);
+            if (inetAddress.isLoopbackAddress() || inetAddress.isSiteLocalAddress()) {
+                return true;
+            }
+        } catch (UnknownHostException ignored) {
+        }
+        return false;
     }
 
     private String rateLimitSubject(HttpServletRequest request) {

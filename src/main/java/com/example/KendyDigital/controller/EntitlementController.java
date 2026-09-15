@@ -3,7 +3,7 @@ package com.example.KendyDigital.controller;
 import com.example.KendyDigital.dto.entitlement.request.AdminEntitlementUpdateRequest;
 import com.example.KendyDigital.dto.entitlement.response.UserEntitlementResponse;
 import com.example.KendyDigital.security.CurrentUser;
-import com.example.KendyDigital.service.entitlement.EntitlementService;
+import com.example.KendyDigital.service.product_inventory.EntitlementService;
 import jakarta.validation.Valid;
 import java.util.List;
 import org.springframework.security.core.Authentication;

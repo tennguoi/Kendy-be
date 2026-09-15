@@ -59,6 +59,13 @@ public class DepositServiceImpl  implements DepositService{
         }
 
         BigDecimal amount = rawAmount.setScale(2, RoundingMode.HALF_UP);
+        // Validate minimum deposit amount
+        BigDecimal minAmount = BigDecimal.valueOf(1000); // 1,000 VND minimum
+        if (amount.compareTo(minAmount) < 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Deposit amount must be at least 1,000 VND");
+        }
+
         String depositCode = nextDepositCode();
         String transferContent = depositCode;
         Instant expiredAt = Instant.now().plus(Duration.ofMinutes(bankProperties.getDepositExpiryMinutes()));

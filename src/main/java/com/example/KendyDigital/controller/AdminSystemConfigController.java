@@ -8,7 +8,7 @@ import com.example.KendyDigital.dto.setting.request.WebhookConfigRequest;
 import com.example.KendyDigital.dto.setting.response.SystemSettingHistoryResponse;
 import com.example.KendyDigital.dto.setting.response.SystemSettingResponse;
 import com.example.KendyDigital.security.CurrentUser;
-import com.example.KendyDigital.service.system.AdminSystemConfigService;
+import com.example.KendyDigital.service.system_infrastructure.AdminSystemConfigService;
 import jakarta.validation.Valid;
 import java.util.LinkedHashMap;
 import java.util.List;

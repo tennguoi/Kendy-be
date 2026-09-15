@@ -5,7 +5,7 @@ import com.example.KendyDigital.dto.warranty.request.CreateWarrantyRequest;
 import com.example.KendyDigital.dto.warranty.response.WarrantyRequestResponse;
 import com.example.KendyDigital.model.warranty.WarrantyRequestStatus;
 import com.example.KendyDigital.security.CurrentUser;
-import com.example.KendyDigital.service.warranty.WarrantyService;
+import com.example.KendyDigital.service.customer_service.WarrantyService;
 import jakarta.validation.Valid;
 import java.util.List;
 import org.springframework.security.core.Authentication;

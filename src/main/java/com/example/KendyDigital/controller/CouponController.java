@@ -6,7 +6,7 @@ import com.example.KendyDigital.dto.coupon.response.CouponResponse;
 import com.example.KendyDigital.dto.coupon.response.CouponValidationResponse;
 import com.example.KendyDigital.model.coupon.CouponStatus;
 import com.example.KendyDigital.security.CurrentUser;
-import com.example.KendyDigital.service.coupon.CouponService;
+import com.example.KendyDigital.service.product_inventory.CouponService;
 import jakarta.validation.Valid;
 import java.util.List;
 import org.springframework.security.core.Authentication;

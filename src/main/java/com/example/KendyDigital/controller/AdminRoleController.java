@@ -5,7 +5,7 @@ import com.example.KendyDigital.dto.role.request.UpdateAdminRoleRequest;
 import com.example.KendyDigital.dto.role.response.AdminPermissionResponse;
 import com.example.KendyDigital.dto.role.response.AdminRoleResponse;
 import com.example.KendyDigital.security.CurrentUser;
-import com.example.KendyDigital.service.role.AdminRoleService;
+import com.example.KendyDigital.service.user_management.AdminRoleService;
 import jakarta.validation.Valid;
 import java.util.List;
 import java.util.Map;

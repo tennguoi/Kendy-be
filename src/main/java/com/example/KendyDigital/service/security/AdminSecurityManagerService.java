@@ -1,5 +1,6 @@
 package com.example.KendyDigital.service.security;
 
+import com.example.KendyDigital.dto.auth.request.TwoFactorDisableRequest;
 import com.example.KendyDigital.dto.auth.request.TwoFactorVerifyRequest;
 import com.example.KendyDigital.dto.auth.response.AuthSessionResponse;
 import com.example.KendyDigital.dto.auth.response.TotpSetupResponse;
@@ -19,7 +20,7 @@ public interface AdminSecurityManagerService {
     List<AdminUserResponse> listAdmins(Integer limit);
     TotpSetupResponse setupTwoFactor(Long adminUserId, Long targetAdminId);
     AdminUserResponse verifyAndEnableTwoFactor(Long adminUserId, Long targetAdminId, TwoFactorVerifyRequest request);
-    AdminUserResponse disableTwoFactor(Long adminUserId, Long targetAdminId);
+    AdminUserResponse disableTwoFactor(Long adminUserId, Long targetAdminId, TwoFactorDisableRequest request);
     TotpSetupResponse resetTwoFactor(Long adminUserId, Long targetAdminId);
     Map<String, Object> getPermissions(Long adminId);
     Map<String, Object> updatePermissions(Long adminUserId, Long targetAdminId, AdminPermissionsRequest request);

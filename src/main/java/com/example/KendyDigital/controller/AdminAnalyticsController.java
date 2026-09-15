@@ -1,6 +1,6 @@
 package com.example.KendyDigital.controller;
 
-import com.example.KendyDigital.service.analytics.AdminExportAnalyticsService;
+import com.example.KendyDigital.service.analytics_finance.AdminExportAnalyticsService;
 import java.util.List;
 import java.util.Map;
 import org.springframework.http.HttpHeaders;

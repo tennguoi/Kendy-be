@@ -180,8 +180,8 @@ public class UserSecurityServiceImpl  implements UserSecurityService{
     public AuthTokenResponse refresh(String token) {
         UserAccount user = authTokenService.resolveUser(token)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid token"));
-        authTokenService.revoke(token);
-        AuthTokenService.IssuedToken issued = authTokenService.issue(user);
+        authTokenService.revoke(token, null);
+        AuthTokenService.IssuedToken issued = authTokenService.issue(user, null);
         return new AuthTokenResponse(issued.token(), issued.expiresAt(), AuthUserResponse.from(user));
     }
 
@@ -402,7 +402,7 @@ public class UserSecurityServiceImpl  implements UserSecurityService{
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid verification code");
         }
         challenge.markUsed();
-        AuthTokenService.IssuedToken issued = authTokenService.issue(user);
+        AuthTokenService.IssuedToken issued = authTokenService.issue(user, null);
         auditService.recordSystem("USER_OAUTH_2FA_VERIFIED", "USER", user.getId(), null);
         return new AuthTokenResponse(issued.token(), issued.expiresAt(), AuthUserResponse.from(user));
     }
@@ -470,9 +470,15 @@ public class UserSecurityServiceImpl  implements UserSecurityService{
     }
 
     private UserSecurityToken requireUsableToken(String token, UserSecurityTokenType type) {
+        String tokenHash = sha256(token.trim());
+        // Constant-time lookup: always query the database to prevent timing attacks
         UserSecurityToken securityToken = securityTokenRepository
-                .findByTokenHashAndTypeAndUsedAtIsNull(sha256(token.trim()), type)
-                .orElse(null);
+                .findByTokenHashAndTypeAndUsedAtIsNull(tokenHash, type)
+                .orElseGet(() -> {
+                    // Dummy query to maintain constant time
+                    securityTokenRepository.findByTokenHashAndTypeAndUsedAtIsNull("dummy", type);
+                    return null;
+                });
         if (securityToken == null || !securityToken.isUsable()) {
             sleep(BRUTE_FORCE_DELAY_MILLIS);
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,

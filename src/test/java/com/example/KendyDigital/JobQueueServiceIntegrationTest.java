@@ -5,7 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import com.example.KendyDigital.model.job.JobStatus;
 import com.example.KendyDigital.repository.JobRecordRepository;
-import com.example.KendyDigital.service.job.JobQueueService;
+import com.example.KendyDigital.service.system_infrastructure.JobQueueService;
 import java.util.concurrent.CompletionException;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;

@@ -112,9 +112,10 @@ public class AdminWalletManagerServiceImpl  implements AdminWalletManagerService
         }
 
         WalletTransaction transaction;
+        Long userId = targetUserId;
         if (request.direction() == WalletTransactionDirection.CREDIT) {
             transaction = walletLedgerService.credit(
-                    user,
+                    userId,
                     request.amount(),
                     WalletTransactionType.ADMIN_ADJUST,
                     "ADMIN_WALLET_ADJUSTMENT",
@@ -123,7 +124,7 @@ public class AdminWalletManagerServiceImpl  implements AdminWalletManagerService
                     adminUserId);
         } else if (request.direction() == WalletTransactionDirection.DEBIT) {
             transaction = walletLedgerService.debit(
-                    user,
+                    userId,
                     request.amount(),
                     WalletTransactionType.ADMIN_ADJUST,
                     "ADMIN_WALLET_ADJUSTMENT",

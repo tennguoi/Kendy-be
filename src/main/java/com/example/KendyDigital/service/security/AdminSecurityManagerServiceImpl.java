@@ -1,5 +1,6 @@
 package com.example.KendyDigital.service.security;
 
+import com.example.KendyDigital.dto.auth.request.TwoFactorDisableRequest;
 import com.example.KendyDigital.dto.auth.request.TwoFactorVerifyRequest;
 import com.example.KendyDigital.dto.auth.response.AuthSessionResponse;
 import com.example.KendyDigital.dto.auth.response.TotpSetupResponse;
@@ -24,6 +25,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
@@ -36,19 +38,22 @@ public class AdminSecurityManagerServiceImpl  implements AdminSecurityManagerSer
     private final AuditService auditService;
     private final TwoFactorService twoFactorService;
     private final UserNotificationService userNotificationService;
+    private final PasswordEncoder passwordEncoder;
 
     public AdminSecurityManagerServiceImpl(UserAccountRepository userAccountRepository,
             AuthSessionRepository authSessionRepository,
             UserApiKeyRepository userApiKeyRepository,
             AuditService auditService,
             TwoFactorService twoFactorService,
-            UserNotificationService userNotificationService) {
+            UserNotificationService userNotificationService,
+            PasswordEncoder passwordEncoder) {
         this.userAccountRepository = userAccountRepository;
         this.authSessionRepository = authSessionRepository;
         this.userApiKeyRepository = userApiKeyRepository;
         this.auditService = auditService;
         this.twoFactorService = twoFactorService;
         this.userNotificationService = userNotificationService;
+        this.passwordEncoder = passwordEncoder;
     }
 
     @Transactional(readOnly = true)
@@ -142,8 +147,18 @@ public class AdminSecurityManagerServiceImpl  implements AdminSecurityManagerSer
     }
 
     @Transactional
-    public AdminUserResponse disableTwoFactor(Long adminUserId, Long targetAdminId) {
+    public AdminUserResponse disableTwoFactor(Long adminUserId, Long targetAdminId, TwoFactorDisableRequest request) {
         UserAccount admin = requireAdminForUpdate(targetAdminId);
+        // Verify password of the admin performing the action
+        if (!passwordEncoder.matches(request.password(), admin.getPasswordHash())) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Password is incorrect");
+        }
+        // If 2FA is enabled, also verify the 2FA code
+        if (admin.isTwoFactorEnabled()) {
+            if (!twoFactorService.verify(admin.getTwoFactorSecret(), request.code())) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid 2FA code");
+            }
+        }
         admin.disableTwoFactor();
         auditService.recordAdmin(adminUserId, "ADMIN_2FA_DISABLED", "USER", admin.getId(), null);
         return AdminUserResponse.from(admin);

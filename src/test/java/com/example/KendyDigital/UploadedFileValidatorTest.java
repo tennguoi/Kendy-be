@@ -3,7 +3,7 @@ package com.example.KendyDigital;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-import com.example.KendyDigital.service.file.UploadedFileValidator;
+import com.example.KendyDigital.service.file_integrations.UploadedFileValidator;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.web.server.ResponseStatusException;

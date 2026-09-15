@@ -6,6 +6,8 @@ import com.example.KendyDigital.common.error.ErrorCode;
 import java.util.List;
 import java.util.Locale;
 import java.util.stream.Collectors;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.context.MessageSource;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
@@ -19,6 +21,8 @@ import org.springframework.web.server.ResponseStatusException;
 
 @RestControllerAdvice
 public class ApiExceptionHandler {
+
+    private static final Logger log = LoggerFactory.getLogger(ApiExceptionHandler.class);
 
     private final MessageSource messageSource;
 
@@ -102,6 +106,8 @@ public class ApiExceptionHandler {
     @ExceptionHandler(DataIntegrityViolationException.class)
     ResponseEntity<ApiError> handleDataIntegrity(DataIntegrityViolationException exception, WebRequest request) {
         Locale locale = request.getLocale();
+        // Log the full error for debugging
+        log.error("Data integrity violation", exception);
         String detail = exception.getMostSpecificCause().getMessage();
         ErrorCode code;
         if (detail != null && detail.contains("unique")) {

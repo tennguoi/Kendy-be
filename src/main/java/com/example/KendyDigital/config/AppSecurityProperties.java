@@ -10,11 +10,33 @@ public class AppSecurityProperties {
             "http://127.0.0.1:5173",
             "http://localhost:5173"));
 
+    private List<String> trustedProxies = new ArrayList<>(List.of(
+            "127.0.0.1",
+            "::1"));
+
+    private boolean enableHttpOnlyCookie = false;
+
     public List<String> getCorsAllowedOrigins() {
         return corsAllowedOrigins;
     }
 
     public void setCorsAllowedOrigins(List<String> corsAllowedOrigins) {
         this.corsAllowedOrigins = corsAllowedOrigins;
+    }
+
+    public List<String> getTrustedProxies() {
+        return trustedProxies;
+    }
+
+    public void setTrustedProxies(List<String> trustedProxies) {
+        this.trustedProxies = trustedProxies;
+    }
+
+    public boolean isEnableHttpOnlyCookie() {
+        return enableHttpOnlyCookie;
+    }
+
+    public void setEnableHttpOnlyCookie(boolean enableHttpOnlyCookie) {
+        this.enableHttpOnlyCookie = enableHttpOnlyCookie;
     }
 }

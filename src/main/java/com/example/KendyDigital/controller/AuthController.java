@@ -53,8 +53,9 @@ public class AuthController {
 
     @PostMapping("/login")
     public AuthTokenResponse login(@Valid @RequestBody AuthLoginRequest request,
-            @RequestHeader(name = "Accept-Language", required = false) String acceptLanguage) {
-        return authService.login(request, acceptLanguage);
+            @RequestHeader(name = "Accept-Language", required = false) String acceptLanguage,
+            jakarta.servlet.http.HttpServletResponse response) {
+        return authService.login(request, acceptLanguage, response);
     }
 
     @PostMapping("/2fa/email-code")
@@ -73,8 +74,9 @@ public class AuthController {
     }
 
     @PostMapping("/logout")
-    public void logout(@RequestHeader(name = "Authorization", required = false) String authorization) {
-        authService.logout(extractBearerToken(authorization));
+    public void logout(@RequestHeader(name = "Authorization", required = false) String authorization,
+            jakarta.servlet.http.HttpServletResponse response) {
+        authService.logout(extractBearerToken(authorization), response);
     }
 
     @PostMapping("/forgot-password")

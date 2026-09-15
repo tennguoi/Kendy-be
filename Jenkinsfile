@@ -13,7 +13,7 @@ pipeline {
 
     DOCKERHUB_CREDENTIALS = 'dockerhub-push-credentials'
 
-    APP_DIR_LINUX = '/opt/Kendy-deploy'
+    APP_DIR_LINUX = '/opt/kendy'
     APP_DIR_WIN = 'C:/Kendy-deploy'
   }
 

@@ -11,7 +11,7 @@ import com.example.KendyDigital.model.ticket.TicketCategory;
 import com.example.KendyDigital.model.ticket.TicketPriority;
 import com.example.KendyDigital.model.ticket.TicketStatus;
 import com.example.KendyDigital.security.CurrentUser;
-import com.example.KendyDigital.service.ticket.TicketService;
+import com.example.KendyDigital.service.customer_service.TicketService;
 import jakarta.validation.Valid;
 import java.util.List;
 import java.util.Map;

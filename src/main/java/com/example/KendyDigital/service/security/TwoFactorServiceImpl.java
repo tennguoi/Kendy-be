@@ -111,12 +111,19 @@ public class TwoFactorServiceImpl  implements TwoFactorService{
             return false;
         }
         String trimmed = code.trim();
-        for (String stored : splitBackupCodes(storedCodes)) {
+        List<String> codes = splitBackupCodes(storedCodes);
+        boolean found = false;
+        for (String stored : codes) {
             if (passwordEncoder.matches(trimmed, stored)) {
-                return true;
+                found = true;
+                // Don't return early - continue checking all codes for constant time
             }
         }
-        return false;
+        // If no codes, still do a dummy check to maintain constant time
+        if (codes.isEmpty()) {
+            passwordEncoder.matches(trimmed, "$2a$10$dummy.hash.for.timing.attack.prevention");
+        }
+        return found;
     }
 
     public String removeUsedBackupCode(String storedCodes, String usedCode) {

@@ -45,10 +45,10 @@ import com.example.KendyDigital.repository.TicketMessageRepository;
 import com.example.KendyDigital.repository.TicketRepository;
 import com.example.KendyDigital.repository.UserAccountRepository;
 import com.example.KendyDigital.service.audit.AuditService;
-import com.example.KendyDigital.service.coupon.AppliedCoupon;
-import com.example.KendyDigital.service.coupon.CouponService;
-import com.example.KendyDigital.service.entitlement.EntitlementService;
-import com.example.KendyDigital.service.inventory.AccountInventoryService;
+import com.example.KendyDigital.service.product_inventory.AppliedCoupon;
+import com.example.KendyDigital.service.product_inventory.CouponService;
+import com.example.KendyDigital.service.product_inventory.EntitlementService;
+import com.example.KendyDigital.service.product_inventory.AccountInventoryService;
 import com.example.KendyDigital.service.notification.EmailNotificationService;
 import com.example.KendyDigital.service.notification.NotificationRealtimeService;
 import com.example.KendyDigital.service.notification.UserNotificationService;
@@ -216,7 +216,7 @@ public class OrderServiceImpl implements OrderService {
         orderEventRepository.save(new OrderEvent(order, null, OrderStatus.PROCESSING, userId, "USER", "Order created"));
 
         WalletTransaction walletTransaction = walletLedgerService.debit(
-                user,
+                userId,
                 order.getAmount(),
                 WalletTransactionType.PURCHASE,
                 "ORDER",
@@ -673,10 +673,9 @@ public class OrderServiceImpl implements OrderService {
         if (order.getRefundTransaction() != null || order.getStatus() == OrderStatus.REFUNDED) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Order has already been refunded");
         }
-        UserAccount user = userAccountRepository.findByIdForUpdate(order.getUser().getId())
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+        Long userId = order.getUser().getId();
         return walletLedgerService.credit(
-                user,
+                userId,
                 order.getAmount(),
                 WalletTransactionType.REFUND,
                 "ORDER",

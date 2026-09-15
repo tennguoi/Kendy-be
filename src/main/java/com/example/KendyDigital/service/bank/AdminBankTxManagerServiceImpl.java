@@ -234,6 +234,7 @@ public class AdminBankTxManagerServiceImpl  implements AdminBankTxManagerService
 
         UserAccount user = userAccountRepository.findByIdForUpdate(deposit.getUser().getId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+        Long userId = user.getId();
         if (user.getStatus() != UserStatus.ACTIVE) {
             return markManualReviewAfterReprocess(
                     adminUserId,
@@ -244,7 +245,7 @@ public class AdminBankTxManagerServiceImpl  implements AdminBankTxManagerService
         }
 
         WalletTransaction walletTransaction = walletLedgerService.credit(
-                user,
+                userId,
                 transferAmount,
                 WalletTransactionType.DEPOSIT,
                 "DEPOSIT_REQUEST",
@@ -279,13 +280,14 @@ public class AdminBankTxManagerServiceImpl  implements AdminBankTxManagerService
 
         UserAccount user = userAccountRepository.findByIdForUpdate(request.userId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+        Long userId = user.getId();
         if (user.getStatus() != UserStatus.ACTIVE) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "User is not active");
         }
 
         DepositRequest depositRequest = findOptionalDepositForManualCredit(request.depositCode(), user);
         WalletTransaction walletTransaction = walletLedgerService.credit(
-                user,
+                userId,
                 transferAmount,
                 WalletTransactionType.DEPOSIT,
                 "BANK_TRANSACTION",

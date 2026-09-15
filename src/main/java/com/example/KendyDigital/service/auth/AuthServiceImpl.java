@@ -45,7 +45,8 @@ public class AuthServiceImpl  implements AuthService{
     public AuthUserResponse register(AuthRegisterRequest request, String acceptLanguage) {
         String email = normalizeEmail(request.email());
         if (userAccountRepository.existsByEmailIgnoreCase(email)) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Email already exists");
+            // Generic message to prevent account enumeration
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "If this email is not registered, a verification email has been sent");
         }
 
         UserAccount user = new UserAccount(
@@ -60,13 +61,13 @@ public class AuthServiceImpl  implements AuthService{
     }
 
     @Transactional
-    public AuthTokenResponse login(AuthLoginRequest request, String acceptLanguage) {
+    public AuthTokenResponse login(AuthLoginRequest request, String acceptLanguage, jakarta.servlet.http.HttpServletResponse response) {
         UserAccount user = userAccountRepository.findByEmailIgnoreCase(normalizeEmail(request.email()))
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid credentials"));
 
         if (user.isLocked()) {
-            throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS,
-                    "Account is temporarily locked after repeated failed login attempts. Try again in 15 minutes.");
+            // Use generic message to prevent account enumeration via lockout status
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid credentials");
         }
 
         if (!passwordEncoder.matches(request.password(), user.getPasswordHash())) {
@@ -84,16 +85,16 @@ public class AuthServiceImpl  implements AuthService{
         if (requiresLoginTwoFactor(user)) {
             if (request.twoFactorCode() != null && !request.twoFactorCode().isBlank()) {
                 if (twoFactorService.verify(user.getTwoFactorSecret(), request.twoFactorCode())) {
-                    return issueToken(user);
+                    return issueToken(user, response);
                 }
                 if (userSecurityService.verifyEmailTwoFactorCode(user, request.twoFactorCode())) {
-                    return issueToken(user);
+                    return issueToken(user, response);
                 }
                 if (twoFactorService.verifyBackupCode(user.getBackupCodes(), request.twoFactorCode())) {
                     user.setBackupCodes(twoFactorService.removeUsedBackupCode(user.getBackupCodes(),
                             request.twoFactorCode()));
                     userAccountRepository.save(user);
-                    return issueToken(user);
+                    return issueToken(user, response);
                 }
                 throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Invalid 2FA code");
             } else {
@@ -102,7 +103,7 @@ public class AuthServiceImpl  implements AuthService{
             }
         }
 
-        return issueToken(user);
+        return issueToken(user, response);
     }
 
     @Transactional
@@ -110,8 +111,8 @@ public class AuthServiceImpl  implements AuthService{
         UserAccount user = userAccountRepository.findByEmailIgnoreCase(normalizeEmail(request.email()))
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid credentials"));
         if (user.isLocked()) {
-            throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS,
-                    "Account is temporarily locked after repeated failed login attempts. Try again in 15 minutes.");
+            // Use generic message to prevent account enumeration via lockout status
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid credentials");
         }
         if (!passwordEncoder.matches(request.password(), user.getPasswordHash())) {
             user.recordFailedLogin();
@@ -139,15 +140,15 @@ public class AuthServiceImpl  implements AuthService{
                 .orElse(false);
     }
 
-    private AuthTokenResponse issueToken(UserAccount user) {
+    private AuthTokenResponse issueToken(UserAccount user, jakarta.servlet.http.HttpServletResponse response) {
         user.recordSuccessfulLogin();
         userAccountRepository.save(user);
-        AuthTokenService.IssuedToken issuedToken = authTokenService.issue(user);
+        AuthTokenService.IssuedToken issuedToken = authTokenService.issue(user, response);
         return new AuthTokenResponse(issuedToken.token(), issuedToken.expiresAt(), AuthUserResponse.from(user));
     }
 
-    public void logout(String token) {
-        authTokenService.revoke(token);
+    public void logout(String token, jakarta.servlet.http.HttpServletResponse response) {
+        authTokenService.revoke(token, response);
     }
 
     private String normalizeEmail(String email) {

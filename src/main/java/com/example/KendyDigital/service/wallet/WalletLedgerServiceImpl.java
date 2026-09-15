@@ -26,9 +26,11 @@ public class WalletLedgerServiceImpl  implements WalletLedgerService{
     }
 
     @Transactional
-    public WalletTransaction credit(UserAccount user, BigDecimal amount, WalletTransactionType type,
+    public WalletTransaction credit(Long userId, BigDecimal amount, WalletTransactionType type,
             String referenceType, Long referenceId, String description, Long createdBy) {
         BigDecimal normalizedAmount = normalizePositiveAmount(amount);
+        UserAccount user = userAccountRepository.findByIdForUpdate(userId)
+                .orElseThrow(() -> new IllegalArgumentException("User not found: " + userId));
         BigDecimal balanceBefore = normalizeMoney(user.getBalance());
         BigDecimal balanceAfter = balanceBefore.add(normalizedAmount);
         user.setBalance(balanceAfter);
@@ -50,9 +52,11 @@ public class WalletLedgerServiceImpl  implements WalletLedgerService{
     }
 
     @Transactional
-    public WalletTransaction debit(UserAccount user, BigDecimal amount, WalletTransactionType type,
+    public WalletTransaction debit(Long userId, BigDecimal amount, WalletTransactionType type,
             String referenceType, Long referenceId, String description, Long createdBy) {
         BigDecimal normalizedAmount = normalizePositiveAmount(amount);
+        UserAccount user = userAccountRepository.findByIdForUpdate(userId)
+                .orElseThrow(() -> new IllegalArgumentException("User not found: " + userId));
         BigDecimal balanceBefore = normalizeMoney(user.getBalance());
         BigDecimal balanceAfter = balanceBefore.subtract(normalizedAmount);
         if (balanceAfter.compareTo(BigDecimal.ZERO) < 0) {

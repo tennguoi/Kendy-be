@@ -8,6 +8,7 @@ import com.example.KendyDigital.repository.SystemSettingRepository;
 import com.example.KendyDigital.service.notification.EmailNotificationService;
 import jakarta.validation.Valid;
 import java.util.Map;
+import org.apache.commons.text.StringEscapeUtils;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
@@ -61,15 +62,19 @@ public class EmailTestController {
         if (ph != null) {
             for (var entry : ph.entrySet()) {
                 String val = entry.getValue() == null ? "" : entry.getValue();
-                resolvedHtml = resolvedHtml.replace("{{" + entry.getKey() + "}}", val);
+                // Escape HTML to prevent XSS
+                String safeVal = StringEscapeUtils.escapeHtml4(val);
+                resolvedHtml = resolvedHtml.replace("{{" + entry.getKey() + "}}", safeVal);
                 if (resolvedSubject != null) {
-                    resolvedSubject = resolvedSubject.replace("{{" + entry.getKey() + "}}", val);
+                    resolvedSubject = resolvedSubject.replace("{{" + entry.getKey() + "}}", safeVal);
                 }
             }
         }
 
         if (request.sendTo() != null && !request.sendTo().isBlank()) {
-            emailNotificationService.sendRawEmail(request.sendTo(),
+            // Only allow sending to the authenticated admin's email
+            String adminEmail = authentication.getName();
+            emailNotificationService.sendRawEmail(adminEmail,
                     resolvedSubject != null ? resolvedSubject : "Test — " + slug, resolvedHtml);
         }
 

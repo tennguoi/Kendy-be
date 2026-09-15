@@ -2,7 +2,7 @@ package com.example.KendyDigital.controller;
 
 import com.example.KendyDigital.dto.catalog.response.ServiceResponse;
 import com.example.KendyDigital.security.CurrentUser;
-import com.example.KendyDigital.service.user.UserServicePreferenceService;
+import com.example.KendyDigital.service.user_management.UserServicePreferenceService;
 import java.util.List;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;

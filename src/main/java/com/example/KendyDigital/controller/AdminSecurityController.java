@@ -1,5 +1,6 @@
 package com.example.KendyDigital.controller;
 
+import com.example.KendyDigital.dto.auth.request.TwoFactorDisableRequest;
 import com.example.KendyDigital.dto.auth.request.TwoFactorVerifyRequest;
 import com.example.KendyDigital.dto.auth.response.AuthSessionResponse;
 import com.example.KendyDigital.dto.auth.response.TotpSetupResponse;
@@ -78,8 +79,9 @@ public class AdminSecurityController {
     }
 
     @PostMapping("/api/admin/admins/{id}/2fa/disable")
-    public AdminUserResponse disableTwoFactor(Authentication authentication, @PathVariable Long id) {
-        return securityManagerService.disableTwoFactor(CurrentUser.require(authentication).userId(), id);
+    public AdminUserResponse disableTwoFactor(Authentication authentication, @PathVariable Long id,
+            @Valid @RequestBody TwoFactorDisableRequest request) {
+        return securityManagerService.disableTwoFactor(CurrentUser.require(authentication).userId(), id, request);
     }
 
     @PostMapping("/api/admin/admins/{id}/2fa/reset")

@@ -15,7 +15,7 @@ import com.example.KendyDigital.dto.user.response.UserDashboardResponse;
 import com.example.KendyDigital.dto.user.response.UserSecurityOverviewResponse;
 import com.example.KendyDigital.security.CurrentUser;
 import com.example.KendyDigital.service.security.UserSecurityService;
-import com.example.KendyDigital.service.user.UserProfileService;
+import com.example.KendyDigital.service.user_management.UserProfileService;
 import jakarta.validation.Valid;
 import java.util.List;
 import java.util.Map;

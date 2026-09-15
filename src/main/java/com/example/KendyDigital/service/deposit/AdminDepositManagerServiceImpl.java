@@ -149,12 +149,13 @@ public class AdminDepositManagerServiceImpl  implements AdminDepositManagerServi
 
         UserAccount user = userAccountRepository.findByIdForUpdate(deposit.getUser().getId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+        Long userId = user.getId();
         if (user.getStatus() != UserStatus.ACTIVE) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "User is not active");
         }
 
         WalletTransaction walletTransaction = walletLedgerService.credit(
-                user,
+                userId,
                 deposit.getAmount(),
                 WalletTransactionType.DEPOSIT,
                 "DEPOSIT_REQUEST",

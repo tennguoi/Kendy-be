@@ -48,16 +48,27 @@ public class AuditServiceImpl  implements AuditService{
 
     @Transactional
     public void recordSystem(String action, String targetType, Long targetId, String metadata) {
-        AuditLog log = new AuditLog(null, "SYSTEM", action, targetType, targetId, metadata);
+        String safeMetadata = sanitizeMetadata(metadata);
+        AuditLog log = new AuditLog(null, "SYSTEM", action, targetType, targetId, safeMetadata);
         log.recordIpAddress(getClientIp());
         auditLogRepository.save(log);
     }
 
     @Transactional
     public void recordAdmin(Long adminUserId, String action, String targetType, Long targetId, String metadata) {
-        AuditLog log = new AuditLog(adminUserId, "ADMIN", action, targetType, targetId, metadata);
+        String safeMetadata = sanitizeMetadata(metadata);
+        AuditLog log = new AuditLog(adminUserId, "ADMIN", action, targetType, targetId, safeMetadata);
         log.recordIpAddress(getClientIp());
         auditLogRepository.save(log);
+    }
+
+    private String sanitizeMetadata(String metadata) {
+        if (metadata == null) {
+            return null;
+        }
+        // Remove newlines and control characters to prevent log injection
+        return metadata.replaceAll("[\\r\\n\\t]", "_")
+                .substring(0, Math.min(metadata.length(), 1000));
     }
 
     @Transactional(readOnly = true)

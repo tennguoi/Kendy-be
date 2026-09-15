@@ -1,8 +1,10 @@
 package com.example.KendyDigital.security;
 
+import com.example.KendyDigital.config.AppSecurityProperties;
 import com.example.KendyDigital.service.auth.AuthTokenService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
+import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
@@ -16,11 +18,14 @@ import org.springframework.web.filter.OncePerRequestFilter;
 @Component
 public class BearerTokenAuthenticationFilter extends OncePerRequestFilter {
     private static final String BEARER_PREFIX = "Bearer ";
+    private static final String TOKEN_COOKIE_NAME = "access_token";
 
     private final AuthTokenService authTokenService;
+    private final boolean enableHttpOnlyCookie;
 
-    public BearerTokenAuthenticationFilter(AuthTokenService authTokenService) {
+    public BearerTokenAuthenticationFilter(AuthTokenService authTokenService, AppSecurityProperties securityProperties) {
         this.authTokenService = authTokenService;
+        this.enableHttpOnlyCookie = securityProperties.isEnableHttpOnlyCookie();
     }
 
     @Override
@@ -42,10 +47,24 @@ public class BearerTokenAuthenticationFilter extends OncePerRequestFilter {
     }
 
     private String extractToken(HttpServletRequest request) {
+        // First try Authorization header
         String authorization = request.getHeader("Authorization");
-        if (authorization == null || !authorization.startsWith(BEARER_PREFIX)) {
-            return null;
+        if (authorization != null && authorization.startsWith(BEARER_PREFIX)) {
+            return authorization.substring(BEARER_PREFIX.length()).trim();
         }
-        return authorization.substring(BEARER_PREFIX.length()).trim();
+
+        // Then try cookie if enabled
+        if (enableHttpOnlyCookie) {
+            Cookie[] cookies = request.getCookies();
+            if (cookies != null) {
+                for (Cookie cookie : cookies) {
+                    if (TOKEN_COOKIE_NAME.equals(cookie.getName())) {
+                        return cookie.getValue();
+                    }
+                }
+            }
+        }
+
+        return null;
     }
 }

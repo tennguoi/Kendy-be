@@ -52,12 +52,23 @@ public class OAuth2AuthServiceImpl  implements OAuth2AuthService{
         OAuthProfile profile = profile(registrationId, attributes, accessToken);
         UserAccount user = userAccountRepository
                 .findByOauthProviderAndOauthProviderId(profile.provider(), profile.providerId())
-                .or(() -> userAccountRepository.findByEmailIgnoreCase(profile.email()))
-                .orElseGet(() -> userAccountRepository.save(new UserAccount(
-                        profile.name(),
-                        profile.email(),
-                        null,
-                        passwordEncoder.encode(randomPassword()))));
+                .orElseGet(() -> {
+                    // Only link by email if the OAuth provider verified the email
+                    if (profile.emailVerified()) {
+                        return userAccountRepository.findByEmailIgnoreCase(profile.email())
+                                .orElseGet(() -> userAccountRepository.save(new UserAccount(
+                                        profile.name(),
+                                        profile.email(),
+                                        null,
+                                        passwordEncoder.encode(randomPassword()))));
+                    }
+                    // If email not verified, create new account (don't link to existing)
+                    return userAccountRepository.save(new UserAccount(
+                            profile.name(),
+                            profile.email(),
+                            null,
+                            passwordEncoder.encode(randomPassword())));
+                });
 
         if (user.getStatus() == UserStatus.LOCKED) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Account is locked");
@@ -77,7 +88,7 @@ public class OAuth2AuthServiceImpl  implements OAuth2AuthService{
                     profile.providerDisplayName());
         }
 
-        AuthTokenService.IssuedToken issuedToken = authTokenService.issue(user);
+        AuthTokenService.IssuedToken issuedToken = authTokenService.issue(user, null);
         auditService.recordSystem("USER_OAUTH_LOGIN", "USER", user.getId(), "provider=" + profile.provider());
         return new AuthTokenResponse(issuedToken.token(), issuedToken.expiresAt(), AuthUserResponse.from(user));
     }

@@ -3,7 +3,7 @@ package com.example.KendyDigital.controller;
 import com.example.KendyDigital.dto.file.response.StoredFileResponse;
 import com.example.KendyDigital.model.file.StoredFile;
 import com.example.KendyDigital.security.CurrentUser;
-import com.example.KendyDigital.service.file.AdminFileManagerService;
+import com.example.KendyDigital.service.file_integrations.AdminFileManagerService;
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;

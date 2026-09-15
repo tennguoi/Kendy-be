@@ -10,7 +10,7 @@ import com.example.KendyDigital.dto.inventory.response.InventoryAlertSummaryResp
 import com.example.KendyDigital.dto.inventory.response.UserAccountCredentialResponse;
 import com.example.KendyDigital.model.inventory.AccountCredentialStatus;
 import com.example.KendyDigital.security.CurrentUser;
-import com.example.KendyDigital.service.inventory.AccountInventoryService;
+import com.example.KendyDigital.service.product_inventory.AccountInventoryService;
 import jakarta.validation.Valid;
 import java.time.Instant;
 import java.util.List;

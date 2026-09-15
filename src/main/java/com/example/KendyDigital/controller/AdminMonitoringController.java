@@ -7,7 +7,7 @@ import com.example.KendyDigital.dto.setting.request.WebhookRetryRequest;
 import com.example.KendyDigital.dto.ticket.response.TicketResponse;
 import com.example.KendyDigital.dto.wallet.response.WalletTransactionResponse;
 import com.example.KendyDigital.security.CurrentUser;
-import com.example.KendyDigital.service.monitoring.AdminMonitoringService;
+import com.example.KendyDigital.service.system_infrastructure.AdminMonitoringService;
 import jakarta.validation.Valid;
 import java.util.List;
 import org.springframework.security.core.Authentication;
