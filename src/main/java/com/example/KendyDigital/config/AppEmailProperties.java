@@ -8,6 +8,8 @@ public class AppEmailProperties {
     private String from = "no-reply@kendydigital.local";
     private String frontendBaseUrl = "http://localhost:5173";
 
+    private String consultRecipient;
+
     public boolean isEnabled() {
         return enabled;
     }
@@ -30,5 +32,13 @@ public class AppEmailProperties {
 
     public void setFrontendBaseUrl(String frontendBaseUrl) {
         this.frontendBaseUrl = frontendBaseUrl;
+    }
+
+    public String getConsultRecipient() {
+        return consultRecipient;
+    }
+
+    public void setConsultRecipient(String consultRecipient) {
+        this.consultRecipient = consultRecipient;
     }
 }

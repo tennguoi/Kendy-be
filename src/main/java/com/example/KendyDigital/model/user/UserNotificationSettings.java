@@ -43,7 +43,11 @@ public class UserNotificationSettings extends TimestampedEntity {
     private boolean securityUpdates = true;
 
     @Column(name = "service_updates")
-    private boolean serviceUpdates = true;
+    private Boolean serviceUpdates = true;
+
+    public boolean isServiceUpdates() {
+        return serviceUpdates != null && serviceUpdates;
+    }
 
     @Column(name = "email_notifications", nullable = false)
     private boolean emailNotifications = true;

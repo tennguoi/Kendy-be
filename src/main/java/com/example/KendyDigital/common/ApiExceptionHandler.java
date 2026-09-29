@@ -137,6 +137,7 @@ public class ApiExceptionHandler {
             }
         }
         String upper = reason.toUpperCase();
+        if (upper.contains("EMAIL") && (upper.contains("EXIST") || upper.contains("ALREADY"))) return ErrorCode.AUTH_EMAIL_EXISTS;
         if (upper.contains("2FA") || upper.contains("TWO FACTOR")) return ErrorCode.AUTH_TWO_FACTOR_REQUIRED;
         if (upper.contains("INSUFFICIENT") || upper.contains("BALANCE")) return ErrorCode.WALLET_INSUFFICIENT;
         if (upper.contains("NOT FOUND")) return ErrorCode.NOT_FOUND;

@@ -9,5 +9,7 @@ public record UserSecurityOverviewResponse(
         boolean twoFactorEnabled,
         Instant passwordChangedAt,
         long activeSessions,
-        long activeApiKeys) {
+        long activeApiKeys,
+        boolean hasPassword,
+        String oauthProvider) {
 }

@@ -13,7 +13,7 @@ public class CodeGenerator {
         // Use UUID v7 (time-ordered) for better entropy and traceability
         // Format: prefix + UUID without dashes (32 chars)
         UUID uuid = UUID.randomUUID(); // Java 21+ has UUID v7, fallback to v4
-        String uuidPart = uuid.toString().replace("-", "");
+        String uuidPart = uuid.toString().replace("-", "").toUpperCase(java.util.Locale.ROOT);
         return prefix + uuidPart.substring(0, Math.min(length, uuidPart.length()));
     }
 

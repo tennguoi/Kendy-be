@@ -7,6 +7,7 @@ import com.example.KendyDigital.dto.auth.response.AuthUserResponse;
 import com.example.KendyDigital.dto.auth.response.SecurityTokenResponse;
 import com.example.KendyDigital.dto.auth.response.TotpSetupResponse;
 import com.example.KendyDigital.dto.user.request.ChangePasswordRequest;
+import com.example.KendyDigital.dto.user.request.SetPasswordRequest;
 import com.example.KendyDigital.dto.user.request.UpdateProfileRequest;
 import com.example.KendyDigital.dto.user.request.UserApiKeyCreateRequest;
 import com.example.KendyDigital.dto.user.response.UserApiKeyCreatedResponse;
@@ -72,6 +73,12 @@ public class MeController {
     public AuthUserResponse changePassword(Authentication authentication,
             @Valid @RequestBody ChangePasswordRequest request) {
         return userProfileService.changePassword(CurrentUser.require(authentication).userId(), request);
+    }
+
+    @PostMapping("/api/me/set-password")
+    public AuthUserResponse setPassword(Authentication authentication,
+            @Valid @RequestBody SetPasswordRequest request) {
+        return userProfileService.setPassword(CurrentUser.require(authentication).userId(), request);
     }
 
     @GetMapping("/api/me/dashboard")

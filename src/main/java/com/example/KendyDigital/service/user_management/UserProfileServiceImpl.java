@@ -4,6 +4,7 @@ import com.cloudinary.Cloudinary;
 import com.cloudinary.utils.ObjectUtils;
 import com.example.KendyDigital.dto.auth.response.AuthUserResponse;
 import com.example.KendyDigital.dto.user.request.ChangePasswordRequest;
+import com.example.KendyDigital.dto.user.request.SetPasswordRequest;
 import com.example.KendyDigital.dto.user.request.UpdateProfileRequest;
 import com.example.KendyDigital.dto.user.response.UserDashboardResponse;
 import com.example.KendyDigital.model.deposit.DepositStatus;
@@ -135,6 +136,19 @@ public class UserProfileServiceImpl  implements UserProfileService{
         }
         user.changePasswordHash(passwordEncoder.encode(request.newPassword()));
         auditService.recordSystem("USER_PASSWORD_CHANGED", "USER", user.getId(), null);
+        return AuthUserResponse.from(user);
+    }
+
+    @Transactional
+    public AuthUserResponse setPassword(Long userId, SetPasswordRequest request) {
+        UserAccount user = getUser(userId);
+        if (user.hasPassword()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Account already has a password. Use change-password instead.");
+        }
+        user.changePasswordHash(passwordEncoder.encode(request.newPassword()));
+        auditService.recordSystem("USER_PASSWORD_SET", "USER", user.getId(),
+                "oauth_provider=" + user.getOauthProvider());
         return AuthUserResponse.from(user);
     }
 

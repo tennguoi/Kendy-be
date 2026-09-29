@@ -44,9 +44,30 @@ public class AuthServiceImpl  implements AuthService{
     @Transactional
     public AuthUserResponse register(AuthRegisterRequest request, String acceptLanguage) {
         String email = normalizeEmail(request.email());
-        if (userAccountRepository.existsByEmailIgnoreCase(email)) {
-            // Generic message to prevent account enumeration
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "If this email is not registered, a verification email has been sent");
+        var existing = userAccountRepository.findByEmailIgnoreCase(email);
+        if (existing.isPresent()) {
+            UserAccount existingUser = existing.get();
+            // If the existing account was created via OAuth, hint the user
+            if (existingUser.getOauthProvider() != null && !existingUser.hasPassword()) {
+                String provider = existingUser.getOauthProvider().substring(0, 1).toUpperCase()
+                        + existingUser.getOauthProvider().substring(1);
+                throw new ResponseStatusException(HttpStatus.CONFLICT,
+                        "Email này đã được đăng ký qua " + provider
+                                + ". Vui lòng đăng nhập với " + provider
+                                + " hoặc dùng 'Quên mật khẩu'.");
+            }
+            // If account was registered previously but NOT yet verified, allow updating info and resend verification
+            if (existingUser.getEmailVerifiedAt() == null) {
+                existingUser.setName(request.name().trim());
+                existingUser.setPhone(blankToNull(request.phone()));
+                existingUser.changePasswordHash(passwordEncoder.encode(request.password()));
+                existingUser.setStatus(UserStatus.PENDING_VERIFY);
+                existingUser.setLocale(resolveLocale(acceptLanguage));
+                UserAccount saved = userAccountRepository.save(existingUser);
+                userSecurityService.sendEmailVerification(saved);
+                return AuthUserResponse.from(saved);
+            }
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Email already exists");
         }
 
         UserAccount user = new UserAccount(
@@ -54,6 +75,7 @@ public class AuthServiceImpl  implements AuthService{
                 email,
                 blankToNull(request.phone()),
                 passwordEncoder.encode(request.password()));
+        user.setStatus(UserStatus.PENDING_VERIFY);
         user.setLocale(resolveLocale(acceptLanguage));
         UserAccount saved = userAccountRepository.save(user);
         userSecurityService.sendEmailVerification(saved);
@@ -73,9 +95,23 @@ public class AuthServiceImpl  implements AuthService{
         if (!passwordEncoder.matches(request.password(), user.getPasswordHash())) {
             user.recordFailedLogin();
             userAccountRepository.save(user);
+            // If this is an OAuth-only account (no user-set password), hint them to use OAuth
+            if (!user.hasPassword() && user.getOauthProvider() != null) {
+                String provider = user.getOauthProvider().substring(0, 1).toUpperCase()
+                        + user.getOauthProvider().substring(1);
+                throw new ResponseStatusException(HttpStatus.UNAUTHORIZED,
+                        "This account was created via " + provider
+                                + ". Please log in with " + provider
+                                + " or use 'Forgot Password' to set a new password.");
+            }
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid credentials");
         }
 
+        if (user.getStatus() == UserStatus.PENDING_VERIFY) {
+            userSecurityService.sendEmailVerification(user);
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                    "EMAIL_NOT_VERIFIED");
+        }
         if (user.getStatus() != UserStatus.ACTIVE) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Account is not active");
         }
@@ -118,6 +154,11 @@ public class AuthServiceImpl  implements AuthService{
             user.recordFailedLogin();
             userAccountRepository.save(user);
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid credentials");
+        }
+        if (user.getStatus() == UserStatus.PENDING_VERIFY) {
+            userSecurityService.sendEmailVerification(user);
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                    "EMAIL_NOT_VERIFIED");
         }
         if (user.getStatus() != UserStatus.ACTIVE) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Account is not active");

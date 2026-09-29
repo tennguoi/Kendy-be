@@ -170,4 +170,13 @@ public class UserAccount extends TimestampedEntity {
         resetFailedLoginAttempts();
     }
 
+    /**
+     * Returns true if the user has a password they know (set during registration or
+     * explicitly changed later). OAuth-only accounts have a random password the user
+     * never saw, so this returns false for them until they set one via /set-password.
+     */
+    public boolean hasPassword() {
+        return oauthProvider == null || passwordChangedAt != null;
+    }
+
 }

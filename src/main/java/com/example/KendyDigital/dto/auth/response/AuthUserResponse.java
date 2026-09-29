@@ -20,7 +20,8 @@ public record AuthUserResponse(
         Instant emailVerifiedAt,
         String oauthProvider,
         String avatarUrl,
-        String locale) {
+        String locale,
+        boolean hasPassword) {
     public static AuthUserResponse from(UserAccount user) {
         return new AuthUserResponse(
                 user.getId(),
@@ -35,6 +36,7 @@ public record AuthUserResponse(
                 user.getEmailVerifiedAt(),
                 user.getOauthProvider(),
                 user.getAvatarUrl(),
-                user.getLocale());
+                user.getLocale(),
+                user.hasPassword());
     }
 }

@@ -58,9 +58,13 @@ public class SePayWebhookController {
             securityMonitor.accepted(ipAddress, payload.id(), payload.referenceCode());
             return ResponseEntity.ok(new SePayWebhookResponse(true));
         } catch (ResponseStatusException exception) {
+            org.slf4j.LoggerFactory.getLogger(SePayWebhookController.class)
+                    .error("SePay webhook ResponseStatusException: {}", exception.getMessage(), exception);
             securityMonitor.rejected(ipAddress, exception.getReason(), isSignatureFailure(exception));
             throw exception;
         } catch (RuntimeException exception) {
+            org.slf4j.LoggerFactory.getLogger(SePayWebhookController.class)
+                    .error("SePay webhook RuntimeException: {}", exception.getMessage(), exception);
             securityMonitor.rejected(ipAddress, exception.getClass().getSimpleName(), false);
             throw exception;
         }

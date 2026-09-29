@@ -14,6 +14,23 @@ import javax.crypto.spec.SecretKeySpec;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * Simplified credential encryption converter.
+ *
+ * This converter uses AES/GCM encryption to securely store sensitive credential
+ * fields in the database while maintaining a relatively simple implementation.
+ *
+ * Key Management:
+ * - Requires CREDENTIAL_ENCRYPTION_KEY environment variable or credential.encryption.key system property
+ * - Optional development fallback for local testing only
+ * - Clear error messages when configuration is missing or invalid
+ *
+ * Security Properties Maintained:
+ * - AES-256-GCM encryption (same strength as before)
+ * - Random IV per encryption operation
+ * - Authentication tag to prevent tampering
+ * - Field-level encryption (not full table/column encryption)
+ */
 @Converter
 public class EncryptedCredentialAttributeConverter implements AttributeConverter<String, String> {
     private static final Logger LOG = LoggerFactory.getLogger(EncryptedCredentialAttributeConverter.class);
@@ -39,7 +56,7 @@ public class EncryptedCredentialAttributeConverter implements AttributeConverter
             buffer.put(encrypted);
             return PREFIX + Base64.getUrlEncoder().withoutPadding().encodeToString(buffer.array());
         } catch (Exception exception) {
-            throw new IllegalStateException("Cannot encrypt credential payload", exception);
+            throw new IllegalStateException("Cannot encrypt credential payload: " + exception.getMessage(), exception);
         }
     }
 
@@ -50,25 +67,10 @@ public class EncryptedCredentialAttributeConverter implements AttributeConverter
         }
         try {
             return decrypt(dbData, KEY);
-        } catch (Exception primaryException) {
-            String[] fallbackKeys = isProduction()
-                    ? new String[0]
-                    : new String[] {
-                            "local-dev-only-kendy-credential-key-change-in-production",
-                            "local-dev-fallback-kendy-credential-key",
-                            "test-only-kendy-credential-key"
-                    };
-            for (String fallbackKeyStr : fallbackKeys) {
-                try {
-                    LOG.warn("CREDENTIAL_DECRYPT_FALLBACK: decrypting with dev/test key '{}...'",
-                            fallbackKeyStr.substring(0, Math.min(fallbackKeyStr.length(), 20)));
-                    return decrypt(dbData, sha256(fallbackKeyStr));
-                } catch (Exception ignored) {
-                }
-            }
-            LOG.error("CREDENTIAL_DECRYPT_FAILURE: cannot decrypt credential data with any available key. "
-                    + "Check CREDENTIAL_ENCRYPTION_KEY environment variable.");
-            return "[Encrypted - Key Mismatch: " + dbData.substring(0, Math.min(dbData.length(), 20)) + "...]";
+        } catch (Exception exception) {
+            LOG.error("Failed to decrypt credential data: {}", exception.getMessage());
+            // Return a safe placeholder to avoid exposing encryption issues in UI
+            return "[Encrypted - Decryption Failed]";
         }
     }
 
@@ -81,150 +83,61 @@ public class EncryptedCredentialAttributeConverter implements AttributeConverter
         return new String(cipher.doFinal(encrypted), StandardCharsets.UTF_8);
     }
 
+    /**
+     * Resolve the encryption key from configuration.
+     *
+     * Resolution order:
+     * 1. CREDENTIAL_ENCRYPTION_KEY environment variable
+     * 2. APP_CREDENTIAL_ENCRYPTION_KEY environment variable (backward compatibility)
+     * 3. credential.encryption.key system property
+     * 4. Optional development fallback (only in non-production)
+     *
+     * @return The resolved encryption key bytes
+     * @throws IllegalStateException if no valid key can be resolved
+     */
     private static byte[] resolveKey() {
-        // 1. Ưu tiên biến môi trường hệ thống
-        String configured = firstNonBlank(
-                System.getenv("CREDENTIAL_ENCRYPTION_KEY"),
-                System.getenv("APP_CREDENTIAL_ENCRYPTION_KEY"),
-                System.getProperty("credential.encryption.key"));
+        // 1. Primary environment variable
+        String configured = System.getenv("CREDENTIAL_ENCRYPTION_KEY");
 
-        // 2. Nếu trống, tìm trong .vscode/launch.json
-        if (configured == null) {
-            configured = readKeyFromLaunchJson();
+        // 2. Backward compatibility environment variable
+        if (configured == null || configured.isBlank()) {
+            configured = System.getenv("APP_CREDENTIAL_ENCRYPTION_KEY");
         }
 
-        // 3. Nếu vẫn trống và đang chạy trên Windows, truy vấn Registry hoặc chạy sinh khóa tự động
-        if (configured == null && System.getProperty("os.name").toLowerCase().contains("win")) {
-            configured = getOrGenerateWindowsUserKey();
+        // 3. System property (for test compatibility)
+        if (configured == null || configured.isBlank()) {
+            configured = System.getProperty("credential.encryption.key");
         }
 
-        // 4. Fallback mặc định cho môi trường Test, bắt buộc phải có key nếu chạy thật
-        if (configured == null) {
-            if (isTestRuntime()) {
-                configured = "test-only-kendy-credential-key";
+        // 4. Development fallback: Only allow in explicit development environments
+        if (configured == null || configured.isBlank()) {
+            String activeProfiles = firstNonBlank(
+                    System.getProperty("spring.profiles.active"),
+                    System.getenv("SPRING_PROFILES_ACTIVE"));
+
+            boolean isDevelopment = activeProfiles != null &&
+                    (activeProfiles.contains("dev") ||
+                     activeProfiles.contains("local") ||
+                     activeProfiles.contains("test"));
+
+            if (isDevelopment) {
+                // Simple, clearly marked development key - NOT for production use
+                configured = "local-development-key-do-not-use-in-production";
+                LOG.warn("Using development fallback encryption key. DO NOT USE IN PRODUCTION.");
             } else {
                 throw new IllegalStateException(
-                        "CREDENTIAL_ENCRYPTION_KEY or APP_CREDENTIAL_ENCRYPTION_KEY is required");
+                        "CREDENTIAL_ENCRYPTION_KEY environment variable or credential.encryption.key system property is required");
             }
         }
 
+        // Try to decode as Base64 first (for actual key material)
         byte[] decoded = tryDecodeBase64(configured);
         if (decoded != null && (decoded.length == 16 || decoded.length == 24 || decoded.length == 32)) {
             return decoded;
         }
+
+        // Otherwise derive key from string using SHA-256
         return sha256(configured);
-    }
-
-    private static String readKeyFromLaunchJson() {
-        String[] paths = {
-            ".vscode/launch.json",
-            "../.vscode/launch.json",
-            "be/.vscode/launch.json",
-            "../be/.vscode/launch.json",
-            "/app/.vscode/launch.json",
-            "/app/be/.vscode/launch.json",
-            "/app/../.vscode/launch.json"
-        };
-        for (String path : paths) {
-            java.io.File file = new java.io.File(path);
-            if (file.exists() && file.isFile()) {
-                try {
-                    String content = new String(java.nio.file.Files.readAllBytes(file.toPath()), StandardCharsets.UTF_8);
-                    java.util.regex.Pattern pattern = java.util.regex.Pattern.compile(
-                            "\"CREDENTIAL_ENCRYPTION_KEY\"\\s*:\\s*\"([^\"]+)\"");
-                    java.util.regex.Matcher matcher = pattern.matcher(content);
-                    if (matcher.find()) {
-                        return matcher.group(1).trim();
-                    }
-                } catch (Exception ignored) {}
-            }
-        }
-        return null;
-    }
-
-    private static String getOrGenerateWindowsUserKey() {
-        try {
-            // Thử đọc từ User environment variables của Windows
-            String key = executePowerShell("[Environment]::GetEnvironmentVariable('CREDENTIAL_ENCRYPTION_KEY', 'User')");
-            if (key != null && !key.isBlank()) {
-                return key.trim();
-            }
-
-            // Nếu không có, tự động chạy script generate-key.ps1
-            String[] scriptPaths = {
-                ".vscode/generate-key.ps1",
-                "../.vscode/generate-key.ps1",
-                "be/.vscode/generate-key.ps1",
-                "../be/.vscode/generate-key.ps1"
-            };
-            for (String path : scriptPaths) {
-                java.io.File script = new java.io.File(path);
-                if (script.exists()) {
-                    executeCommand("powershell.exe", "-ExecutionPolicy", "Bypass", "-File", path);
-                    // Đọc lại sau khi chạy script
-                    key = executePowerShell("[Environment]::GetEnvironmentVariable('CREDENTIAL_ENCRYPTION_KEY', 'User')");
-                    if (key != null && !key.isBlank()) {
-                        return key.trim();
-                    }
-                }
-            }
-        } catch (Exception ignored) {}
-        return null;
-    }
-
-    private static String executePowerShell(String command) {
-        return executeCommand("powershell.exe", "-Command", command);
-    }
-
-    private static String executeCommand(String... command) {
-        try {
-            Process process = new ProcessBuilder(command).redirectErrorStream(true).start();
-            java.io.BufferedReader reader = new java.io.BufferedReader(
-                    new java.io.InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8));
-            StringBuilder output = new StringBuilder();
-            String line;
-            while ((line = reader.readLine()) != null) {
-                output.append(line).append("\n");
-            }
-            process.waitFor();
-            return output.toString().trim();
-        } catch (Exception e) {
-            return null;
-        }
-    }
-
-    private static String firstNonBlank(String... values) {
-        for (String value : values) {
-            if (value != null && !value.isBlank()) {
-                return value.trim();
-            }
-        }
-        return null;
-    }
-
-    private static boolean isTestRuntime() {
-        String activeProfiles = firstNonBlank(
-                System.getProperty("spring.profiles.active"),
-                System.getenv("SPRING_PROFILES_ACTIVE"));
-        if (activeProfiles != null && Arrays.stream(activeProfiles.split(","))
-                .map(String::trim)
-                .anyMatch(profile -> profile.equalsIgnoreCase("test"))) {
-            return true;
-        }
-        return System.getProperty("surefire.test.class.path") != null;
-    }
-
-    private static boolean isProduction() {
-        String activeProfiles = firstNonBlank(
-                System.getProperty("spring.profiles.active"),
-                System.getenv("SPRING_PROFILES_ACTIVE"));
-        if (activeProfiles != null) {
-            return Arrays.stream(activeProfiles.split(","))
-                    .map(String::trim)
-                    .anyMatch(profile -> profile.equalsIgnoreCase("prod")
-                            || profile.equalsIgnoreCase("production"));
-        }
-        return false;
     }
 
     private static byte[] tryDecodeBase64(String value) {
@@ -239,7 +152,16 @@ public class EncryptedCredentialAttributeConverter implements AttributeConverter
         try {
             return MessageDigest.getInstance("SHA-256").digest(value.getBytes(StandardCharsets.UTF_8));
         } catch (Exception exception) {
-            throw new IllegalStateException("Cannot derive credential encryption key", exception);
+            throw new IllegalStateException("Cannot derive credential encryption key: " + exception.getMessage(), exception);
         }
+    }
+
+    private static String firstNonBlank(String... values) {
+        for (String value : values) {
+            if (value != null && !value.isBlank()) {
+                return value.trim();
+            }
+        }
+        return null;
     }
 }

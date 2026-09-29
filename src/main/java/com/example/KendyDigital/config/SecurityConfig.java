@@ -84,6 +84,7 @@ public class SecurityConfig {
                                                                 "/api/webhooks/sepay/")
                                                 .permitAll()
                                                 .requestMatchers("/api/webhooks/sepay/**").permitAll()
+                                                .requestMatchers(HttpMethod.POST, "/api/public/consult").permitAll()
                                                 .requestMatchers("/api/services", "/api/services/**",
                                                                 "/api/pricing", "/api/pricing/**",
                                                                 "/api/service-categories", "/api/service-categories/**",

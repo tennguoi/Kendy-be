@@ -157,11 +157,21 @@ public class UserSecurityServiceImpl  implements UserSecurityService{
         if (user.getEmailVerifiedAt() != null) {
             return new SecurityTokenResponse("Email already verified.", null, null);
         }
-        IssuedSecurityToken issued = issueSecurityToken(user, UserSecurityTokenType.EMAIL_VERIFICATION,
-                EMAIL_VERIFY_TTL);
+        String code;
+        String codeHash;
+        do {
+            code = sixDigitCode();
+            codeHash = sha256(code);
+        } while (securityTokenRepository.existsByTokenHash(codeHash));
+        Instant expiresAt = Instant.now().plus(EMAIL_VERIFY_TTL);
+        securityTokenRepository.save(new UserSecurityToken(
+                user,
+                UserSecurityTokenType.EMAIL_VERIFICATION,
+                codeHash,
+                expiresAt));
         auditService.recordSystem("USER_EMAIL_VERIFICATION_REQUESTED", "USER", user.getId(), null);
-        emailNotificationService.sendEmailVerification(user, issued.token(), issued.expiresAt());
-        return new SecurityTokenResponse("Email verification email sent.", issued.expiresAt(), null);
+        emailNotificationService.sendEmailVerification(user, code, expiresAt);
+        return new SecurityTokenResponse("Email verification email sent.", expiresAt, null);
     }
 
     @Transactional
@@ -195,7 +205,9 @@ public class UserSecurityServiceImpl  implements UserSecurityService{
                 user.isTwoFactorEnabled(),
                 user.getPasswordChangedAt(),
                 authSessionRepository.countByUser_IdAndRevokedAtIsNull(userId),
-                userApiKeyRepository.countByUser_IdAndRevokedAtIsNull(userId));
+                userApiKeyRepository.countByUser_IdAndRevokedAtIsNull(userId),
+                user.hasPassword(),
+                user.getOauthProvider());
     }
 
     @Transactional(readOnly = true)
@@ -513,6 +525,11 @@ public class UserSecurityServiceImpl  implements UserSecurityService{
     }
 
     private void requirePassword(UserAccount user, String password) {
+        // OAuth-only accounts have no user-known password; their session identity
+        // is sufficient since they authenticated via the OAuth provider.
+        if (!user.hasPassword()) {
+            return;
+        }
         if (!passwordEncoder.matches(password, user.getPasswordHash())) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Password is incorrect");
         }

@@ -2,6 +2,7 @@ package com.example.KendyDigital.config;
 
 import com.example.KendyDigital.model.inventory.AccountCredential;
 import com.example.KendyDigital.repository.AccountCredentialRepository;
+import com.example.KendyDigital.service.product_inventory.AccountInventoryServiceImpl;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.List;
@@ -12,6 +13,15 @@ import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+/**
+ * Migration backfill for credential payload hashes.
+ *
+ * This migration ensures that all existing AccountCredential records have
+ * their payloadHash field populated for duplicate detection purposes.
+ *
+ * The payload hash is a SHA-256 of: serviceId|loginIdentifier|passwordSecret|recoveryInfo|twoFactorSecret
+ * This helps detect duplicate credentials even when the encrypted values differ due to different IVs.
+ */
 @Component
 public class CredentialEncryptionMigration implements CommandLineRunner {
     private static final Logger LOG = LoggerFactory.getLogger(CredentialEncryptionMigration.class);
@@ -28,19 +38,25 @@ public class CredentialEncryptionMigration implements CommandLineRunner {
         long migrated = 0;
         for (AccountCredential credential : all) {
             if (credential.getPayloadHash() == null && credential.getPasswordSecret() != null) {
-                credential.updatePayloadHash(payloadHash(credential));
+                credential.updatePayloadHash(calculatePayloadHash(credential));
                 repository.save(credential);
                 migrated++;
             }
         }
         if (migrated > 0) {
-            LOG.info("CredentialEncryptionMigration: re-saved {} credentials to apply encryption", migrated);
+            LOG.info("CredentialEncryptionMigration: re-saved {} credentials to apply payload hashes", migrated);
         } else {
-            LOG.info("CredentialEncryptionMigration: all credentials already encrypted");
+            LOG.info("CredentialEncryptionMigration: all credentials already have payload hashes");
         }
     }
 
-    private String payloadHash(AccountCredential credential) {
+    /**
+     * Calculate the payload hash for duplicate detection.
+     *
+     * @param credential The credential to calculate hash for
+     * @return SHA-256 hash of the credential payload
+     */
+    private String calculatePayloadHash(AccountCredential credential) {
         String normalized = credential.getService().getId() + "|"
                 + nullToEmpty(credential.getLoginIdentifier()).toLowerCase(Locale.ROOT).trim() + "|"
                 + nullToEmpty(credential.getPasswordSecret()).trim() + "|"
@@ -54,7 +70,7 @@ public class CredentialEncryptionMigration implements CommandLineRunner {
             }
             return builder.toString();
         } catch (Exception exception) {
-            throw new IllegalStateException("Cannot hash credential payload", exception);
+            throw new IllegalStateException("Cannot hash credential payload: " + exception.getMessage(), exception);
         }
     }
 

@@ -69,13 +69,14 @@ public class EmailNotificationServiceImpl  implements EmailNotificationService{
     @Async("mailExecutor")
     public void sendEmailVerification(UserAccount user, String token, Instant expiresAt) {
         Locale locale = userLocale(user);
+        String code = token;
         String link = frontendUrl("/verify-email?token=" + encode(token));
         String subject = template("email_verification", "email.template.email_verification.subject",
-                "Verify your KendyDigital email", user, link, token, expiresAt, null);
+                "Verify your KendyDigital email", user, link, token, expiresAt, code);
         String fallback = messageSource.getMessage("email.email_verification.fallback",
-                new Object[]{link, expiresAt}, locale);
+                new Object[]{code, link, expiresAt}, locale);
         String body = loadHtmlTemplate("email_verification", fallback,
-                user, link, token, expiresAt, null);
+                user, link, token, expiresAt, code);
         send(user.getEmail(), subject, body);
     }
 
@@ -216,15 +217,17 @@ public class EmailNotificationServiceImpl  implements EmailNotificationService{
                 }
             }
 
-            if (fromAddress == null) {
+            if (fromAddress == null || (fromAddress.getAddress() != null && fromAddress.getAddress().endsWith("@gmail.com"))) {
                 String fallbackEmail = "no-reply@kendydigital.local";
+                String displayName = (fromAddress != null && fromAddress.getPersonal() != null && !fromAddress.getPersonal().isBlank())
+                        ? fromAddress.getPersonal() : "KendyDigital";
                 if (mailSender instanceof JavaMailSenderImpl impl) {
                     String smtpUser = impl.getUsername();
                     if (smtpUser != null && !smtpUser.isBlank()) {
                         fallbackEmail = smtpUser;
                     }
                 }
-                fromAddress = new InternetAddress(fallbackEmail, "KendyDigital", "UTF-8");
+                fromAddress = new InternetAddress(fallbackEmail, displayName, "UTF-8");
             }
 
             helper.setFrom(fromAddress);
