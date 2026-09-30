@@ -1,5 +1,6 @@
 package com.example.KendyDigital.service.product_inventory;
 
+import com.example.KendyDigital.dto.coupon.AppliedCoupon;
 import com.example.KendyDigital.dto.coupon.request.CouponValidationRequest;
 import com.example.KendyDigital.dto.coupon.request.UpsertCouponRequest;
 import com.example.KendyDigital.dto.coupon.response.CouponResponse;

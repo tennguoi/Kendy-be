@@ -1,7 +1,6 @@
 package com.example.KendyDigital.config;
 
 import com.example.KendyDigital.service.auth.AuthTokenService;
-import com.example.KendyDigital.service.notification.NotificationRealtimeServiceImpl;
 import org.springframework.http.server.ServerHttpRequest;
 import org.springframework.http.server.ServerHttpResponse;
 import org.springframework.stereotype.Component;

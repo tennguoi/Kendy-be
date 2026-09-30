@@ -18,7 +18,7 @@ import com.example.KendyDigital.service.auth.AuthTokenService;
 import com.example.KendyDigital.service.notification.EmailNotificationService;
 import com.example.KendyDigital.service.notification.UserNotificationService;
 import com.example.KendyDigital.service.security.TwoFactorService;
-import com.example.KendyDigital.service.security.UserSecurityServiceImpl;
+import com.example.KendyDigital.service.security.impl.UserSecurityServiceImpl;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

@@ -3,7 +3,7 @@ package com.example.KendyDigital.security;
 import com.example.KendyDigital.config.AppOAuth2Properties;
 import com.example.KendyDigital.dto.auth.response.AuthTokenResponse;
 import com.example.KendyDigital.service.auth.OAuth2AuthService;
-import com.example.KendyDigital.service.auth.OAuthTwoFactorRequiredException;
+import com.example.KendyDigital.common.error.OAuthTwoFactorRequiredException;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;

@@ -1,6 +1,6 @@
 package com.example.KendyDigital.config;
 
-import com.example.KendyDigital.service.notification.NotificationRealtimeServiceImpl;
+import com.example.KendyDigital.service.notification.impl.NotificationRealtimeServiceImpl;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.socket.config.annotation.EnableWebSocket;
 import org.springframework.web.socket.config.annotation.WebSocketConfigurer;

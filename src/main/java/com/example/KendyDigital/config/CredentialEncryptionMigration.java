@@ -2,7 +2,6 @@ package com.example.KendyDigital.config;
 
 import com.example.KendyDigital.model.inventory.AccountCredential;
 import com.example.KendyDigital.repository.AccountCredentialRepository;
-import com.example.KendyDigital.service.product_inventory.AccountInventoryServiceImpl;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.List;

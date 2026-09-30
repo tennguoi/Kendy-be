@@ -1,0 +1,202 @@
+package com.example.KendyDigital.service.catalog.impl;
+
+import com.example.KendyDigital.service.catalog.*;
+
+import com.example.KendyDigital.dto.catalog.request.CreateServiceCategoryRequest;
+import com.example.KendyDigital.dto.catalog.request.UpdateServiceCategoryRequest;
+import com.example.KendyDigital.dto.catalog.response.ServiceCategoryResponse;
+import com.example.KendyDigital.model.catalog.ServiceCategory;
+import com.example.KendyDigital.repository.ServiceCategoryRepository;
+import com.example.KendyDigital.repository.ServiceItemRepository;
+import com.example.KendyDigital.service.audit.AuditService;
+import java.util.List;
+import java.util.Locale;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.http.HttpStatus;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
+
+@Service
+public class ServiceCategoryServiceImpl  implements ServiceCategoryService{
+    private final ServiceCategoryRepository serviceCategoryRepository;
+    private final ServiceItemRepository serviceItemRepository;
+    private final AuditService auditService;
+
+    public ServiceCategoryServiceImpl(ServiceCategoryRepository serviceCategoryRepository,
+            ServiceItemRepository serviceItemRepository, AuditService auditService) {
+        this.serviceCategoryRepository = serviceCategoryRepository;
+        this.serviceItemRepository = serviceItemRepository;
+        this.auditService = auditService;
+    }
+
+    @Transactional(readOnly = true)
+    @Cacheable(cacheNames = "serviceCategories", key = "'all'")
+    public List<ServiceCategoryResponse> listAll() {
+        return serviceCategoryRepository.findAllByOrderBySortOrderAscNameAsc()
+                .stream()
+                .map(ServiceCategoryResponse::from)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<ServiceCategoryResponse> listForAdmin(Integer page, Integer size) {
+        int safePage = page == null ? 0 : Math.max(0, page);
+        int safeSize = size == null ? 100 : Math.max(1, Math.min(size, 200));
+        return serviceCategoryRepository.findAllByOrderBySortOrderAscNameAsc(PageRequest.of(safePage, safeSize))
+                .stream()
+                .map(ServiceCategoryResponse::from)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    @Cacheable(cacheNames = "serviceCategories", key = "'root'")
+    public List<ServiceCategoryResponse> listRoot() {
+        return serviceCategoryRepository.findAllByParentIsNullOrderBySortOrderAscNameAsc()
+                .stream()
+                .map(ServiceCategoryResponse::from)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public ServiceCategoryResponse getById(Long id) {
+        return ServiceCategoryResponse.from(requireCategory(id));
+    }
+
+    @Transactional(readOnly = true)
+    public ServiceCategoryResponse getBySlug(String slug) {
+        return serviceCategoryRepository.findBySlug(normalizeSlug(slug))
+                .map(ServiceCategoryResponse::from)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Category not found"));
+    }
+
+    @Transactional
+    @CacheEvict(cacheNames = {"serviceCategories", "publicServices", "publicPricing"}, allEntries = true)
+    public ServiceCategoryResponse create(Long adminUserId, CreateServiceCategoryRequest request) {
+        String slug = normalizeSlug(request.slug());
+        if (serviceCategoryRepository.existsBySlug(slug)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Category slug already exists");
+        }
+
+        ServiceCategory parent = null;
+        if (request.parentId() != null) {
+            parent = requireCategory(request.parentId());
+        }
+
+        ServiceCategory category = new ServiceCategory(
+                request.name().trim(),
+                slug,
+                request.description(),
+                request.sortOrder() == null ? 0 : request.sortOrder());
+        if (parent != null) {
+            category.setParent(parent);
+        }
+        category.setMicrocopy(request.microcopy());
+        category.setPriceFrom(request.priceFrom());
+        category.setProcessingTime(request.processingTime());
+        category.setWarranty(request.warranty());
+        category.setRequirements(request.requirements());
+        category.setCta(request.cta());
+
+        ServiceCategory saved = serviceCategoryRepository.save(category);
+        auditService.recordAdmin(adminUserId, "SERVICE_CATEGORY_CREATED", "SERVICE_CATEGORY", saved.getId(),
+                "slug=" + saved.getSlug());
+        return ServiceCategoryResponse.from(saved);
+    }
+
+    @Transactional
+    @CacheEvict(cacheNames = {"serviceCategories", "publicServices", "publicPricing"}, allEntries = true)
+    public ServiceCategoryResponse update(Long adminUserId, Long id, UpdateServiceCategoryRequest request) {
+        ServiceCategory category = requireCategory(id);
+
+        if (request.name() != null) {
+            category.setName(request.name().trim());
+        }
+        if (request.slug() != null) {
+            String slug = normalizeSlug(request.slug());
+            if (!slug.equals(category.getSlug()) && serviceCategoryRepository.existsBySlug(slug)) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT, "Category slug already exists");
+            }
+            category.setSlug(slug);
+        }
+        if (request.description() != null) {
+            category.setDescription(request.description());
+        }
+        if (request.sortOrder() != null) {
+            category.setSortOrder(request.sortOrder());
+        }
+        if (request.microcopy() != null) {
+            category.setMicrocopy(request.microcopy());
+        }
+        if (request.priceFrom() != null) {
+            category.setPriceFrom(request.priceFrom());
+        }
+        if (request.processingTime() != null) {
+            category.setProcessingTime(request.processingTime());
+        }
+        if (request.warranty() != null) {
+            category.setWarranty(request.warranty());
+        }
+        if (request.requirements() != null) {
+            category.setRequirements(request.requirements());
+        }
+        if (request.cta() != null) {
+            category.setCta(request.cta());
+        }
+        if (request.parentId() != null) {
+            if (request.parentId().equals(category.getId())) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Category cannot be its own parent");
+            }
+            ServiceCategory parent = requireCategory(request.parentId());
+            ensureNotDescendant(category, parent);
+            category.setParent(parent);
+        } else if (request.parentId() == null && category.getParent() != null) {
+            category.setParent(null);
+        }
+
+        auditService.recordAdmin(adminUserId, "SERVICE_CATEGORY_UPDATED", "SERVICE_CATEGORY", category.getId(),
+                "slug=" + category.getSlug());
+        return ServiceCategoryResponse.from(category);
+    }
+
+    @Transactional
+    @CacheEvict(cacheNames = {"serviceCategories", "publicServices", "publicPricing"}, allEntries = true)
+    public void delete(Long adminUserId, Long id) {
+        ServiceCategory category = requireCategory(id);
+        if (serviceCategoryRepository.existsByParent_Id(id)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Category still has child categories");
+        }
+        if (serviceItemRepository.existsByCategory_Id(id)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Category is still used by services");
+        }
+        serviceCategoryRepository.delete(category);
+        auditService.recordAdmin(adminUserId, "SERVICE_CATEGORY_DELETED", "SERVICE_CATEGORY", id,
+                "slug=" + category.getSlug());
+    }
+
+    private ServiceCategory requireCategory(Long id) {
+        return serviceCategoryRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Category not found"));
+    }
+
+    private void ensureNotDescendant(ServiceCategory category, ServiceCategory candidateParent) {
+        ServiceCategory current = candidateParent;
+        while (current != null) {
+            if (current.getId().equals(category.getId())) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "Category parent cannot be one of its descendants");
+            }
+            current = current.getParent();
+        }
+    }
+
+    private String normalizeSlug(String slug) {
+        if (slug == null || slug.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Slug is required");
+        }
+        return slug.trim().toLowerCase(Locale.ROOT);
+    }
+}
+
