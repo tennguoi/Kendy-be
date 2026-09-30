@@ -28,7 +28,7 @@ public class AdminNotification extends TimestampedEntity {
     @Column(name = "admin_user_id")
     private Long adminUserId;
 
-    @Column(nullable = false)
+    @Column(nullable = false, length = 200)
     private String title;
 
     @Column(columnDefinition = "TEXT")

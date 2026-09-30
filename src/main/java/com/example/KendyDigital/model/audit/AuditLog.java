@@ -29,13 +29,13 @@ public class AuditLog extends TimestampedEntity {
     @Column(name = "actor_user_id")
     private Long actorUserId;
 
-    @Column(name = "actor_role")
+    @Column(name = "actor_role", length = 50)
     private String actorRole;
 
-    @Column(nullable = false)
+    @Column(nullable = false, length = 100)
     private String action;
 
-    @Column(name = "target_type")
+    @Column(name = "target_type", length = 50)
     private String targetType;
 
     @Column(name = "target_id")
@@ -44,7 +44,7 @@ public class AuditLog extends TimestampedEntity {
     @Column(columnDefinition = "TEXT")
     private String metadata;
 
-    @Column(name = "ip_address")
+    @Column(name = "ip_address", length = 45)
     private String ipAddress;
 
     public AuditLog(Long actorUserId, String actorRole, String action, String targetType, Long targetId,

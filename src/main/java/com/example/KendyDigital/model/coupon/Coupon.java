@@ -41,7 +41,7 @@ public class Coupon extends TimestampedEntity {
     @Column(nullable = false, length = 64)
     private String code;
 
-    @Column(nullable = false)
+    @Column(nullable = false, length = 100)
     private String name;
 
     @Enumerated(EnumType.STRING)

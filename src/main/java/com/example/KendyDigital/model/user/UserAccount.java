@@ -46,15 +46,16 @@ public class UserAccount extends TimestampedEntity {
     @Column(name = "public_id", nullable = false, updatable = false)
     private UUID publicId = UUID.randomUUID();
 
-    @Column(nullable = false)
+    @Column(nullable = false, length = 100)
     private String name;
 
-    @Column(nullable = false)
+    @Column(nullable = false, length = 100)
     private String email;
 
+    @Column(length = 11)
     private String phone;
 
-    @Column(name = "password_hash", nullable = false)
+    @Column(name = "password_hash", nullable = false, length = 100)
     private String passwordHash;
 
     @Column(name = "password_changed_at")
@@ -63,13 +64,13 @@ public class UserAccount extends TimestampedEntity {
     @Column(name = "email_verified_at")
     private Instant emailVerifiedAt;
 
-    @Column(name = "oauth_provider")
+    @Column(name = "oauth_provider", length = 50)
     private String oauthProvider;
 
-    @Column(name = "oauth_provider_id")
+    @Column(name = "oauth_provider_id", length = 100)
     private String oauthProviderId;
 
-    @Column(name = "avatar_url")
+    @Column(name = "avatar_url", length = 500)
     private String avatarUrl;
 
     @Enumerated(EnumType.STRING)

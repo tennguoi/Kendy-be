@@ -43,7 +43,7 @@ public class DepositRequest extends TimestampedEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "deposit_code", nullable = false)
+    @Column(name = "deposit_code", nullable = false, length = 50)
     private String depositCode;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
@@ -53,16 +53,16 @@ public class DepositRequest extends TimestampedEntity {
     @Column(nullable = false, precision = 18, scale = 2)
     private BigDecimal amount;
 
-    @Column(name = "bank_name", nullable = false)
+    @Column(name = "bank_name", nullable = false, length = 100)
     private String bankName;
 
-    @Column(name = "bank_account", nullable = false)
+    @Column(name = "bank_account", nullable = false, length = 30)
     private String bankAccount;
 
-    @Column(name = "bank_owner", nullable = false)
+    @Column(name = "bank_owner", nullable = false, length = 100)
     private String bankOwner;
 
-    @Column(name = "transfer_content", nullable = false)
+    @Column(name = "transfer_content", nullable = false, length = 100)
     private String transferContent;
 
     @Enumerated(EnumType.STRING)

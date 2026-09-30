@@ -25,7 +25,7 @@ public class SystemSettingHistory extends TimestampedEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "setting_key", nullable = false)
+    @Column(name = "setting_key", nullable = false, length = 100)
     private String key;
 
     @Column(name = "old_value", columnDefinition = "TEXT")

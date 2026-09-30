@@ -27,10 +27,10 @@ public class EmailLog extends TimestampedEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "to_email", nullable = false)
+    @Column(name = "to_email", nullable = false, length = 100)
     private String toEmail;
 
-    @Column(nullable = false)
+    @Column(nullable = false, length = 200)
     private String subject;
 
     @Column(columnDefinition = "TEXT")

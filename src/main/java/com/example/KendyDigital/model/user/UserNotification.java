@@ -34,7 +34,7 @@ public class UserNotification extends TimestampedEntity {
     @JoinColumn(name = "user_id", nullable = false)
     private UserAccount user;
 
-    @Column(nullable = false)
+    @Column(nullable = false, length = 200)
     private String title;
 
     @Column(columnDefinition = "TEXT")
@@ -43,7 +43,7 @@ public class UserNotification extends TimestampedEntity {
     @Column(length = 60)
     private String type;
 
-    @Column(name = "action_url")
+    @Column(name = "action_url", length = 500)
     private String actionUrl;
 
     @Column(name = "read_at")

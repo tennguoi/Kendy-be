@@ -44,7 +44,7 @@ public class CheckoutSession extends TimestampedEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "checkout_code", nullable = false)
+    @Column(name = "checkout_code", nullable = false, length = 50)
     private String checkoutCode;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
@@ -66,7 +66,7 @@ public class CheckoutSession extends TimestampedEntity {
     @Column(name = "input_data", columnDefinition = "TEXT")
     private String inputData;
 
-    @Column(name = "idempotency_key")
+    @Column(name = "idempotency_key", length = 100)
     private String idempotencyKey;
 
     @Column(name = "original_amount", precision = 18, scale = 2)
@@ -75,7 +75,7 @@ public class CheckoutSession extends TimestampedEntity {
     @Column(name = "discount_amount", precision = 18, scale = 2)
     private BigDecimal discountAmount;
 
-    @Column(name = "coupon_code")
+    @Column(name = "coupon_code", length = 50)
     private String couponCode;
 
     @Enumerated(EnumType.STRING)

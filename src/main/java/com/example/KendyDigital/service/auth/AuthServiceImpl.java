@@ -14,6 +14,8 @@ import com.example.KendyDigital.repository.UserAccountRepository;
 import com.example.KendyDigital.service.security.TwoFactorService;
 import com.example.KendyDigital.service.security.UserSecurityService;
 import java.util.Locale;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -22,6 +24,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 @Service
 public class AuthServiceImpl  implements AuthService{
+    private static final Logger LOGGER = LoggerFactory.getLogger(AuthServiceImpl.class);
     private final UserAccountRepository userAccountRepository;
     private final PasswordEncoder passwordEncoder;
     private final AuthTokenService authTokenService;
@@ -43,10 +46,13 @@ public class AuthServiceImpl  implements AuthService{
 
     @Transactional
     public AuthUserResponse register(AuthRegisterRequest request, String acceptLanguage) {
+        LOGGER.info("=== REGISTER START === email={}, name={}", request.email(), request.name());
         String email = normalizeEmail(request.email());
         var existing = userAccountRepository.findByEmailIgnoreCase(email);
         if (existing.isPresent()) {
             UserAccount existingUser = existing.get();
+            LOGGER.info("Existing user found: userId={}, emailVerifiedAt={}, oauthProvider={}, hasPassword={}", 
+                existingUser.getId(), existingUser.getEmailVerifiedAt(), existingUser.getOauthProvider(), existingUser.hasPassword());
             // If the existing account was created via OAuth, hint the user
             if (existingUser.getOauthProvider() != null && !existingUser.hasPassword()) {
                 String provider = existingUser.getOauthProvider().substring(0, 1).toUpperCase()
@@ -58,12 +64,14 @@ public class AuthServiceImpl  implements AuthService{
             }
             // If account was registered previously but NOT yet verified, allow updating info and resend verification
             if (existingUser.getEmailVerifiedAt() == null) {
+                LOGGER.info("Existing unverified user - updating info and resending verification");
                 existingUser.setName(request.name().trim());
                 existingUser.setPhone(blankToNull(request.phone()));
                 existingUser.changePasswordHash(passwordEncoder.encode(request.password()));
                 existingUser.setStatus(UserStatus.PENDING_VERIFY);
                 existingUser.setLocale(resolveLocale(acceptLanguage));
                 UserAccount saved = userAccountRepository.save(existingUser);
+                LOGGER.info("Calling userSecurityService.sendEmailVerification for existing user");
                 userSecurityService.sendEmailVerification(saved);
                 return AuthUserResponse.from(saved);
             }
@@ -78,7 +86,9 @@ public class AuthServiceImpl  implements AuthService{
         user.setStatus(UserStatus.PENDING_VERIFY);
         user.setLocale(resolveLocale(acceptLanguage));
         UserAccount saved = userAccountRepository.save(user);
+        LOGGER.info("New user created: userId={}, calling sendEmailVerification", saved.getId());
         userSecurityService.sendEmailVerification(saved);
+        LOGGER.info("=== REGISTER COMPLETED === userId={}", saved.getId());
         return AuthUserResponse.from(saved);
     }
 

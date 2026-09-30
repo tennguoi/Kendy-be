@@ -68,6 +68,8 @@ public class EmailNotificationServiceImpl  implements EmailNotificationService{
 
     @Async("mailExecutor")
     public void sendEmailVerification(UserAccount user, String token, Instant expiresAt) {
+        LOGGER.info("=== sendEmailVerification CALLED === userId={}, email={}, token={}, expiresAt={}", 
+            user.getId(), user.getEmail(), token, expiresAt);
         Locale locale = userLocale(user);
         String code = token;
         String link = frontendUrl("/verify-email?token=" + encode(token));
@@ -77,7 +79,9 @@ public class EmailNotificationServiceImpl  implements EmailNotificationService{
                 new Object[]{code, link, expiresAt}, locale);
         String body = loadHtmlTemplate("email_verification", fallback,
                 user, link, token, expiresAt, code);
+        LOGGER.debug("Email verification - subject: {}, link: {}", subject, link);
         send(user.getEmail(), subject, body);
+        LOGGER.info("=== sendEmailVerification COMPLETED === userId={}", user.getId());
     }
 
     @Async("mailExecutor")
@@ -184,23 +188,41 @@ public class EmailNotificationServiceImpl  implements EmailNotificationService{
     }
 
     private void send(String to, String subject, String bodyHtml) {
+        LOGGER.info("=== EMAIL SEND START === to={}, subject={}, enabled={}", to, subject, properties.isEnabled());
+        
         if (!properties.isEnabled()) {
-            LOGGER.debug("Email disabled. Skipped sending '{}' to {}", subject, to);
+            LOGGER.warn("Email disabled via app.email.enabled=false. Skipped sending '{}' to {}", subject, to);
             return;
         }
+        
+        LOGGER.debug("Email properties: host={}, port={}, username={}, from={}, frontendBaseUrl={}", 
+            System.getenv("MAIL_HOST"), System.getenv("MAIL_PORT"), System.getenv("MAIL_USERNAME"), 
+            properties.getFrom(), properties.getFrontendBaseUrl());
+
         JavaMailSender mailSender = mailSenderProvider.getIfAvailable();
         if (mailSender == null) {
-            LOGGER.warn("Email enabled but JavaMailSender is not available. Skipped sending '{}' to {}", subject, to);
+            LOGGER.error("CRITICAL: Email enabled but JavaMailSender is NOT AVAILABLE. Check spring.mail.* configuration and @EnableAutoConfiguration. Skipped sending '{}' to {}", subject, to);
             return;
         }
+        
+        LOGGER.info("JavaMailSender obtained: class={}", mailSender.getClass().getName());
+        
+        if (mailSender instanceof JavaMailSenderImpl impl) {
+            LOGGER.info("SMTP Config - host: {}, port: {}, username: {}, protocol: {}, auth: {}", 
+                impl.getHost(), impl.getPort(), impl.getUsername(), impl.getProtocol(), impl.getJavaMailProperties().getProperty("mail.smtp.auth"));
+        }
+
         String status = "SUCCESS";
         String errorMessage = null;
         Instant sentAt = Instant.now();
         try {
+            LOGGER.debug("Creating MimeMessage...");
             MimeMessage mimeMessage = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, "utf-8");
 
             String fromConfig = properties.getFrom();
+            LOGGER.debug("From config: '{}'", fromConfig);
+            
             InternetAddress fromAddress = null;
 
             if (fromConfig != null && !fromConfig.isBlank()) {
@@ -211,6 +233,7 @@ public class EmailNotificationServiceImpl  implements EmailNotificationService{
                         if (fromAddress.getPersonal() == null || fromAddress.getPersonal().isBlank()) {
                             fromAddress.setPersonal("KendyDigital", "UTF-8");
                         }
+                        LOGGER.debug("Parsed from address: {} (personal: {})", fromAddress.getAddress(), fromAddress.getPersonal());
                     }
                 } catch (Exception e) {
                     LOGGER.warn("Failed to parse app.email.from '{}', falling back: {}", fromConfig, e.getMessage());
@@ -225,30 +248,37 @@ public class EmailNotificationServiceImpl  implements EmailNotificationService{
                     String smtpUser = impl.getUsername();
                     if (smtpUser != null && !smtpUser.isBlank()) {
                         fallbackEmail = smtpUser;
+                        LOGGER.debug("Using SMTP username as from address: {}", fallbackEmail);
                     }
                 }
                 fromAddress = new InternetAddress(fallbackEmail, displayName, "UTF-8");
+                LOGGER.info("Using fallback from address: {}", fromAddress.getAddress());
             }
 
             helper.setFrom(fromAddress);
             helper.setTo(to);
             helper.setSubject(subject);
             helper.setText(bodyHtml, true);
+            
+            LOGGER.info("Sending email via SMTP to {}...", to);
             mailSender.send(mimeMessage);
+            LOGGER.info("=== EMAIL SENT SUCCESSFULLY === to={}, subject={}", to, subject);
         } catch (MailException exception) {
             status = "FAILED";
             errorMessage = exception.getMessage();
-            LOGGER.warn("Failed to send email '{}' to {}: {}", subject, to, exception.getMessage());
+            LOGGER.error("=== EMAIL SEND FAILED (MailException) === to={}, subject={}, error={}", to, subject, exception.getMessage(), exception);
         } catch (Exception exception) {
             status = "FAILED";
             errorMessage = exception.getMessage();
-            LOGGER.warn("Failed to prepare email '{}' to {}: {}", subject, to, exception.getMessage());
+            LOGGER.error("=== EMAIL SEND FAILED (Exception) === to={}, subject={}, error={}", to, subject, exception.getMessage(), exception);
         }
         try {
             emailLogRepository.save(new EmailLog(to, subject, bodyHtml, status, errorMessage, sentAt));
+            LOGGER.debug("Email log saved to database: status={}", status);
         } catch (Exception exception) {
-            LOGGER.error("Failed to save email log to database: {}", exception.getMessage());
+            LOGGER.error("Failed to save email log to database: {}", exception.getMessage(), exception);
         }
+        LOGGER.info("=== EMAIL SEND END === to={}, status={}", to, status);
     }
 
     private String loadHtmlTemplate(String slug, String fallbackHtml, UserAccount user, String link, String token,

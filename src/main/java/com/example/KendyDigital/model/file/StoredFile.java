@@ -25,10 +25,10 @@ public class StoredFile extends TimestampedEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "file_name", nullable = false)
+    @Column(name = "file_name", nullable = false, length = 255)
     private String fileName;
 
-    @Column(name = "content_type")
+    @Column(name = "content_type", length = 100)
     private String contentType;
 
     @Column(name = "size_bytes", nullable = false)

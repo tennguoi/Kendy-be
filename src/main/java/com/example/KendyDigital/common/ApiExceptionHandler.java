@@ -31,7 +31,7 @@ public class ApiExceptionHandler {
     }
 
     @ExceptionHandler(ResponseStatusException.class)
-    ResponseEntity<ApiError> handleResponseStatus(ResponseStatusException exception, WebRequest request) {
+    public ResponseEntity<ApiError> handleResponseStatus(ResponseStatusException exception, WebRequest request) {
         Locale locale = request.getLocale();
         HttpStatus status = HttpStatus.valueOf(exception.getStatusCode().value());
         String reason = exception.getReason();
@@ -126,33 +126,89 @@ public class ApiExceptionHandler {
     }
 
     private ErrorCode resolveErrorCode(HttpStatus status, String reason) {
-        if (reason == null) {
-            switch (status) {
-                case NOT_FOUND: return ErrorCode.NOT_FOUND;
-                case FORBIDDEN: return ErrorCode.FORBIDDEN;
-                case UNAUTHORIZED: return ErrorCode.UNAUTHORIZED;
-                case CONFLICT: return ErrorCode.CONFLICT;
-                case TOO_MANY_REQUESTS: return ErrorCode.TOO_MANY_REQUESTS;
-                default: return ErrorCode.BAD_REQUEST;
+        if (reason != null && !reason.isBlank()) {
+            String upper = reason.toUpperCase();
+            if (upper.contains("CURRENT PASSWORD") || upper.contains("OLD PASSWORD")) {
+                return ErrorCode.AUTH_OLD_PASSWORD_INCORRECT;
+            }
+            if (upper.contains("NEW PASSWORD") && (upper.contains("DIFFERENT") || upper.contains("SAME"))) {
+                return ErrorCode.AUTH_NEW_PASSWORD_SAME;
+            }
+            if (upper.contains("ALREADY HAS A PASSWORD")) {
+                return ErrorCode.AUTH_PASSWORD_ALREADY_SET;
+            }
+            if (upper.contains("DOES NOT HAVE A PASSWORD") || upper.contains("NOT HAVE A PASSWORD")) {
+                return ErrorCode.AUTH_PASSWORD_NOT_SET;
+            }
+            if (upper.contains("PASSWORD") && (upper.contains("MISMATCH") || upper.contains("CONFIRMATION"))) {
+                return ErrorCode.AUTH_PASSWORD_MISMATCH;
+            }
+            if (upper.contains("PASSWORD") && (upper.contains("WEAK") || upper.contains("LEAST"))) {
+                return ErrorCode.AUTH_PASSWORD_TOO_WEAK;
+            }
+            if (upper.contains("EMAIL") && (upper.contains("EXIST") || upper.contains("ALREADY"))) {
+                return ErrorCode.AUTH_EMAIL_EXISTS;
+            }
+            if (upper.contains("2FA") || upper.contains("TWO FACTOR")) {
+                if (upper.contains("INVALID") || upper.contains("EXPIRED")) {
+                    return ErrorCode.AUTH_TWO_FACTOR_INVALID;
+                }
+                return ErrorCode.AUTH_TWO_FACTOR_REQUIRED;
+            }
+            if (upper.contains("INSUFFICIENT") || upper.contains("BALANCE")) {
+                return ErrorCode.WALLET_INSUFFICIENT;
+            }
+            if (upper.contains("NOT FOUND")) return ErrorCode.NOT_FOUND;
+            if (upper.contains("UNAUTHORIZED") || upper.contains("CREDENTIAL")) {
+                return ErrorCode.AUTH_INVALID_CREDENTIALS;
+            }
+            if (upper.contains("FORBIDDEN")) return ErrorCode.FORBIDDEN;
+            if (upper.contains("EXPIRED")) return ErrorCode.AUTH_TOKEN_EXPIRED;
+            if (upper.contains("UNIQUE") || upper.contains("ALREADY EXISTS")) {
+                return ErrorCode.DATA_UNIQUE_CONSTRAINT;
+            }
+            if (upper.contains("UPLOAD") || upper.contains("AVATAR")) {
+                return ErrorCode.FILE_UPLOAD_FAILED;
             }
         }
-        String upper = reason.toUpperCase();
-        if (upper.contains("EMAIL") && (upper.contains("EXIST") || upper.contains("ALREADY"))) return ErrorCode.AUTH_EMAIL_EXISTS;
-        if (upper.contains("2FA") || upper.contains("TWO FACTOR")) return ErrorCode.AUTH_TWO_FACTOR_REQUIRED;
-        if (upper.contains("INSUFFICIENT") || upper.contains("BALANCE")) return ErrorCode.WALLET_INSUFFICIENT;
-        if (upper.contains("NOT FOUND")) return ErrorCode.NOT_FOUND;
-        if (upper.contains("UNAUTHORIZED")) return ErrorCode.UNAUTHORIZED;
-        if (upper.contains("FORBIDDEN")) return ErrorCode.FORBIDDEN;
-        if (upper.contains("INVALID")) return ErrorCode.BAD_REQUEST;
-        if (upper.contains("EXPIRED")) return ErrorCode.AUTH_TOKEN_EXPIRED;
-        return ErrorCode.BAD_REQUEST;
+
+        switch (status) {
+            case NOT_FOUND: return ErrorCode.NOT_FOUND;
+            case FORBIDDEN: return ErrorCode.FORBIDDEN;
+            case UNAUTHORIZED: return ErrorCode.UNAUTHORIZED;
+            case CONFLICT: return ErrorCode.CONFLICT;
+            case TOO_MANY_REQUESTS: return ErrorCode.TOO_MANY_REQUESTS;
+            default: return ErrorCode.BAD_REQUEST;
+        }
     }
 
     private String resolveMessage(ErrorCode code, Locale locale, String fallback) {
         String localized = messageSource.getMessage(code.getMessageKey(), null, locale);
         if (localized != null && !localized.equals(code.getMessageKey())) {
+            if (isGenericErrorCode(code) && fallback != null && !fallback.isBlank() && !isGenericReason(fallback)) {
+                return fallback;
+            }
             return localized;
         }
         return fallback != null ? fallback : localized;
+    }
+
+    private boolean isGenericErrorCode(ErrorCode code) {
+        return code == ErrorCode.BAD_REQUEST
+                || code == ErrorCode.CONFLICT
+                || code == ErrorCode.UNAUTHORIZED
+                || code == ErrorCode.FORBIDDEN
+                || code == ErrorCode.INTERNAL
+                || code == ErrorCode.UNEXPECTED;
+    }
+
+    private boolean isGenericReason(String reason) {
+        String trimmed = reason.trim().toLowerCase();
+        return trimmed.equals("bad request")
+                || trimmed.equals("unauthorized")
+                || trimmed.equals("forbidden")
+                || trimmed.equals("not found")
+                || trimmed.equals("conflict")
+                || trimmed.equals("internal server error");
     }
 }

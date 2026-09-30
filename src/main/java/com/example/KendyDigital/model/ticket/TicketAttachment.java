@@ -37,10 +37,10 @@ public class TicketAttachment extends TimestampedEntity {
     @JoinColumn(name = "stored_file_id")
     private StoredFile storedFile;
 
-    @Column(name = "file_name", nullable = false)
+    @Column(name = "file_name", nullable = false, length = 255)
     private String fileName;
 
-    @Column(name = "content_type")
+    @Column(name = "content_type", length = 100)
     private String contentType;
 
     @Column(name = "size_bytes")

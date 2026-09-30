@@ -42,10 +42,10 @@ public class ServiceItem extends TimestampedEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false)
+    @Column(nullable = false, length = 150)
     private String name;
 
-    @Column(nullable = false)
+    @Column(nullable = false, length = 150)
     private String slug;
 
     @Column(name = "short_description", columnDefinition = "TEXT")
@@ -57,7 +57,7 @@ public class ServiceItem extends TimestampedEntity {
     @Column(nullable = false, precision = 18, scale = 2)
     private BigDecimal price;
 
-    @Column(name = "price_text")
+    @Column(name = "price_text", length = 50)
     private String priceText;
 
     @Column(name = "cost_price", precision = 18, scale = 2)
@@ -86,7 +86,7 @@ public class ServiceItem extends TimestampedEntity {
     @Column(name = "cta_type", nullable = false, length = 32)
     private ServiceCtaType ctaType = ServiceCtaType.BUY_NOW;
 
-    @Column(name = "pricing_badge")
+    @Column(name = "pricing_badge", length = 50)
     private String pricingBadge;
 
     @Column(name = "featured", nullable = false)
@@ -107,7 +107,7 @@ public class ServiceItem extends TimestampedEntity {
     @Column(name = "usage_notes", columnDefinition = "TEXT")
     private String usageNotes;
 
-    @Column(name = "processing_time")
+    @Column(name = "processing_time", length = 100)
     private String processingTime;
 
     @Column(name = "warranty_policy", columnDefinition = "TEXT")
@@ -132,13 +132,13 @@ public class ServiceItem extends TimestampedEntity {
     @Column(name = "sort_order", nullable = false)
     private int sortOrder = 0;
 
-    @Column(name = "meta_title")
+    @Column(name = "meta_title", length = 200)
     private String metaTitle;
 
     @Column(name = "meta_description", columnDefinition = "TEXT")
     private String metaDescription;
 
-    @Column(name = "icon_url")
+    @Column(name = "icon_url", length = 500)
     private String iconUrl;
 
     @ManyToOne(fetch = FetchType.LAZY)

@@ -45,21 +45,22 @@ public class BankTransaction extends TimestampedEntity {
     @Column(name = "sepay_id")
     private Long sepayId;
 
+    @Column(length = 30)
     private String gateway;
 
-    @Column(name = "bank_name")
+    @Column(name = "bank_name", length = 100)
     private String bankName;
 
-    @Column(name = "account_number")
+    @Column(name = "account_number", length = 30)
     private String accountNumber;
 
-    @Column(name = "sub_account")
+    @Column(name = "sub_account", length = 50)
     private String subAccount;
 
     @Column(name = "transaction_date")
     private Instant transactionDate;
 
-    @Column(name = "transfer_type")
+    @Column(name = "transfer_type", length = 30)
     private String transferType;
 
     @Column(name = "transfer_amount", precision = 18, scale = 2)
@@ -68,19 +69,20 @@ public class BankTransaction extends TimestampedEntity {
     @Column(precision = 18, scale = 2)
     private BigDecimal accumulated;
 
+    @Column(length = 50)
     private String code;
 
     @Column(columnDefinition = "TEXT")
     private String content;
 
-    @Column(name = "reference_code")
+    @Column(name = "reference_code", length = 100)
     private String referenceCode;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 32)
     private BankTransactionStatus status = BankTransactionStatus.NEW;
 
-    @Column(name = "review_reason")
+    @Column(name = "review_reason", length = 500)
     private String reviewReason;
 
     @ManyToOne(fetch = FetchType.LAZY)

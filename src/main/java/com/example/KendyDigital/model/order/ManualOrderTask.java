@@ -35,7 +35,7 @@ public class ManualOrderTask extends TimestampedEntity {
     @JoinColumn(name = "order_id", nullable = false)
     private OrderRecord order;
 
-    @Column(nullable = false)
+    @Column(nullable = false, length = 200)
     private String title;
 
     @Column(nullable = false)

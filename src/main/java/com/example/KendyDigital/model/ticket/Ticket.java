@@ -42,7 +42,7 @@ public class Ticket extends TimestampedEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "ticket_code", nullable = false)
+    @Column(name = "ticket_code", nullable = false, length = 50)
     private String ticketCode;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
@@ -61,7 +61,7 @@ public class Ticket extends TimestampedEntity {
     @Column(nullable = false, length = 32)
     private TicketCategory category;
 
-    @Column(nullable = false)
+    @Column(nullable = false, length = 200)
     private String subject;
 
     @Enumerated(EnumType.STRING)

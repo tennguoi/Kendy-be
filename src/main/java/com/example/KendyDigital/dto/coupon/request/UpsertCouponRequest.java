@@ -22,5 +22,5 @@ public record UpsertCouponRequest(
         Instant endsAt,
         CouponStatus status,
         Long serviceId,
-        String adminNote) {
+        @Size(max = 1000) String adminNote) {
 }

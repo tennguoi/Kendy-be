@@ -39,7 +39,7 @@ public class WalletTransaction extends TimestampedEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "transaction_code", nullable = false)
+    @Column(name = "transaction_code", nullable = false, length = 50)
     private String transactionCode;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
@@ -63,12 +63,13 @@ public class WalletTransaction extends TimestampedEntity {
     @Column(name = "balance_after", nullable = false, precision = 18, scale = 2)
     private BigDecimal balanceAfter;
 
-    @Column(name = "reference_type")
+    @Column(name = "reference_type", length = 30)
     private String referenceType;
 
     @Column(name = "reference_id")
     private Long referenceId;
 
+    @Column(length = 500)
     private String description;
 
     @Column(name = "created_by")

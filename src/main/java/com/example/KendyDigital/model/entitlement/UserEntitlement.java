@@ -62,10 +62,10 @@ public class UserEntitlement extends TimestampedEntity {
     @Column(nullable = false, length = 32)
     private EntitlementStatus status = EntitlementStatus.PENDING;
 
-    @Column(name = "access_identifier")
+    @Column(name = "access_identifier", length = 150)
     private String accessIdentifier;
 
-    @Column(name = "external_resource_id")
+    @Column(name = "external_resource_id", length = 150)
     private String externalResourceId;
 
     @Column(name = "provider_metadata", columnDefinition = "TEXT")

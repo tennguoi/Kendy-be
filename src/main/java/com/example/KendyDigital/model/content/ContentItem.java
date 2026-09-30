@@ -37,10 +37,10 @@ public class ContentItem extends TimestampedEntity {
     @Column(nullable = false, length = 32)
     private ContentType type;
 
-    @Column(nullable = false)
+    @Column(nullable = false, length = 150)
     private String slug;
 
-    @Column(nullable = false)
+    @Column(nullable = false, length = 200)
     private String title;
 
     @Column(columnDefinition = "TEXT")
@@ -55,7 +55,7 @@ public class ContentItem extends TimestampedEntity {
     @Column(name = "cta_url", columnDefinition = "TEXT")
     private String ctaUrl;
 
-    @Column(name = "seo_title")
+    @Column(name = "seo_title", length = 200)
     private String seoTitle;
 
     @Column(name = "seo_description", columnDefinition = "TEXT")

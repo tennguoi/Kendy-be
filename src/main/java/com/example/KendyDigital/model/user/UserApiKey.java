@@ -38,7 +38,7 @@ public class UserApiKey extends TimestampedEntity {
     @JoinColumn(name = "user_id", nullable = false)
     private UserAccount user;
 
-    @Column(nullable = false)
+    @Column(nullable = false, length = 100)
     private String name;
 
     @Column(name = "key_prefix", nullable = false, length = 20)

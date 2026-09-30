@@ -128,6 +128,10 @@ public class UserProfileServiceImpl  implements UserProfileService{
     @Transactional
     public AuthUserResponse changePassword(Long userId, ChangePasswordRequest request) {
         UserAccount user = getUser(userId);
+        if (!user.hasPassword() || user.getPasswordHash() == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Account does not have a password set. Please use set-password.");
+        }
         if (!passwordEncoder.matches(request.currentPassword(), user.getPasswordHash())) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Current password is incorrect");
         }

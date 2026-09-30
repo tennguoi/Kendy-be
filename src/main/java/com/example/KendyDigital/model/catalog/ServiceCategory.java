@@ -34,10 +34,10 @@ public class ServiceCategory extends TimestampedEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false)
+    @Column(nullable = false, length = 100)
     private String name;
 
-    @Column(nullable = false)
+    @Column(nullable = false, length = 120)
     private String slug;
 
     @Column(columnDefinition = "TEXT")
@@ -46,22 +46,22 @@ public class ServiceCategory extends TimestampedEntity {
     @Column(name = "sort_order", nullable = false)
     private int sortOrder = 0;
 
-    @Column(name = "microcopy")
+    @Column(name = "microcopy", length = 255)
     private String microcopy;
 
-    @Column(name = "price_from")
+    @Column(name = "price_from", length = 50)
     private String priceFrom;
 
-    @Column(name = "processing_time")
+    @Column(name = "processing_time", length = 100)
     private String processingTime;
 
-    @Column(name = "warranty")
+    @Column(name = "warranty", length = 100)
     private String warranty;
 
     @Column(name = "requirements", columnDefinition = "TEXT")
     private String requirements;
 
-    @Column(name = "cta")
+    @Column(name = "cta", length = 50)
     private String cta;
 
     @ManyToOne(fetch = FetchType.LAZY)

@@ -51,7 +51,7 @@ public class AccountCredential extends TimestampedEntity {
     @JoinColumn(name = "service_id", nullable = false)
     private ServiceItem service;
 
-    @Column(name = "login_identifier", nullable = false)
+    @Column(name = "login_identifier", nullable = false, length = 255)
     private String loginIdentifier;
 
     @Column(name = "password_secret", nullable = false, columnDefinition = "TEXT")

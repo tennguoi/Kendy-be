@@ -5,7 +5,7 @@ import jakarta.validation.constraints.Size;
 
 public record CreateServiceCheckoutRequest(
         @NotNull Long serviceId,
-        String inputData,
+        @Size(max = 10000) String inputData,
         @Size(max = 128) String idempotencyKey,
         @Size(max = 64) String couponCode) {
 }

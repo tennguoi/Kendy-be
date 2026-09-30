@@ -45,6 +45,8 @@ import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -54,6 +56,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 @Service
 public class UserSecurityServiceImpl  implements UserSecurityService{
+    private static final Logger LOGGER = LoggerFactory.getLogger(UserSecurityServiceImpl.class);
     private static final Duration PASSWORD_RESET_TTL = Duration.ofMinutes(30);
     private static final Duration EMAIL_VERIFY_TTL = Duration.ofHours(24);
     private static final Duration EMAIL_2FA_TTL = Duration.ofMinutes(10);
@@ -154,7 +157,10 @@ public class UserSecurityServiceImpl  implements UserSecurityService{
 
     @Transactional
     public SecurityTokenResponse sendEmailVerification(UserAccount user) {
+        LOGGER.info("=== UserSecurityService.sendEmailVerification CALLED === userId={}, email={}, emailVerifiedAt={}", 
+            user.getId(), user.getEmail(), user.getEmailVerifiedAt());
         if (user.getEmailVerifiedAt() != null) {
+            LOGGER.warn("Email already verified for userId={}", user.getId());
             return new SecurityTokenResponse("Email already verified.", null, null);
         }
         String code;
@@ -170,7 +176,9 @@ public class UserSecurityServiceImpl  implements UserSecurityService{
                 codeHash,
                 expiresAt));
         auditService.recordSystem("USER_EMAIL_VERIFICATION_REQUESTED", "USER", user.getId(), null);
+        LOGGER.info("Verification code generated: code={}, expiresAt={}, token saved to DB", code, expiresAt);
         emailNotificationService.sendEmailVerification(user, code, expiresAt);
+        LOGGER.info("=== UserSecurityService.sendEmailVerification COMPLETED === userId={}", user.getId());
         return new SecurityTokenResponse("Email verification email sent.", expiresAt, null);
     }
 

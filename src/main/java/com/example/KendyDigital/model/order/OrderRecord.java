@@ -47,7 +47,7 @@ public class OrderRecord extends TimestampedEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "order_code", nullable = false)
+    @Column(name = "order_code", nullable = false, length = 50)
     private String orderCode;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
@@ -67,7 +67,7 @@ public class OrderRecord extends TimestampedEntity {
     @Column(name = "discount_amount", precision = 18, scale = 2)
     private BigDecimal discountAmount;
 
-    @Column(name = "coupon_code")
+    @Column(name = "coupon_code", length = 50)
     private String couponCode;
 
     @Column(name = "input_data", columnDefinition = "TEXT")
@@ -91,7 +91,7 @@ public class OrderRecord extends TimestampedEntity {
     @OneToOne(mappedBy = "assignedOrder", fetch = FetchType.LAZY)
     private AccountCredential deliveredCredential;
 
-    @Column(name = "idempotency_key")
+    @Column(name = "idempotency_key", length = 100)
     private String idempotencyKey;
 
     @Column(name = "admin_note", columnDefinition = "TEXT")
