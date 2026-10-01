@@ -2,14 +2,9 @@ package com.example.KendyDigital.service.security.impl;
 
 import com.example.KendyDigital.service.security.*;
 
-import com.google.zxing.BarcodeFormat;
-import com.google.zxing.client.j2se.MatrixToImageWriter;
-import com.google.zxing.common.BitMatrix;
-import com.google.zxing.qrcode.QRCodeWriter;
-import java.io.ByteArrayOutputStream;
+import com.example.KendyDigital.service.security.qrcode.QrCodeService;
 import java.security.SecureRandom;
 import java.util.ArrayList;
-import java.util.Base64;
 import java.util.List;
 import java.util.stream.Collectors;
 import javax.crypto.Mac;
@@ -29,9 +24,11 @@ public class TwoFactorServiceImpl  implements TwoFactorService{
     private static final String BACKUP_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
 
     private final PasswordEncoder passwordEncoder;
+    private final QrCodeService qrCodeService;
 
-    public TwoFactorServiceImpl(PasswordEncoder passwordEncoder) {
+    public TwoFactorServiceImpl(PasswordEncoder passwordEncoder, QrCodeService qrCodeService) {
         this.passwordEncoder = passwordEncoder;
+        this.qrCodeService = qrCodeService;
     }
 
     public String generateSecret() {
@@ -48,25 +45,11 @@ public class TwoFactorServiceImpl  implements TwoFactorService{
     }
 
     public byte[] generateQRCode(String secret, String email, String issuer) {
-        try {
-            String otpAuth = "otpauth://totp/"
-                    + urlEncode(issuer) + ":" + urlEncode(email)
-                    + "?secret=" + secret
-                    + "&issuer=" + urlEncode(issuer)
-                    + "&algorithm=SHA1&digits=" + TOTP_DIGITS
-                    + "&period=" + TOTP_INTERVAL;
-            QRCodeWriter writer = new QRCodeWriter();
-            BitMatrix matrix = writer.encode(otpAuth, BarcodeFormat.QR_CODE, 300, 300);
-            ByteArrayOutputStream out = new ByteArrayOutputStream();
-            MatrixToImageWriter.writeToStream(matrix, "PNG", out);
-            return out.toByteArray();
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to generate QR code", e);
-        }
+        return qrCodeService.generateTotpQrCodePng(secret, email, issuer);
     }
 
     public String qrCodeBase64(String secret, String email, String issuer) {
-        return Base64.getEncoder().encodeToString(generateQRCode(secret, email, issuer));
+        return qrCodeService.generateTotpQrCodeBase64(secret, email, issuer);
     }
 
     public List<String> generateBackupCodes() {
@@ -173,14 +156,6 @@ public class TwoFactorServiceImpl  implements TwoFactorService{
             return truncated % (long) Math.pow(10, TOTP_DIGITS);
         } catch (Exception e) {
             return -1;
-        }
-    }
-
-    private String urlEncode(String value) {
-        try {
-            return java.net.URLEncoder.encode(value, "UTF-8").replace("+", "%20");
-        } catch (Exception e) {
-            return value;
         }
     }
 

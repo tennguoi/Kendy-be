@@ -1,9 +1,5 @@
 package com.example.KendyDigital.service.user_management.impl;
 
-import com.example.KendyDigital.service.user_management.*;
-
-import com.cloudinary.Cloudinary;
-import com.cloudinary.utils.ObjectUtils;
 import com.example.KendyDigital.dto.auth.response.AuthUserResponse;
 import com.example.KendyDigital.dto.user.request.ChangePasswordRequest;
 import com.example.KendyDigital.dto.user.request.SetPasswordRequest;
@@ -13,74 +9,64 @@ import com.example.KendyDigital.model.deposit.DepositStatus;
 import com.example.KendyDigital.model.order.OrderStatus;
 import com.example.KendyDigital.model.ticket.TicketStatus;
 import com.example.KendyDigital.model.user.UserAccount;
-import com.example.KendyDigital.model.user.UserStatus;
 import com.example.KendyDigital.model.wallet.WalletTransactionType;
-import com.example.KendyDigital.repository.AuthSessionRepository;
 import com.example.KendyDigital.repository.DepositRequestRepository;
 import com.example.KendyDigital.repository.OrderRepository;
 import com.example.KendyDigital.repository.TicketRepository;
 import com.example.KendyDigital.repository.UserAccountRepository;
-import com.example.KendyDigital.repository.UserApiKeyRepository;
 import com.example.KendyDigital.repository.WalletTransactionRepository;
 import com.example.KendyDigital.service.audit.AuditService;
-import com.example.KendyDigital.service.file_integrations.UploadedFileValidator;
-import java.io.IOException;
-import java.util.LinkedHashMap;
+import com.example.KendyDigital.service.user_management.UserAvatarService;
+import com.example.KendyDigital.service.user_management.UserDataPortabilityService;
+import com.example.KendyDigital.service.user_management.UserProfileService;
 import java.util.Map;
-import java.util.Set;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.server.ResponseStatusException;
 
 @Service
-public class UserProfileServiceImpl  implements UserProfileService{
+public class UserProfileServiceImpl implements UserProfileService {
     private final UserAccountRepository userAccountRepository;
     private final OrderRepository orderRepository;
     private final DepositRequestRepository depositRequestRepository;
     private final TicketRepository ticketRepository;
     private final WalletTransactionRepository walletTransactionRepository;
-    private final AuthSessionRepository authSessionRepository;
-    private final UserApiKeyRepository userApiKeyRepository;
     private final PasswordEncoder passwordEncoder;
     private final AuditService auditService;
-    private final Cloudinary cloudinary;
-    private final UploadedFileValidator uploadedFileValidator;
-    private static final Set<String> AVATAR_CONTENT_TYPES =
-            Set.of("image/jpeg", "image/png", "image/gif", "image/webp");
+    private final UserAvatarService userAvatarService;
+    private final UserDataPortabilityService userDataPortabilityService;
 
-    public UserProfileServiceImpl(UserAccountRepository userAccountRepository,
+    public UserProfileServiceImpl(
+            UserAccountRepository userAccountRepository,
             OrderRepository orderRepository,
             DepositRequestRepository depositRequestRepository,
             TicketRepository ticketRepository,
             WalletTransactionRepository walletTransactionRepository,
-            AuthSessionRepository authSessionRepository,
-            UserApiKeyRepository userApiKeyRepository,
             PasswordEncoder passwordEncoder,
             AuditService auditService,
-            Cloudinary cloudinary,
-            UploadedFileValidator uploadedFileValidator) {
+            UserAvatarService userAvatarService,
+            UserDataPortabilityService userDataPortabilityService) {
         this.userAccountRepository = userAccountRepository;
         this.orderRepository = orderRepository;
         this.depositRequestRepository = depositRequestRepository;
         this.ticketRepository = ticketRepository;
         this.walletTransactionRepository = walletTransactionRepository;
-        this.authSessionRepository = authSessionRepository;
-        this.userApiKeyRepository = userApiKeyRepository;
         this.passwordEncoder = passwordEncoder;
         this.auditService = auditService;
-        this.cloudinary = cloudinary;
-        this.uploadedFileValidator = uploadedFileValidator;
+        this.userAvatarService = userAvatarService;
+        this.userDataPortabilityService = userDataPortabilityService;
     }
 
+    @Override
     @Transactional(readOnly = true)
     public AuthUserResponse getProfile(Long userId) {
         return AuthUserResponse.from(getUser(userId));
     }
 
+    @Override
     @Transactional
     public AuthUserResponse updateProfile(Long userId, UpdateProfileRequest request) {
         UserAccount user = getUser(userId);
@@ -90,36 +76,17 @@ public class UserProfileServiceImpl  implements UserProfileService{
         return AuthUserResponse.from(user);
     }
 
+    @Override
     @Transactional
     public AuthUserResponse uploadAvatar(Long userId, MultipartFile file) {
-        UploadedFileValidator.ValidatedUpload upload = uploadedFileValidator.validate(file);
-        if (!AVATAR_CONTENT_TYPES.contains(upload.contentType())) {
-            throw new ResponseStatusException(HttpStatus.UNSUPPORTED_MEDIA_TYPE,
-                    "Only JPG, PNG, GIF and WEBP images are allowed");
-        }
-
         UserAccount user = getUser(userId);
-        try {
-            Map<?, ?> result = cloudinary.uploader().upload(upload.content(), ObjectUtils.asMap(
-                    "folder", "kendy-digital/avatars",
-                    "public_id", "user-" + user.getPublicId(),
-                    "resource_type", "image",
-                    "overwrite", true,
-                    "invalidate", true));
-            Object secureUrl = result.get("secure_url");
-            if (secureUrl == null || secureUrl.toString().isBlank()) {
-                throw new ResponseStatusException(HttpStatus.BAD_GATEWAY,
-                        "Cloudinary response is missing secure_url");
-            }
-            user.setAvatarUrl(secureUrl.toString());
-            auditService.recordSystem("USER_AVATAR_UPDATED", "USER", user.getId(), null);
-            return AuthUserResponse.from(user);
-        } catch (IOException exception) {
-            throw new ResponseStatusException(HttpStatus.BAD_GATEWAY,
-                    "Cloudinary avatar upload failed", exception);
-        }
+        String secureUrl = userAvatarService.uploadAvatar(user.getId(), String.valueOf(user.getPublicId()), file);
+        user.setAvatarUrl(secureUrl);
+        auditService.recordSystem("USER_AVATAR_UPDATED", "USER", user.getId(), null);
+        return AuthUserResponse.from(user);
     }
 
+    @Override
     @Transactional
     public AuthUserResponse updateLocale(Long userId, String locale) {
         UserAccount user = getUser(userId);
@@ -127,6 +94,7 @@ public class UserProfileServiceImpl  implements UserProfileService{
         return AuthUserResponse.from(user);
     }
 
+    @Override
     @Transactional
     public AuthUserResponse changePassword(Long userId, ChangePasswordRequest request) {
         UserAccount user = getUser(userId);
@@ -145,6 +113,7 @@ public class UserProfileServiceImpl  implements UserProfileService{
         return AuthUserResponse.from(user);
     }
 
+    @Override
     @Transactional
     public AuthUserResponse setPassword(Long userId, SetPasswordRequest request) {
         UserAccount user = getUser(userId);
@@ -158,6 +127,7 @@ public class UserProfileServiceImpl  implements UserProfileService{
         return AuthUserResponse.from(user);
     }
 
+    @Override
     @Transactional(readOnly = true)
     public UserDashboardResponse dashboard(Long userId) {
         UserAccount user = getUser(userId);
@@ -180,93 +150,16 @@ public class UserProfileServiceImpl  implements UserProfileService{
                 walletTransactionRepository.sumAmountByUserIdAndType(userId, WalletTransactionType.REFUND));
     }
 
+    @Override
     @Transactional(readOnly = true)
     public Map<String, Object> exportPersonalData(Long userId) {
-        UserAccount user = getUser(userId);
-        PageRequest page = PageRequest.of(0, 500);
-        Map<String, Object> data = new LinkedHashMap<>();
-        data.put("exportedAt", java.time.Instant.now().toString());
-        data.put("profile", Map.of(
-                "id", user.getId(),
-                "publicId", String.valueOf(user.getPublicId()),
-                "name", nullToBlank(user.getName()),
-                "email", nullToBlank(user.getEmail()),
-                "phone", nullToBlank(user.getPhone()),
-                "role", String.valueOf(user.getRole()),
-                "status", String.valueOf(user.getStatus()),
-                "createdAt", user.getCreatedAt(),
-                "updatedAt", user.getUpdatedAt()));
-        data.put("orders", orderRepository.findAllByUser_IdOrderByCreatedAtDesc(userId, page).stream()
-                .map(order -> Map.of(
-                        "orderCode", order.getOrderCode(),
-                        "serviceName", order.getService().getName(),
-                        "status", String.valueOf(order.getStatus()),
-                        "amount", order.getAmount(),
-                        "createdAt", order.getCreatedAt()))
-                .toList());
-        data.put("deposits", depositRequestRepository.findAllByUser_IdOrderByCreatedAtDesc(userId, page).stream()
-                .map(deposit -> Map.of(
-                        "depositCode", deposit.getDepositCode(),
-                        "status", String.valueOf(deposit.getStatus()),
-                        "amount", deposit.getAmount(),
-                        "createdAt", deposit.getCreatedAt()))
-                .toList());
-        data.put("walletTransactions", walletTransactionRepository.findAllByUser_IdOrderByCreatedAtDesc(userId, page)
-                .stream()
-                .map(transaction -> Map.of(
-                        "transactionCode", transaction.getTransactionCode(),
-                        "type", String.valueOf(transaction.getType()),
-                        "direction", String.valueOf(transaction.getDirection()),
-                        "amount", transaction.getAmount(),
-                        "balanceAfter", transaction.getBalanceAfter(),
-                        "createdAt", transaction.getCreatedAt()))
-                .toList());
-        data.put("tickets", ticketRepository.findAllByUser_IdOrderByCreatedAtDesc(userId, page).stream()
-                .map(ticket -> Map.of(
-                        "ticketCode", ticket.getTicketCode(),
-                        "subject", ticket.getSubject(),
-                        "status", String.valueOf(ticket.getStatus()),
-                        "createdAt", ticket.getCreatedAt()))
-                .toList());
-        data.put("loginSessions", authSessionRepository.findAllByUser_IdOrderByCreatedAtDesc(userId, page).stream()
-                .map(session -> {
-                    Map<String, Object> item = new LinkedHashMap<>();
-                    item.put("id", session.getId());
-                    item.put("createdAt", session.getCreatedAt());
-                    item.put("lastUsedAt", session.getLastUsedAt());
-                    item.put("expiresAt", session.getExpiresAt());
-                    item.put("revokedAt", session.getRevokedAt());
-                    return item;
-                })
-                .toList());
-        return data;
+        return userDataPortabilityService.exportPersonalData(userId);
     }
 
+    @Override
     @Transactional
     public Map<String, Object> deleteAccount(Long userId) {
-        UserAccount user = getUser(userId);
-        if (user.getStatus() == UserStatus.DELETED) {
-            return Map.of("status", "DELETED");
-        }
-        authSessionRepository.findAllByUser_IdAndRevokedAtIsNull(userId).forEach(session -> session.revoke());
-        userApiKeyRepository.findAllByUser_IdOrderByCreatedAtDesc(userId, PageRequest.of(0, 500))
-                .forEach(apiKey -> {
-                    if (apiKey.getRevokedAt() == null) {
-                        apiKey.revoke();
-                    }
-                });
-        user.setName("Deleted user #" + user.getId());
-        user.setEmail("deleted-user-" + user.getId() + "@example.invalid");
-        user.setPhone(null);
-        user.setPasswordHash(passwordEncoder.encode(java.util.UUID.randomUUID().toString()));
-        user.setEmailVerifiedAt(null);
-        user.setOauthProvider(null);
-        user.setOauthProviderId(null);
-        user.setAvatarUrl(null);
-        user.disableTwoFactor();
-        user.setStatus(UserStatus.DELETED);
-        auditService.recordSystem("USER_ACCOUNT_DELETED", "USER", user.getId(), "gdpr=anonymized");
-        return Map.of("status", "DELETED");
+        return userDataPortabilityService.deleteAccount(userId);
     }
 
     private UserAccount getUser(Long userId) {
@@ -277,9 +170,4 @@ public class UserProfileServiceImpl  implements UserProfileService{
     private String blankToNull(String value) {
         return value == null || value.isBlank() ? null : value.trim();
     }
-
-    private String nullToBlank(String value) {
-        return value == null ? "" : value;
-    }
 }
-

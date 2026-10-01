@@ -1,5 +1,14 @@
 package com.example.KendyDigital.service.order;
 
+import com.example.KendyDigital.dto.order.request.AdminOrderUpdateRequest;
+import com.example.KendyDigital.dto.order.request.BulkRefundOrdersRequest;
+import com.example.KendyDigital.dto.order.request.CancelOrderRequest;
+import com.example.KendyDigital.dto.order.request.ExtendOrderRequest;
+import com.example.KendyDigital.dto.order.request.ManualOrderTaskStatusRequest;
+import com.example.KendyDigital.dto.order.request.ManualOrderWorkflowRequest;
+import com.example.KendyDigital.dto.order.request.OrderNoteRequest;
+import com.example.KendyDigital.dto.order.request.RefundOrderRequest;
+import com.example.KendyDigital.dto.order.request.ReprocessOrderRequest;
 import com.example.KendyDigital.dto.order.response.OrderResponse;
 import com.example.KendyDigital.model.order.OrderStatus;
 import java.time.Instant;
@@ -8,4 +17,21 @@ import java.util.List;
 public interface AdminOrderManagerService {
     List<OrderResponse> listOrders(OrderStatus status, Long userId, Instant fromDate, Instant toDate, int page, int size);
     List<OrderResponse> searchOrders(String query, OrderStatus status, Long userId, Instant fromDate, Instant toDate, int page, int size);
+
+    List<OrderResponse> listForAdmin(OrderStatus status, Long userId);
+    List<OrderResponse> listForAdmin(OrderStatus status, Long userId, Integer limit);
+    List<OrderResponse> searchForAdmin(String query, OrderStatus status, Long userId, Integer limit);
+    OrderResponse getByCodeForAdmin(String orderCode);
+
+    OrderResponse complete(String orderCode, Long adminUserId, AdminOrderUpdateRequest request);
+    OrderResponse fail(String orderCode, Long adminUserId, AdminOrderUpdateRequest request);
+    OrderResponse cancelByAdmin(String orderCode, Long adminUserId, CancelOrderRequest request);
+    OrderResponse refund(String orderCode, Long adminUserId, RefundOrderRequest request);
+    OrderResponse updateAdminNote(String orderCode, Long adminUserId, OrderNoteRequest request);
+    OrderResponse updateUserNote(String orderCode, Long adminUserId, OrderNoteRequest request);
+    OrderResponse extend(String orderCode, Long adminUserId, ExtendOrderRequest request);
+    OrderResponse reprocess(String orderCode, Long adminUserId, ReprocessOrderRequest request);
+    OrderResponse updateManualWorkflow(String orderCode, Long adminUserId, ManualOrderWorkflowRequest request);
+    OrderResponse updateManualTask(String orderCode, Long adminUserId, Long taskId, ManualOrderTaskStatusRequest request);
+    List<OrderResponse> bulkRefund(Long adminUserId, BulkRefundOrdersRequest request);
 }

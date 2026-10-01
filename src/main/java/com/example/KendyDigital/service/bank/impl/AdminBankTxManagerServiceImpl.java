@@ -44,21 +44,20 @@ public class AdminBankTxManagerServiceImpl  implements AdminBankTxManagerService
     private final UserAccountRepository userAccountRepository;
     private final WalletLedgerService walletLedgerService;
     private final AuditService auditService;
-    private final Pattern depositCodePattern;
+    private final DepositCodeExtractor depositCodeExtractor;
 
     public AdminBankTxManagerServiceImpl(BankTransactionRepository bankTransactionRepository,
             DepositRequestRepository depositRequestRepository,
             UserAccountRepository userAccountRepository,
             WalletLedgerService walletLedgerService,
             AuditService auditService,
-            BankProperties bankProperties) {
+            DepositCodeExtractor depositCodeExtractor) {
         this.bankTransactionRepository = bankTransactionRepository;
         this.depositRequestRepository = depositRequestRepository;
         this.userAccountRepository = userAccountRepository;
         this.walletLedgerService = walletLedgerService;
         this.auditService = auditService;
-        this.depositCodePattern = Pattern.compile("\\b" + Pattern.quote(bankProperties.getTransferPrefix())
-                + "[A-Z0-9]{8,}\\b", Pattern.CASE_INSENSITIVE);
+        this.depositCodeExtractor = depositCodeExtractor;
     }
 
     @Transactional(readOnly = true)
@@ -352,7 +351,7 @@ public class AdminBankTxManagerServiceImpl  implements AdminBankTxManagerService
                     bankTransaction.getMatchedDepositRequest().getDepositCode());
         }
 
-        return extractDepositCode(bankTransaction.getContent(), bankTransaction.getCode())
+        return depositCodeExtractor.extractDepositCode(bankTransaction.getContent(), bankTransaction.getCode())
                 .flatMap(depositRequestRepository::findByDepositCodeForUpdate);
     }
 
@@ -399,15 +398,6 @@ public class AdminBankTxManagerServiceImpl  implements AdminBankTxManagerService
 
     private boolean amountMatches(BigDecimal expectedAmount, BigDecimal actualAmount) {
         return expectedAmount != null && actualAmount != null && expectedAmount.compareTo(actualAmount) == 0;
-    }
-
-    private Optional<String> extractDepositCode(String content, String code) {
-        String text = (nullSafe(content) + " " + nullSafe(code)).toUpperCase(Locale.ROOT);
-        Matcher matcher = depositCodePattern.matcher(text);
-        if (matcher.find()) {
-            return Optional.of(matcher.group().toUpperCase(Locale.ROOT));
-        }
-        return Optional.empty();
     }
 
     private String normalizeDepositCode(String depositCode) {

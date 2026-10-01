@@ -38,22 +38,17 @@ import com.example.KendyDigital.model.user.UserRole;
 import com.example.KendyDigital.model.user.UserStatus;
 import com.example.KendyDigital.model.wallet.WalletTransaction;
 import com.example.KendyDigital.model.wallet.WalletTransactionType;
-import com.example.KendyDigital.repository.AdminNotificationRepository;
-import com.example.KendyDigital.repository.ManualOrderTaskRepository;
 import com.example.KendyDigital.repository.OrderEventRepository;
 import com.example.KendyDigital.repository.OrderRepository;
 import com.example.KendyDigital.repository.ServiceItemRepository;
-import com.example.KendyDigital.repository.TicketMessageRepository;
-import com.example.KendyDigital.repository.TicketRepository;
 import com.example.KendyDigital.repository.UserAccountRepository;
 import com.example.KendyDigital.service.audit.AuditService;
 import com.example.KendyDigital.dto.coupon.AppliedCoupon;
 import com.example.KendyDigital.service.product_inventory.CouponService;
 import com.example.KendyDigital.service.product_inventory.EntitlementService;
 import com.example.KendyDigital.service.product_inventory.AccountInventoryService;
-import com.example.KendyDigital.service.notification.EmailNotificationService;
-import com.example.KendyDigital.service.notification.NotificationRealtimeService;
 import com.example.KendyDigital.service.notification.UserNotificationService;
+import com.example.KendyDigital.service.order.helper.ManualOrderSupportService;
 import com.example.KendyDigital.service.wallet.WalletLedgerService;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -64,7 +59,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import org.springframework.context.MessageSource;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -82,16 +76,12 @@ public class OrderServiceImpl implements OrderService {
     private final ObjectMapper objectMapper;
     private final UserNotificationService userNotificationService;
     private final AccountInventoryService accountInventoryService;
-    private final AdminNotificationRepository adminNotificationRepository;
-    private final EmailNotificationService emailNotificationService;
-    private final TicketRepository ticketRepository;
-    private final TicketMessageRepository ticketMessageRepository;
     private final CouponService couponService;
     private final OrderEventRepository orderEventRepository;
     private final EntitlementService entitlementService;
-    private final ManualOrderTaskRepository manualOrderTaskRepository;
-    private final NotificationRealtimeService notificationRealtimeService;
-    private final MessageSource messageSource;
+    private final ManualOrderTaskService manualOrderTaskService;
+    private final ManualOrderSupportService manualOrderSupportService;
+    private final AdminOrderManagerService adminOrderManagerService;
 
     public OrderServiceImpl(OrderRepository orderRepository,
             UserAccountRepository userAccountRepository,
@@ -102,16 +92,12 @@ public class OrderServiceImpl implements OrderService {
             ObjectMapper objectMapper,
             UserNotificationService userNotificationService,
             AccountInventoryService accountInventoryService,
-            AdminNotificationRepository adminNotificationRepository,
-            EmailNotificationService emailNotificationService,
-            TicketRepository ticketRepository,
-            TicketMessageRepository ticketMessageRepository,
             CouponService couponService,
             OrderEventRepository orderEventRepository,
             EntitlementService entitlementService,
-            ManualOrderTaskRepository manualOrderTaskRepository,
-            NotificationRealtimeService notificationRealtimeService,
-            MessageSource messageSource) {
+            ManualOrderTaskService manualOrderTaskService,
+            ManualOrderSupportService manualOrderSupportService,
+            AdminOrderManagerService adminOrderManagerService) {
         this.orderRepository = orderRepository;
         this.userAccountRepository = userAccountRepository;
         this.serviceItemRepository = serviceItemRepository;
@@ -121,16 +107,12 @@ public class OrderServiceImpl implements OrderService {
         this.objectMapper = objectMapper;
         this.userNotificationService = userNotificationService;
         this.accountInventoryService = accountInventoryService;
-        this.adminNotificationRepository = adminNotificationRepository;
-        this.emailNotificationService = emailNotificationService;
-        this.ticketRepository = ticketRepository;
-        this.ticketMessageRepository = ticketMessageRepository;
         this.couponService = couponService;
         this.orderEventRepository = orderEventRepository;
         this.entitlementService = entitlementService;
-        this.manualOrderTaskRepository = manualOrderTaskRepository;
-        this.notificationRealtimeService = notificationRealtimeService;
-        this.messageSource = messageSource;
+        this.manualOrderTaskService = manualOrderTaskService;
+        this.manualOrderSupportService = manualOrderSupportService;
+        this.adminOrderManagerService = adminOrderManagerService;
     }
 
     @Transactional
@@ -247,8 +229,8 @@ public class OrderServiceImpl implements OrderService {
                     "/locker");
         } else {
             order.initializeManualWorkflow(Instant.now().plusSeconds(24 * 60 * 60));
-            createDefaultManualTasks(order);
-            Ticket supportTicket = createManualOrderTicket(order, user);
+            manualOrderTaskService.createDefaultTasks(order);
+            Ticket supportTicket = manualOrderSupportService.createManualOrderTicket(order, user);
             order.attachSupportTicket(supportTicket);
             userNotificationService.createLocalized(userId,
                     "notification.order.manual_created.title",
@@ -257,7 +239,7 @@ public class OrderServiceImpl implements OrderService {
                     new Object[]{order.getOrderCode(), supportTicket.getTicketCode()},
                     "ORDER",
                     "/orders/" + order.getOrderCode());
-            notifyAdminsManualOrder(order);
+            manualOrderSupportService.notifyAdminsManualOrder(order);
         }
 
         entitlementService.createForOrder(order, credential);
@@ -301,35 +283,17 @@ public class OrderServiceImpl implements OrderService {
 
     @Transactional(readOnly = true)
     public List<OrderResponse> listForAdmin(OrderStatus status, Long userId) {
-        return listForAdmin(status, userId, null);
+        return adminOrderManagerService.listForAdmin(status, userId);
     }
 
     @Transactional(readOnly = true)
     public List<OrderResponse> listForAdmin(OrderStatus status, Long userId, Integer limit) {
-        List<OrderRecord> orders = userId != null
-                ? orderRepository.findAllByUser_IdOrderByCreatedAtDesc(userId, page(limit))
-                : status == null
-                        ? orderRepository.findAllByOrderByCreatedAtDesc(page(limit))
-                        : orderRepository.findAllByStatusOrderByCreatedAtDesc(status, page(limit));
-        return orders.stream()
-                .map(this::toResponse)
-                .toList();
+        return adminOrderManagerService.listForAdmin(status, userId, limit);
     }
 
     @Transactional(readOnly = true)
     public List<OrderResponse> searchForAdmin(String query, OrderStatus status, Long userId, Integer limit) {
-        String normalizedQuery = normalizeQuery(query);
-        return orderRepository.searchAdmin(
-                        likePattern(normalizedQuery),
-                        parseLongOrNull(normalizedQuery),
-                        status,
-                        userId,
-                        null,
-                        null,
-                        page(limit))
-                .stream()
-                .map(this::toResponse)
-                .toList();
+        return adminOrderManagerService.searchForAdmin(query, status, userId, limit);
     }
 
     @Transactional(readOnly = true)
@@ -344,9 +308,7 @@ public class OrderServiceImpl implements OrderService {
 
     @Transactional(readOnly = true)
     public OrderResponse getByCodeForAdmin(String orderCode) {
-        return orderRepository.findByOrderCode(orderCode)
-                .map(this::toResponse)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found"));
+        return adminOrderManagerService.getByCodeForAdmin(orderCode);
     }
 
     @Transactional
@@ -385,290 +347,62 @@ public class OrderServiceImpl implements OrderService {
 
     @Transactional
     public OrderResponse complete(String orderCode, Long adminUserId, AdminOrderUpdateRequest request) {
-        OrderRecord order = orderRepository.findByOrderCodeForUpdate(orderCode)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found"));
-        requireActiveOrder(order, "Order cannot be completed");
-
-        OrderStatus oldStatus = order.getStatus();
-        order.complete(blankToNull(request.resultData()), blankToNull(request.adminNote()));
-        entitlementService.activateForOrder(order);
-        orderEventRepository.save(new OrderEvent(order, oldStatus, order.getStatus(), adminUserId, "ADMIN", request.adminNote()));
-        auditService.recordAdmin(
-                adminUserId,
-                "ORDER_COMPLETED",
-                "ORDER",
-                order.getId(),
-                "adminNote=" + blankToNull(request.adminNote()));
-        notifyOrderUser(order,
-                "notification.order.completed.title",
-                "notification.order.completed.body");
-        return toResponse(order);
+        return adminOrderManagerService.complete(orderCode, adminUserId, request);
     }
 
     @Transactional
     public OrderResponse fail(String orderCode, Long adminUserId, AdminOrderUpdateRequest request) {
-        OrderRecord order = orderRepository.findByOrderCodeForUpdate(orderCode)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found"));
-        requireActiveOrder(order, "Order cannot be failed");
-
-        OrderStatus oldStatus = order.getStatus();
-        order.fail(blankToNull(request.resultData()), blankToNull(request.adminNote()));
-        entitlementService.revokeForOrder(order, request.adminNote());
-        orderEventRepository.save(new OrderEvent(order, oldStatus, order.getStatus(), adminUserId, "ADMIN", request.adminNote()));
-        auditService.recordAdmin(
-                adminUserId,
-                "ORDER_FAILED",
-                "ORDER",
-                order.getId(),
-                "adminNote=" + blankToNull(request.adminNote()));
-        notifyOrderUser(order,
-                "notification.order.failed.title",
-                "notification.order.failed.body");
-        return toResponse(order);
+        return adminOrderManagerService.fail(orderCode, adminUserId, request);
     }
 
     @Transactional
     public OrderResponse cancelByAdmin(String orderCode, Long adminUserId, CancelOrderRequest request) {
-        OrderRecord order = orderRepository.findByOrderCodeForUpdate(orderCode)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found"));
-        requireActiveOrder(order, "Order cannot be cancelled");
-
-        String reason = request.reason().trim();
-        WalletTransaction refundTransaction = createRefundTransaction(
-                order,
-                adminUserId,
-                "Admin cancel order " + order.getOrderCode());
-        OrderStatus oldStatus = order.getStatus();
-        order.cancelByAdmin(reason, refundTransaction);
-        entitlementService.revokeForOrder(order, reason);
-        orderEventRepository.save(new OrderEvent(order, oldStatus, order.getStatus(), adminUserId, "ADMIN", reason));
-
-        auditService.recordAdmin(
-                adminUserId,
-                "ORDER_CANCELLED_BY_ADMIN",
-                "ORDER",
-                order.getId(),
-                "refundTransactionId=" + refundTransaction.getId() + ",reason=" + reason);
-        notifyOrderUser(order,
-                "notification.order.cancelled.title",
-                "notification.order.cancelled.body");
-        return toResponse(order);
+        return adminOrderManagerService.cancelByAdmin(orderCode, adminUserId, request);
     }
 
     @Transactional
     public OrderResponse refund(String orderCode, Long adminUserId, RefundOrderRequest request) {
-        OrderRecord order = orderRepository.findByOrderCodeForUpdate(orderCode)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found"));
-        if (order.getStatus() == OrderStatus.REFUNDED || order.getRefundTransaction() != null) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Order has already been refunded");
-        }
-        if (order.getStatus() == OrderStatus.CANCELLED) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Cancelled order has already been handled");
-        }
-
-        WalletTransaction refundTransaction = createRefundTransaction(
-                order,
-                adminUserId,
-                "Refund order " + order.getOrderCode());
-        AccountCredential deliveredCredential = order.getDeliveredCredential();
-        if (deliveredCredential != null) {
-            deliveredCredential.markRefunded();
-            auditService.recordAdmin(
-                    adminUserId,
-                    "ACCOUNT_CREDENTIAL_REFUNDED",
-                    "ACCOUNT_CREDENTIAL",
-                    deliveredCredential.getId(),
-                    "orderId=" + order.getId() + ",orderCode=" + order.getOrderCode());
-        }
-        OrderStatus oldStatus = order.getStatus();
-        order.refund(refundTransaction, request.reason());
-        entitlementService.revokeForOrder(order, request.reason());
-        orderEventRepository.save(new OrderEvent(order, oldStatus, order.getStatus(), adminUserId, "ADMIN", request.reason()));
-
-        auditService.recordAdmin(
-                adminUserId,
-                "ORDER_REFUNDED",
-                "ORDER",
-                order.getId(),
-                "refundTransactionId=" + refundTransaction.getId() + ",reason=" + request.reason());
-        notifyOrderUser(order,
-                "notification.order.refunded.title",
-                "notification.order.refunded.body");
-        return toResponse(order);
+        return adminOrderManagerService.refund(orderCode, adminUserId, request);
     }
 
     @Transactional
     public OrderResponse updateAdminNote(String orderCode, Long adminUserId, OrderNoteRequest request) {
-        OrderRecord order = orderRepository.findByOrderCodeForUpdate(orderCode)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found"));
-        order.updateAdminNote(request.note().trim());
-        auditService.recordAdmin(adminUserId, "ORDER_ADMIN_NOTE_UPDATED", "ORDER", order.getId(), request.note());
-        return toResponse(order);
+        return adminOrderManagerService.updateAdminNote(orderCode, adminUserId, request);
     }
 
     @Transactional
     public OrderResponse updateUserNote(String orderCode, Long adminUserId, OrderNoteRequest request) {
-        OrderRecord order = orderRepository.findByOrderCodeForUpdate(orderCode)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found"));
-        order.updateUserNote(request.note().trim());
-        auditService.recordAdmin(adminUserId, "ORDER_USER_NOTE_UPDATED", "ORDER", order.getId(), request.note());
-        return toResponse(order);
+        return adminOrderManagerService.updateUserNote(orderCode, adminUserId, request);
     }
 
     @Transactional
     public OrderResponse extend(String orderCode, Long adminUserId, ExtendOrderRequest request) {
-        OrderRecord order = orderRepository.findByOrderCodeForUpdate(orderCode)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found"));
-        if (order.getStatus() != OrderStatus.PENDING_PAYMENT && order.getStatus() != OrderStatus.PROCESSING) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Only pending/processing orders can be extended");
-        }
-        Instant baseTime = order.getProcessingDeadlineAt() != null && order.getProcessingDeadlineAt().isAfter(Instant.now())
-                ? order.getProcessingDeadlineAt()
-                : Instant.now();
-        order.extendProcessing(baseTime.plusSeconds(request.minutes() * 60L), request.reason().trim());
-        auditService.recordAdmin(adminUserId, "ORDER_EXTENDED", "ORDER", order.getId(),
-                "minutes=" + request.minutes() + ",reason=" + request.reason());
-        return toResponse(order);
+        return adminOrderManagerService.extend(orderCode, adminUserId, request);
     }
 
     @Transactional
     public OrderResponse reprocess(String orderCode, Long adminUserId, ReprocessOrderRequest request) {
-        OrderRecord order = orderRepository.findByOrderCodeForUpdate(orderCode)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found"));
-        if (order.getStatus() == OrderStatus.REFUNDED || order.getRefundTransaction() != null) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Refunded order cannot be reprocessed");
-        }
-        OrderStatus oldStatus = order.getStatus();
-        order.reprocess(request.reason().trim());
-        orderEventRepository.save(new OrderEvent(order, oldStatus, order.getStatus(), adminUserId, "ADMIN", request.reason()));
-        auditService.recordAdmin(adminUserId, "ORDER_REPROCESSED", "ORDER", order.getId(),
-                "reason=" + request.reason());
-        return toResponse(order);
+        return adminOrderManagerService.reprocess(orderCode, adminUserId, request);
     }
 
     @Transactional
     public OrderResponse updateManualWorkflow(String orderCode, Long adminUserId, ManualOrderWorkflowRequest request) {
-        OrderRecord order = orderRepository.findByOrderCodeForUpdate(orderCode)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found"));
-        if (order.getService().getType() != ServiceType.MANUAL) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Only manual service orders have workflow fields");
-        }
-        UserAccount assignedAdmin = null;
-        if (request.assignedAdminId() != null) {
-            assignedAdmin = userAccountRepository.findById(request.assignedAdminId())
-                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Assigned admin not found"));
-            if (assignedAdmin.getRole() == UserRole.USER) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Assigned user is not an admin");
-            }
-        }
-        order.updateManualWorkflow(
-                assignedAdmin,
-                request.processingDeadlineAt(),
-                request.manualChecklist(),
-                blankToNull(request.adminNote()),
-                request.manualWorkflowStatus());
-        syncManualTasks(order, assignedAdmin == null ? userAccountRepository.findById(adminUserId).orElse(null) : assignedAdmin,
-                request.tasks());
-        auditService.recordAdmin(adminUserId, "ORDER_MANUAL_WORKFLOW_UPDATED", "ORDER", order.getId(),
-                "assignedAdminId=" + request.assignedAdminId());
-        return toResponse(order);
+        return adminOrderManagerService.updateManualWorkflow(orderCode, adminUserId, request);
     }
 
     @Transactional
     public OrderResponse updateManualTask(String orderCode, Long adminUserId, Long taskId,
             ManualOrderTaskStatusRequest request) {
-        OrderRecord order = orderRepository.findByOrderCodeForUpdate(orderCode)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found"));
-        if (order.getService().getType() != ServiceType.MANUAL) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Only manual service orders have tasks");
-        }
-        ManualOrderTask task = manualOrderTaskRepository.findById(taskId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Manual task not found"));
-        if (!task.getOrder().getId().equals(order.getId())) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Manual task not found");
-        }
-        UserAccount admin = userAccountRepository.findById(adminUserId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Admin not found"));
-        if (Boolean.TRUE.equals(request.completed())) {
-            task.markCompleted(admin);
-        } else {
-            task.reopen();
-        }
-        auditService.recordAdmin(adminUserId, "ORDER_MANUAL_TASK_UPDATED", "ORDER", order.getId(),
-                "taskId=" + taskId + ",completed=" + request.completed());
-        return toResponse(order);
+        return adminOrderManagerService.updateManualTask(orderCode, adminUserId, taskId, request);
     }
 
     @Transactional
     public List<OrderResponse> bulkRefund(Long adminUserId, BulkRefundOrdersRequest request) {
-        return request.orderCodes().stream()
-                .map(code -> refund(code, adminUserId, new RefundOrderRequest(request.reason())))
-                .toList();
+        return adminOrderManagerService.bulkRefund(adminUserId, request);
     }
 
     private OrderResponse toResponse(OrderRecord order) {
-        List<ManualOrderTaskResponse> tasks = order.getService().getType() == ServiceType.MANUAL
-                ? manualOrderTaskRepository.findAllByOrder_IdOrderBySortOrderAscIdAsc(order.getId())
-                        .stream()
-                        .map(ManualOrderTaskResponse::from)
-                        .toList()
-                : List.of();
-        return OrderResponse.from(order, tasks);
-    }
-
-    private void createDefaultManualTasks(OrderRecord order) {
-        if (!manualOrderTaskRepository.findAllByOrder_IdOrderBySortOrderAscIdAsc(order.getId()).isEmpty()) {
-            return;
-        }
-        List<String> titles = List.of(
-                "Xác nhận brief/yêu cầu",
-                "Kiểm tra điều kiện xử lý",
-                "Chốt scope, giá và deadline",
-                "Triển khai dịch vụ",
-                "Gửi kết quả cho khách",
-                "Nghiệm thu/hoàn tất");
-        for (int i = 0; i < titles.size(); i++) {
-            manualOrderTaskRepository.save(new ManualOrderTask(order, titles.get(i), i + 1));
-        }
-    }
-
-    private void syncManualTasks(OrderRecord order, UserAccount admin, List<ManualOrderTaskRequest> taskRequests) {
-        if (taskRequests == null) {
-            return;
-        }
-        List<Long> keptIds = new java.util.ArrayList<>();
-        int index = 1;
-        for (ManualOrderTaskRequest taskRequest : taskRequests) {
-            String title = blankToNull(taskRequest.title());
-            if (title == null) {
-                continue;
-            }
-            ManualOrderTask task = null;
-            if (taskRequest.id() != null) {
-                task = manualOrderTaskRepository.findById(taskRequest.id()).orElse(null);
-                if (task != null && !task.getOrder().getId().equals(order.getId())) {
-                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Manual task belongs to another order");
-                }
-            }
-            if (task == null) {
-                task = manualOrderTaskRepository.save(new ManualOrderTask(order, title,
-                        taskRequest.sortOrder() == null ? index : taskRequest.sortOrder()));
-            } else {
-                task.update(title, taskRequest.sortOrder() == null ? index : taskRequest.sortOrder());
-            }
-            if (Boolean.TRUE.equals(taskRequest.completed()) && !task.isCompleted()) {
-                task.markCompleted(admin);
-            } else if (Boolean.FALSE.equals(taskRequest.completed()) && task.isCompleted()) {
-                task.reopen();
-            }
-            keptIds.add(task.getId());
-            index++;
-        }
-        if (keptIds.isEmpty()) {
-            manualOrderTaskRepository.deleteAllByOrder_Id(order.getId());
-        } else {
-            manualOrderTaskRepository.deleteAllByOrder_IdAndIdNotIn(order.getId(), keptIds);
-        }
+        return OrderResponse.from(order, manualOrderTaskService.findTasksForOrder(order));
     }
 
     private WalletTransaction createRefundTransaction(OrderRecord order, Long createdBy, String description) {
@@ -730,52 +464,6 @@ public class OrderServiceImpl implements OrderService {
 
     private PageRequest paged(int page, int size) {
         return PageRequest.of(Math.max(0, page), Math.max(1, Math.min(size, 200)));
-    }
-
-    private void notifyOrderUser(OrderRecord order, String titleKey, String messageKey) {
-        userNotificationService.createLocalized(order.getUser().getId(), titleKey, messageKey,
-                null, new Object[]{order.getOrderCode()}, "ORDER",
-                "/orders/" + order.getOrderCode());
-    }
-
-    private void notifyAdminsManualOrder(OrderRecord order) {
-        Locale defaultLocale = Locale.forLanguageTag("vi");
-        String title = messageSource.getMessage("admin.notification.order.manual_new.title",
-                new Object[]{order.getOrderCode()}, defaultLocale);
-        String message = messageSource.getMessage("admin.notification.order.manual_new.body",
-                new Object[]{order.getUser().getId(), order.getService().getName()}, defaultLocale);
-        AdminNotification notification = adminNotificationRepository.save(new AdminNotification(null, title, message));
-        notificationRealtimeService.publishAdminNotification(AdminNotificationResponse.from(notification));
-        userAccountRepository.findAllByRoleInOrderByCreatedAtDesc(
-                        List.of(UserRole.ADMIN, UserRole.SUPER_ADMIN),
-                        PageRequest.of(0, 50))
-                .forEach(admin -> emailNotificationService.sendUserNotification(admin, title, message,
-                        "/admin/orders"));
-    }
-
-    private Ticket createManualOrderTicket(OrderRecord order, UserAccount user) {
-        Ticket ticket = ticketRepository.save(new Ticket(
-                nextTicketCode(),
-                user,
-                order,
-                null,
-                TicketCategory.SERVICE,
-                "Trao đổi đơn thủ công " + order.getOrderCode(),
-                TicketPriority.NORMAL));
-        String message = "Brief/yêu cầu từ đơn " + order.getOrderCode() + ":\n"
-                + (order.getInputData() == null || order.getInputData().isBlank() ? "(không có brief)" : order.getInputData());
-        ticketMessageRepository.save(new TicketMessage(ticket, user, TicketSenderRole.USER, message));
-        auditService.recordSystem("MANUAL_ORDER_TICKET_CREATED", "TICKET", ticket.getId(),
-                "orderId=" + order.getId());
-        return ticket;
-    }
-
-    private String nextTicketCode() {
-        String code;
-        do {
-            code = codeGenerator.generate("TK", 10);
-        } while (ticketRepository.existsByTicketCode(code));
-        return code;
     }
 
     private String deliveryResultData(OrderRecord order, AccountCredential credential, ServiceItem service) {

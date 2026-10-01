@@ -25,9 +25,9 @@ import com.example.KendyDigital.repository.ServiceItemRepository;
 import com.example.KendyDigital.repository.StockImportBatchRepository;
 import com.example.KendyDigital.service.audit.AuditService;
 import com.example.KendyDigital.service.user_management.AdminRoleService;
+import com.example.KendyDigital.service.product_inventory.helper.CredentialCsvParser;
+import com.example.KendyDigital.service.product_inventory.helper.CredentialHasher;
 import jakarta.persistence.EntityManager;
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
@@ -47,19 +47,25 @@ public class AccountInventoryServiceImpl implements AccountInventoryService {
     private final AdminRoleService adminRoleService;
     private final EntityManager entityManager;
     private final StockImportBatchRepository stockImportBatchRepository;
+    private final CredentialCsvParser credentialCsvParser;
+    private final CredentialHasher credentialHasher;
 
     public AccountInventoryServiceImpl(AccountCredentialRepository accountCredentialRepository,
             ServiceItemRepository serviceItemRepository,
             AuditService auditService,
             AdminRoleService adminRoleService,
             EntityManager entityManager,
-            StockImportBatchRepository stockImportBatchRepository) {
+            StockImportBatchRepository stockImportBatchRepository,
+            CredentialCsvParser credentialCsvParser,
+            CredentialHasher credentialHasher) {
         this.accountCredentialRepository = accountCredentialRepository;
         this.serviceItemRepository = serviceItemRepository;
         this.auditService = auditService;
         this.adminRoleService = adminRoleService;
         this.entityManager = entityManager;
         this.stockImportBatchRepository = stockImportBatchRepository;
+        this.credentialCsvParser = credentialCsvParser;
+        this.credentialHasher = credentialHasher;
     }
 
     @Transactional(readOnly = true)
@@ -128,7 +134,7 @@ public class AccountInventoryServiceImpl implements AccountInventoryService {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Credential login already exists for this service");
         }
         String passwordSecret = request.passwordSecret().trim();
-        String payloadHash = payloadHash(serviceId, request.loginIdentifier().trim(), passwordSecret,
+        String payloadHash = credentialHasher.computePayloadHash(serviceId, request.loginIdentifier().trim(), passwordSecret,
                 blankToNull(request.recoveryInfo()), blankToNull(request.twoFactorSecret()));
         if (accountCredentialRepository.existsByService_IdAndPayloadHash(serviceId, payloadHash)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Credential payload already exists for this service");
@@ -165,7 +171,7 @@ public class AccountInventoryServiceImpl implements AccountInventoryService {
         if (request.credentials() != null) {
             rows.addAll(request.credentials());
         }
-        rows.addAll(parseCsv(request.csvContent()));
+        rows.addAll(credentialCsvParser.parseCsv(request.csvContent()));
         if (rows.isEmpty()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "No credentials to import");
         }
@@ -183,7 +189,7 @@ public class AccountInventoryServiceImpl implements AccountInventoryService {
                 }
                 String login = row.loginIdentifier().trim();
                 String password = row.passwordSecret().trim();
-                String hash = payloadHash(serviceId, login, password, blankToNull(row.recoveryInfo()),
+                String hash = credentialHasher.computePayloadHash(serviceId, login, password, blankToNull(row.recoveryInfo()),
                         blankToNull(row.twoFactorSecret()));
                 boolean duplicate = accountCredentialRepository.existsByService_IdAndLoginIdentifierIgnoreCase(serviceId, login)
                         || accountCredentialRepository.existsByService_IdAndPayloadHash(serviceId, hash);
@@ -259,7 +265,7 @@ public class AccountInventoryServiceImpl implements AccountInventoryService {
                         nextLoginIdentifier)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Credential login already exists for this service");
         }
-        String nextPayloadHash = payloadHash(credential.getService().getId(), nextLoginIdentifier, nextPasswordSecret,
+        String nextPayloadHash = credentialHasher.computePayloadHash(credential.getService().getId(), nextLoginIdentifier, nextPasswordSecret,
                 nextRecoveryInfo, nextTwoFactorSecret);
         if (!nextPayloadHash.equals(credential.getPayloadHash())
                 && accountCredentialRepository.existsByService_IdAndPayloadHash(credential.getService().getId(),
@@ -458,85 +464,6 @@ public class AccountInventoryServiceImpl implements AccountInventoryService {
 
     private String nullableOrCurrent(String value, String current) {
         return value == null ? current : blankToNull(value);
-    }
-
-    private String payloadHash(Long serviceId, String loginIdentifier, String passwordSecret, String recoveryInfo,
-            String twoFactorSecret) {
-        String normalized = serviceId + "|"
-                + nullToEmpty(loginIdentifier).toLowerCase(Locale.ROOT).trim() + "|"
-                + nullToEmpty(passwordSecret).trim() + "|"
-                + nullToEmpty(recoveryInfo).trim() + "|"
-                + nullToEmpty(twoFactorSecret).trim();
-        try {
-            byte[] digest = MessageDigest.getInstance("SHA-256").digest(normalized.getBytes(StandardCharsets.UTF_8));
-            StringBuilder builder = new StringBuilder(digest.length * 2);
-            for (byte value : digest) {
-                builder.append(String.format("%02x", value));
-            }
-            return builder.toString();
-        } catch (Exception exception) {
-            throw new IllegalStateException("Cannot hash credential payload", exception);
-        }
-    }
-
-    private String nullToEmpty(String value) {
-        return value == null ? "" : value;
-    }
-
-    private List<CreateAccountCredentialRequest> parseCsv(String csvContent) {
-        if (csvContent == null || csvContent.isBlank()) {
-            return List.of();
-        }
-        List<CreateAccountCredentialRequest> rows = new ArrayList<>();
-        String[] lines = csvContent.replace("\r\n", "\n").replace('\r', '\n').split("\n");
-        int start = 0;
-        if (lines.length > 0 && lines[0].toLowerCase(Locale.ROOT).contains("login")) {
-            start = 1;
-        }
-        for (int i = start; i < lines.length; i++) {
-            if (lines[i].isBlank()) {
-                continue;
-            }
-            List<String> columns = parseCsvLine(lines[i]);
-            rows.add(new CreateAccountCredentialRequest(
-                    column(columns, 0),
-                    column(columns, 1),
-                    column(columns, 2),
-                    column(columns, 3),
-                    column(columns, 4),
-                    column(columns, 5),
-                    null,
-                    null));
-        }
-        return rows;
-    }
-
-    private List<String> parseCsvLine(String line) {
-        List<String> columns = new ArrayList<>();
-        StringBuilder current = new StringBuilder();
-        boolean quoted = false;
-        for (int i = 0; i < line.length(); i++) {
-            char character = line.charAt(i);
-            if (character == '"') {
-                if (quoted && i + 1 < line.length() && line.charAt(i + 1) == '"') {
-                    current.append('"');
-                    i++;
-                } else {
-                    quoted = !quoted;
-                }
-            } else if (character == ',' && !quoted) {
-                columns.add(current.toString().trim());
-                current.setLength(0);
-            } else {
-                current.append(character);
-            }
-        }
-        columns.add(current.toString().trim());
-        return columns;
-    }
-
-    private String column(List<String> columns, int index) {
-        return index < columns.size() ? blankToNull(columns.get(index)) : null;
     }
 
     private void requireCredentialViewPermission(Long adminUserId, UserRole adminRole) {

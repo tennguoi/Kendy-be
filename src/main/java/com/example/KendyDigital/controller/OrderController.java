@@ -13,6 +13,7 @@ import com.example.KendyDigital.dto.order.request.ReprocessOrderRequest;
 import com.example.KendyDigital.dto.order.response.OrderResponse;
 import com.example.KendyDigital.model.order.OrderStatus;
 import com.example.KendyDigital.security.CurrentUser;
+import com.example.KendyDigital.service.order.AdminOrderManagerService;
 import com.example.KendyDigital.service.order.OrderService;
 import jakarta.validation.Valid;
 import java.util.List;
@@ -27,9 +28,11 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 public class OrderController {
     private final OrderService orderService;
+    private final AdminOrderManagerService adminOrderManagerService;
 
-    public OrderController(OrderService orderService) {
+    public OrderController(OrderService orderService, AdminOrderManagerService adminOrderManagerService) {
         this.orderService = orderService;
+        this.adminOrderManagerService = adminOrderManagerService;
     }
 
     @PostMapping("/api/orders")
@@ -67,72 +70,72 @@ public class OrderController {
 
     @GetMapping("/api/admin/orders/{orderCode}")
     public OrderResponse getByCodeForAdmin(@PathVariable String orderCode) {
-        return orderService.getByCodeForAdmin(orderCode);
+        return adminOrderManagerService.getByCodeForAdmin(orderCode);
     }
 
     @PostMapping("/api/admin/orders/{orderCode}/complete")
     public OrderResponse complete(Authentication authentication, @PathVariable String orderCode,
             @Valid @RequestBody AdminOrderUpdateRequest request) {
-        return orderService.complete(orderCode, CurrentUser.require(authentication).userId(), request);
+        return adminOrderManagerService.complete(orderCode, CurrentUser.require(authentication).userId(), request);
     }
 
     @PostMapping("/api/admin/orders/{orderCode}/fail")
     public OrderResponse fail(Authentication authentication, @PathVariable String orderCode,
             @Valid @RequestBody AdminOrderUpdateRequest request) {
-        return orderService.fail(orderCode, CurrentUser.require(authentication).userId(), request);
+        return adminOrderManagerService.fail(orderCode, CurrentUser.require(authentication).userId(), request);
     }
 
     @PostMapping("/api/admin/orders/{orderCode}/cancel")
     public OrderResponse cancelByAdmin(Authentication authentication, @PathVariable String orderCode,
             @Valid @RequestBody CancelOrderRequest request) {
-        return orderService.cancelByAdmin(orderCode, CurrentUser.require(authentication).userId(), request);
+        return adminOrderManagerService.cancelByAdmin(orderCode, CurrentUser.require(authentication).userId(), request);
     }
 
     @PostMapping("/api/admin/orders/{orderCode}/refund")
     public OrderResponse refund(Authentication authentication, @PathVariable String orderCode,
             @Valid @RequestBody RefundOrderRequest request) {
-        return orderService.refund(orderCode, CurrentUser.require(authentication).userId(), request);
+        return adminOrderManagerService.refund(orderCode, CurrentUser.require(authentication).userId(), request);
     }
 
     @PostMapping("/api/admin/orders/{orderCode}/admin-note")
     public OrderResponse updateAdminNote(Authentication authentication, @PathVariable String orderCode,
             @Valid @RequestBody OrderNoteRequest request) {
-        return orderService.updateAdminNote(orderCode, CurrentUser.require(authentication).userId(), request);
+        return adminOrderManagerService.updateAdminNote(orderCode, CurrentUser.require(authentication).userId(), request);
     }
 
     @PostMapping("/api/admin/orders/{orderCode}/user-note")
     public OrderResponse updateUserNote(Authentication authentication, @PathVariable String orderCode,
             @Valid @RequestBody OrderNoteRequest request) {
-        return orderService.updateUserNote(orderCode, CurrentUser.require(authentication).userId(), request);
+        return adminOrderManagerService.updateUserNote(orderCode, CurrentUser.require(authentication).userId(), request);
     }
 
     @PostMapping("/api/admin/orders/{orderCode}/extend")
     public OrderResponse extend(Authentication authentication, @PathVariable String orderCode,
             @Valid @RequestBody ExtendOrderRequest request) {
-        return orderService.extend(orderCode, CurrentUser.require(authentication).userId(), request);
+        return adminOrderManagerService.extend(orderCode, CurrentUser.require(authentication).userId(), request);
     }
 
     @PostMapping("/api/admin/orders/{orderCode}/reprocess")
     public OrderResponse reprocess(Authentication authentication, @PathVariable String orderCode,
             @Valid @RequestBody ReprocessOrderRequest request) {
-        return orderService.reprocess(orderCode, CurrentUser.require(authentication).userId(), request);
+        return adminOrderManagerService.reprocess(orderCode, CurrentUser.require(authentication).userId(), request);
     }
 
     @PostMapping("/api/admin/orders/{orderCode}/manual-workflow")
     public OrderResponse updateManualWorkflow(Authentication authentication, @PathVariable String orderCode,
             @Valid @RequestBody ManualOrderWorkflowRequest request) {
-        return orderService.updateManualWorkflow(orderCode, CurrentUser.require(authentication).userId(), request);
+        return adminOrderManagerService.updateManualWorkflow(orderCode, CurrentUser.require(authentication).userId(), request);
     }
 
     @PostMapping("/api/admin/orders/{orderCode}/manual-tasks/{taskId}")
     public OrderResponse updateManualTask(Authentication authentication, @PathVariable String orderCode,
             @PathVariable Long taskId, @Valid @RequestBody ManualOrderTaskStatusRequest request) {
-        return orderService.updateManualTask(orderCode, CurrentUser.require(authentication).userId(), taskId, request);
+        return adminOrderManagerService.updateManualTask(orderCode, CurrentUser.require(authentication).userId(), taskId, request);
     }
 
     @PostMapping("/api/admin/orders/bulk-refund")
     public List<OrderResponse> bulkRefund(Authentication authentication,
             @Valid @RequestBody BulkRefundOrdersRequest request) {
-        return orderService.bulkRefund(CurrentUser.require(authentication).userId(), request);
+        return adminOrderManagerService.bulkRefund(CurrentUser.require(authentication).userId(), request);
     }
 }

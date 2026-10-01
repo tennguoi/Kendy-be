@@ -1,6 +1,7 @@
 package com.example.KendyDigital.service.file_integrations.impl;
 
 import com.example.KendyDigital.service.file_integrations.*;
+import com.example.KendyDigital.service.bank.DepositCodeExtractor;
 
 import com.example.KendyDigital.config.BankProperties;
 import com.example.KendyDigital.dto.webhook.request.SePayWebhookPayload;
@@ -44,7 +45,7 @@ public class SePayWebhookServiceImpl  implements SePayWebhookService{
     private final AuditService auditService;
     private final UserNotificationService userNotificationService;
     private final CheckoutService checkoutService;
-    private final Pattern depositCodePattern;
+    private final DepositCodeExtractor depositCodeExtractor;
     private final String expectedAccountNumber;
 
     public SePayWebhookServiceImpl(BankTransactionInserter bankTransactionInserter,
@@ -55,7 +56,8 @@ public class SePayWebhookServiceImpl  implements SePayWebhookService{
             AuditService auditService,
             UserNotificationService userNotificationService,
             CheckoutService checkoutService,
-            BankProperties bankProperties) {
+            BankProperties bankProperties,
+            DepositCodeExtractor depositCodeExtractor) {
         this.bankTransactionInserter = bankTransactionInserter;
         this.bankTransactionRepository = bankTransactionRepository;
         this.depositRequestRepository = depositRequestRepository;
@@ -65,8 +67,7 @@ public class SePayWebhookServiceImpl  implements SePayWebhookService{
         this.userNotificationService = userNotificationService;
         this.checkoutService = checkoutService;
         this.expectedAccountNumber = normalizeAccountNumber(bankProperties.getAccountNumber());
-        this.depositCodePattern = Pattern.compile("\\b" + Pattern.quote(bankProperties.getTransferPrefix())
-                + "[A-Z0-9]{8,}\\b", Pattern.CASE_INSENSITIVE);
+        this.depositCodeExtractor = depositCodeExtractor;
     }
 
     @Transactional
@@ -170,10 +171,7 @@ public class SePayWebhookServiceImpl  implements SePayWebhookService{
     }
 
     private Optional<String> extractDepositCode(String content, String code) {
-        String text = (nullSafe(content) + " " + nullSafe(code)).toUpperCase(Locale.ROOT);
-        Matcher matcher = depositCodePattern.matcher(text);
-        while (matcher.find()) {
-            String candidate = matcher.group().toUpperCase(Locale.ROOT);
+        for (String candidate : depositCodeExtractor.extractDepositCodeCandidates(content, code)) {
             // Verify this deposit code exists and is pending
             Optional<DepositRequest> deposit = depositRequestRepository.findByDepositCode(candidate);
             if (deposit.isPresent() && deposit.get().getStatus() == DepositStatus.PENDING) {

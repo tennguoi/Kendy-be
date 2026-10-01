@@ -18,21 +18,19 @@ import com.example.KendyDigital.dto.user.request.UserApiKeyCreateRequest;
 import com.example.KendyDigital.dto.user.response.UserApiKeyCreatedResponse;
 import com.example.KendyDigital.dto.user.response.UserApiKeyResponse;
 import com.example.KendyDigital.dto.user.response.UserSecurityOverviewResponse;
-import com.example.KendyDigital.model.auth.AuthSession;
 import com.example.KendyDigital.model.user.UserAccount;
-import com.example.KendyDigital.model.user.UserApiKey;
 import com.example.KendyDigital.model.user.UserSecurityToken;
 import com.example.KendyDigital.model.user.UserSecurityTokenType;
 import com.example.KendyDigital.model.user.UserStatus;
 import com.example.KendyDigital.security.ResolvedApiKey;
-import com.example.KendyDigital.repository.AuthSessionRepository;
 import com.example.KendyDigital.repository.UserAccountRepository;
-import com.example.KendyDigital.repository.UserApiKeyRepository;
 import com.example.KendyDigital.repository.UserSecurityTokenRepository;
 import com.example.KendyDigital.service.audit.AuditService;
 import com.example.KendyDigital.service.auth.AuthTokenService;
 import com.example.KendyDigital.service.notification.EmailNotificationService;
 import com.example.KendyDigital.service.notification.UserNotificationService;
+import com.example.KendyDigital.service.security.apikey.UserApiKeyService;
+import com.example.KendyDigital.service.security.session.UserSessionService;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -64,14 +62,13 @@ public class UserSecurityServiceImpl  implements UserSecurityService{
     private static final Duration EMAIL_2FA_TTL = Duration.ofMinutes(10);
     private static final Duration OAUTH_2FA_CHALLENGE_TTL = Duration.ofMinutes(10);
     private static final String EMAIL_TWO_FACTOR_SECRET = "EMAIL_2FA";
-    private static final String API_KEY_PREFIX = "kdy_";
     private static final int MAX_OTP_ATTEMPTS = 5;
     private static final long BRUTE_FORCE_DELAY_MILLIS = 1000;
 
     private final UserAccountRepository userAccountRepository;
-    private final AuthSessionRepository authSessionRepository;
+    private final UserSessionService userSessionService;
     private final UserSecurityTokenRepository securityTokenRepository;
-    private final UserApiKeyRepository userApiKeyRepository;
+    private final UserApiKeyService userApiKeyService;
     private final PasswordEncoder passwordEncoder;
     private final AuthTokenService authTokenService;
     private final TwoFactorService twoFactorService;
@@ -81,9 +78,9 @@ public class UserSecurityServiceImpl  implements UserSecurityService{
     private final SecureRandom secureRandom = new SecureRandom();
 
     public UserSecurityServiceImpl(UserAccountRepository userAccountRepository,
-            AuthSessionRepository authSessionRepository,
+            UserSessionService userSessionService,
             UserSecurityTokenRepository securityTokenRepository,
-            UserApiKeyRepository userApiKeyRepository,
+            UserApiKeyService userApiKeyService,
             PasswordEncoder passwordEncoder,
             AuthTokenService authTokenService,
             TwoFactorService twoFactorService,
@@ -91,9 +88,9 @@ public class UserSecurityServiceImpl  implements UserSecurityService{
             UserNotificationService userNotificationService,
             EmailNotificationService emailNotificationService) {
         this.userAccountRepository = userAccountRepository;
-        this.authSessionRepository = authSessionRepository;
+        this.userSessionService = userSessionService;
         this.securityTokenRepository = securityTokenRepository;
-        this.userApiKeyRepository = userApiKeyRepository;
+        this.userApiKeyService = userApiKeyService;
         this.passwordEncoder = passwordEncoder;
         this.authTokenService = authTokenService;
         this.twoFactorService = twoFactorService;
@@ -214,38 +211,25 @@ public class UserSecurityServiceImpl  implements UserSecurityService{
                 user.getEmailVerifiedAt(),
                 user.isTwoFactorEnabled(),
                 user.getPasswordChangedAt(),
-                authSessionRepository.countByUser_IdAndRevokedAtIsNull(userId),
-                userApiKeyRepository.countByUser_IdAndRevokedAtIsNull(userId),
+                userSessionService.countActiveSessions(userId),
+                userApiKeyService.countActiveKeys(userId),
                 user.hasPassword(),
                 user.getOauthProvider());
     }
 
     @Transactional(readOnly = true)
     public List<com.example.KendyDigital.dto.auth.response.AuthSessionResponse> sessions(Long userId, int page, int size) {
-        return authSessionRepository.findAllByUser_IdOrderByCreatedAtDesc(userId, paged(page, size))
-                .stream()
-                .map(com.example.KendyDigital.dto.auth.response.AuthSessionResponse::from)
-                .toList();
+        return userSessionService.sessions(userId, page, size);
     }
 
     @Transactional
     public void revokeSession(Long userId, Long sessionId) {
-        AuthSession session = authSessionRepository.findByIdAndUser_Id(sessionId, userId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Session not found"));
-        session.revoke();
-        auditService.recordSystem("USER_SESSION_REVOKED", "AUTH_SESSION", session.getId(), "userId=" + userId);
-        emailNotificationService.sendSecurityAlert(session.getUser(), "Session revoked",
-                "A session on your account has been revoked.");
+        userSessionService.revokeSession(userId, sessionId);
     }
 
     @Transactional
     public void revokeAllSessions(Long userId) {
-        authSessionRepository.findAllByUser_IdAndRevokedAtIsNull(userId)
-                .forEach(AuthSession::revoke);
-        auditService.recordSystem("USER_SESSIONS_REVOKED", "USER", userId, null);
-        UserAccount user = requireUser(userId);
-        emailNotificationService.sendSecurityAlert(user, "All sessions revoked",
-                "All sessions on your account have been revoked. You need to log in again.");
+        userSessionService.revokeAllSessions(userId);
     }
 
     @Transactional
@@ -357,41 +341,17 @@ public class UserSecurityServiceImpl  implements UserSecurityService{
 
     @Transactional(readOnly = true)
     public List<UserApiKeyResponse> apiKeys(Long userId, int page, int size) {
-        return userApiKeyRepository.findAllByUser_IdOrderByCreatedAtDesc(userId, paged(page, size))
-                .stream()
-                .map(UserApiKeyResponse::from)
-                .toList();
+        return userApiKeyService.apiKeys(userId, page, size);
     }
 
     @Transactional
     public UserApiKeyCreatedResponse createApiKey(Long userId, UserApiKeyCreateRequest request) {
-        UserAccount user = requireUser(userId);
-        String token = API_KEY_PREFIX + randomToken(36);
-        String scopes = request.scopes() == null ? "" : request.scopes().stream()
-                .map(String::trim)
-                .filter(value -> !value.isBlank())
-                .distinct()
-                .collect(Collectors.joining(","));
-        UserApiKey apiKey = userApiKeyRepository.save(new UserApiKey(
-                user,
-                request.name().trim(),
-                token.substring(0, Math.min(token.length(), 12)),
-                sha256(token),
-                scopes));
-        auditService.recordSystem("USER_API_KEY_CREATED", "USER_API_KEY", apiKey.getId(), "userId=" + userId);
-        userNotificationService.create(user.getId(), "API key created",
-                "API key '" + apiKey.getName() + "' was created.", "SECURITY", "/account/security");
-        return new UserApiKeyCreatedResponse(UserApiKeyResponse.from(apiKey), token);
+        return userApiKeyService.createApiKey(userId, request);
     }
 
     @Transactional
     public void revokeApiKey(Long userId, Long keyId) {
-        UserApiKey key = userApiKeyRepository.findByIdAndUser_Id(keyId, userId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "API key not found"));
-        key.revoke();
-        auditService.recordSystem("USER_API_KEY_REVOKED", "USER_API_KEY", key.getId(), "userId=" + userId);
-        userNotificationService.create(userId, "API key revoked",
-                "API key '" + key.getName() + "' was revoked.", "SECURITY", "/account/security");
+        userApiKeyService.revokeApiKey(userId, keyId);
     }
 
     @Transactional
@@ -465,23 +425,7 @@ public class UserSecurityServiceImpl  implements UserSecurityService{
 
     @Transactional
     public Optional<ResolvedApiKey> resolveApiKey(String token) {
-        if (token == null || token.isBlank()) {
-            return Optional.empty();
-        }
-        Optional<UserApiKey> apiKey = userApiKeyRepository.findByKeyHashAndRevokedAtIsNull(sha256(token.trim()));
-        if (apiKey.isEmpty()) {
-            return Optional.empty();
-        }
-        UserApiKey key = apiKey.get();
-        if (key.getUser().getStatus() != UserStatus.ACTIVE) {
-            return Optional.empty();
-        }
-        key.markUsed();
-        Set<String> scopes = Arrays.stream(Optional.ofNullable(key.getScopes()).orElse("").split(","))
-                .map(String::trim)
-                .filter(value -> !value.isBlank())
-                .collect(Collectors.toUnmodifiableSet());
-        return Optional.of(new ResolvedApiKey(key.getUser(), scopes));
+        return userApiKeyService.resolveApiKey(token);
     }
 
     private IssuedSecurityToken issueSecurityToken(UserAccount user, UserSecurityTokenType type, Duration ttl) {

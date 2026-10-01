@@ -27,12 +27,15 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+import com.example.KendyDigital.service.security.apikey.UserApiKeyService;
+import com.example.KendyDigital.service.security.session.UserSessionService;
+
 @ExtendWith(MockitoExtension.class)
 class SecurityRegressionTest {
     @Mock private UserAccountRepository userAccountRepository;
-    @Mock private AuthSessionRepository authSessionRepository;
+    @Mock private UserSessionService userSessionService;
     @Mock private UserSecurityTokenRepository securityTokenRepository;
-    @Mock private UserApiKeyRepository userApiKeyRepository;
+    @Mock private UserApiKeyService userApiKeyService;
     @Mock private PasswordEncoder passwordEncoder;
     @Mock private AuthTokenService authTokenService;
     @Mock private TwoFactorService twoFactorService;
@@ -46,9 +49,9 @@ class SecurityRegressionTest {
     void setUp() {
         service = new UserSecurityServiceImpl(
                 userAccountRepository,
-                authSessionRepository,
+                userSessionService,
                 securityTokenRepository,
-                userApiKeyRepository,
+                userApiKeyService,
                 passwordEncoder,
                 authTokenService,
                 twoFactorService,

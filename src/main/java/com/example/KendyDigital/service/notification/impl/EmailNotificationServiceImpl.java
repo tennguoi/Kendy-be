@@ -3,13 +3,10 @@ package com.example.KendyDigital.service.notification.impl;
 import com.example.KendyDigital.service.notification.*;
 
 import com.example.KendyDigital.config.AppEmailProperties;
-import com.example.KendyDigital.model.content.ContentItem;
-import com.example.KendyDigital.model.content.ContentType;
 import com.example.KendyDigital.model.notification.EmailLog;
 import com.example.KendyDigital.model.user.UserAccount;
-import com.example.KendyDigital.repository.ContentItemRepository;
 import com.example.KendyDigital.repository.EmailLogRepository;
-import com.example.KendyDigital.repository.SystemSettingRepository;
+import com.example.KendyDigital.service.notification.helper.EmailTemplateRenderer;
 import jakarta.mail.internet.InternetAddress;
 import jakarta.mail.internet.MimeMessage;
 import java.net.URLEncoder;
@@ -36,21 +33,18 @@ public class EmailNotificationServiceImpl  implements EmailNotificationService{
     private final ObjectProvider<JavaMailSender> mailSenderProvider;
     private final AppEmailProperties properties;
     private final EmailLogRepository emailLogRepository;
-    private final SystemSettingRepository systemSettingRepository;
-    private final ContentItemRepository contentItemRepository;
+    private final EmailTemplateRenderer emailTemplateRenderer;
     private final MessageSource messageSource;
 
     public EmailNotificationServiceImpl(ObjectProvider<JavaMailSender> mailSenderProvider,
             AppEmailProperties properties,
             EmailLogRepository emailLogRepository,
-            SystemSettingRepository systemSettingRepository,
-            ContentItemRepository contentItemRepository,
+            EmailTemplateRenderer emailTemplateRenderer,
             MessageSource messageSource) {
         this.mailSenderProvider = mailSenderProvider;
         this.properties = properties;
         this.emailLogRepository = emailLogRepository;
-        this.systemSettingRepository = systemSettingRepository;
-        this.contentItemRepository = contentItemRepository;
+        this.emailTemplateRenderer = emailTemplateRenderer;
         this.messageSource = messageSource;
     }
 
@@ -59,11 +53,11 @@ public class EmailNotificationServiceImpl  implements EmailNotificationService{
         Locale locale = userLocale(user);
         String code = token;
         String link = frontendUrl("/reset-password");
-        String subject = template("password_reset", "email.template.password_reset.subject",
+        String subject = emailTemplateRenderer.resolveSubject("password_reset", "email.template.password_reset.subject",
                 "Reset your KendyDigital password", user, link, token, expiresAt, code);
         String fallback = messageSource.getMessage("email.password_reset.fallback",
                 new Object[]{code, expiresAt}, locale);
-        String body = loadHtmlTemplate("password_reset", fallback,
+        String body = emailTemplateRenderer.renderHtmlTemplate("password_reset", fallback,
                 user, link, token, expiresAt, code);
         send(user.getEmail(), subject, body);
     }
@@ -75,11 +69,11 @@ public class EmailNotificationServiceImpl  implements EmailNotificationService{
         Locale locale = userLocale(user);
         String code = token;
         String link = frontendUrl("/verify-email?token=" + encode(token));
-        String subject = template("email_verification", "email.template.email_verification.subject",
+        String subject = emailTemplateRenderer.resolveSubject("email_verification", "email.template.email_verification.subject",
                 "Verify your KendyDigital email", user, link, token, expiresAt, code);
         String fallback = messageSource.getMessage("email.email_verification.fallback",
                 new Object[]{code, link, expiresAt}, locale);
-        String body = loadHtmlTemplate("email_verification", fallback,
+        String body = emailTemplateRenderer.renderHtmlTemplate("email_verification", fallback,
                 user, link, token, expiresAt, code);
         LOGGER.debug("Email verification - subject: {}, link: {}", subject, link);
         send(user.getEmail(), subject, body);
@@ -89,19 +83,19 @@ public class EmailNotificationServiceImpl  implements EmailNotificationService{
     @Async("mailExecutor")
     public void sendTwoFactorCode(UserAccount user, String code, Instant expiresAt) {
         Locale locale = userLocale(user);
-        String subject = template("two_factor", "email.template.two_factor.subject",
+        String subject = emailTemplateRenderer.resolveSubject("two_factor", "email.template.two_factor.subject",
                 "Your KendyDigital 2FA code", user, null, null, expiresAt, code);
         String fallback = messageSource.getMessage("email.two_factor.fallback",
                 new Object[]{code, expiresAt}, locale);
-        String body = loadHtmlTemplate("two_factor", fallback,
+        String body = emailTemplateRenderer.renderHtmlTemplate("two_factor", fallback,
                 user, null, null, expiresAt, code);
         send(user.getEmail(), subject, body);
     }
 
     @Async("mailExecutor")
     public void sendSecurityAlert(UserAccount user, String title, String message) {
-        String body = loadHtmlTemplate("security_alert",
-                "<h2>" + escapeHtml(title) + "</h2><p>" + escapeHtml(message) + "</p>",
+        String body = emailTemplateRenderer.renderHtmlTemplate("security_alert",
+                "<h2>" + emailTemplateRenderer.escapeHtml(title) + "</h2><p>" + emailTemplateRenderer.escapeHtml(message) + "</p>",
                 user, null, null, null, null);
         send(user.getEmail(), title, body);
     }
@@ -109,24 +103,24 @@ public class EmailNotificationServiceImpl  implements EmailNotificationService{
     @Async("mailExecutor")
     public void sendUserNotification(UserAccount user, String title, String message, String actionUrl) {
         StringBuilder fallback = new StringBuilder();
-        fallback.append("<h2>").append(escapeHtml(title)).append("</h2>");
-        fallback.append("<p>").append(escapeHtml(message == null ? "" : message)).append("</p>");
+        fallback.append("<h2>").append(emailTemplateRenderer.escapeHtml(title)).append("</h2>");
+        fallback.append("<p>").append(emailTemplateRenderer.escapeHtml(message == null ? "" : message)).append("</p>");
         if (actionUrl != null && !actionUrl.isBlank()) {
-            fallback.append("<p><a href=\"").append(escapeHtml(frontendUrl(actionUrl))).append("\">Open</a></p>");
+            fallback.append("<p><a href=\"").append(emailTemplateRenderer.escapeHtml(frontendUrl(actionUrl))).append("\">Open</a></p>");
         }
-        String body = loadHtmlTemplate("user_notification", fallback.toString(), user, null, null, null, null);
+        String body = emailTemplateRenderer.renderHtmlTemplate("user_notification", fallback.toString(), user, null, null, null, null);
         send(user.getEmail(), title, body);
     }
 
     @Async("mailExecutor")
     public void sendDepositNotification(UserAccount user, String depositCode, String amount, String status, Instant expiresAt) {
         Locale locale = userLocale(user);
-        String subject = template("deposit_created", "email.template.deposit_created.subject",
+        String subject = emailTemplateRenderer.resolveSubject("deposit_created", "email.template.deposit_created.subject",
                 "Deposit " + status + ": " + depositCode, user, null, null, expiresAt, null);
         String link = frontendUrl("/wallet");
         String fallback = messageSource.getMessage("email.deposit.fallback",
                 new Object[]{depositCode, amount, status, expiresAt}, locale);
-        String body = loadHtmlTemplate("deposit_created", fallback,
+        String body = emailTemplateRenderer.renderHtmlTemplate("deposit_created", fallback,
                 user, link, null, expiresAt, null);
         send(user.getEmail(), subject, body);
     }
@@ -134,12 +128,12 @@ public class EmailNotificationServiceImpl  implements EmailNotificationService{
     @Async("mailExecutor")
     public void sendWalletAdjusted(UserAccount user, String direction, String amount, String reason, Long adminUserId) {
         Locale locale = userLocale(user);
-        String subject = template("wallet_adjusted", "email.template.wallet_adjusted.subject",
+        String subject = emailTemplateRenderer.resolveSubject("wallet_adjusted", "email.template.wallet_adjusted.subject",
                 "Wallet " + direction + " of " + amount, user, null, null, null, null);
         String link = frontendUrl("/wallet");
         String fallback = messageSource.getMessage("email.wallet.fallback",
                 new Object[]{direction, amount, reason, adminUserId}, locale);
-        String body = loadHtmlTemplate("wallet_adjusted", fallback,
+        String body = emailTemplateRenderer.renderHtmlTemplate("wallet_adjusted", fallback,
                 user, link, null, null, null);
         send(user.getEmail(), subject, body);
     }
@@ -147,12 +141,12 @@ public class EmailNotificationServiceImpl  implements EmailNotificationService{
     @Async("mailExecutor")
     public void sendAccountStatusChanged(UserAccount user, String changeType, String newValue, String reason) {
         Locale locale = userLocale(user);
-        String subject = template("account_status_changed", "email.template.account_status_changed.subject",
+        String subject = emailTemplateRenderer.resolveSubject("account_status_changed", "email.template.account_status_changed.subject",
                 "Account " + changeType + " updated", user, null, null, null, null);
         String link = frontendUrl("/account/security");
         String fallback = messageSource.getMessage("email.account.fallback",
                 new Object[]{changeType, newValue, reason}, locale);
-        String body = loadHtmlTemplate("account_status_changed", fallback,
+        String body = emailTemplateRenderer.renderHtmlTemplate("account_status_changed", fallback,
                 user, link, null, null, null);
         send(user.getEmail(), subject, body);
     }
@@ -160,7 +154,7 @@ public class EmailNotificationServiceImpl  implements EmailNotificationService{
     @Async("mailExecutor")
     public void sendTestEmail(String to, String slug, Map<String, String> placeholders) {
         String fallbackHtml = "<h2>Test email: " + slug + "</h2><p>This is a test email template.</p>";
-        String html = loadHtmlTemplate(slug, fallbackHtml, dummyUser(), null, null, null, null);
+        String html = emailTemplateRenderer.renderHtmlTemplate(slug, fallbackHtml, dummyUser(), null, null, null, null);
         for (var entry : placeholders.entrySet()) {
             html = html.replace("{{" + entry.getKey() + "}}",
                     entry.getValue() == null ? "" : entry.getValue());
@@ -281,66 +275,6 @@ public class EmailNotificationServiceImpl  implements EmailNotificationService{
             LOGGER.error("Failed to save email log to database: {}", exception.getMessage(), exception);
         }
         LOGGER.info("=== EMAIL SEND END === to={}, status={}", to, status);
-    }
-
-    private String loadHtmlTemplate(String slug, String fallbackHtml, UserAccount user, String link, String token,
-            Instant expiresAt, String code) {
-        Optional<ContentItem> template = contentItemRepository.findByTypeAndSlug(ContentType.EMAIL_TEMPLATE, slug);
-        String html = template.map(ContentItem::getContent)
-                .filter(content -> content != null && !content.isBlank())
-                .orElseGet(() -> systemSettingRepository.findById("email.template." + slug + ".body")
-                        .map(setting -> setting.getValue())
-                        .filter(value -> value != null && !value.isBlank())
-                        .orElse(null));
-        if (html == null || html.isBlank()) {
-            html = fallbackHtml;
-        }
-        return html
-                .replace("{{name}}", nullToBlank(user.getName()))
-                .replace("{{email}}", nullToBlank(user.getEmail()))
-                .replace("{{link}}", nullToBlank(link))
-                .replace("{{token}}", nullToBlank(token))
-                .replace("{{code}}", nullToBlank(code))
-                .replace("{{brand}}", brandName())
-                .replace("{{expiresAt}}", expiresAt == null ? "" : expiresAt.toString());
-    }
-
-    private String template(String slug, String key, String fallback, UserAccount user, String link, String token,
-            Instant expiresAt, String code) {
-        String value = contentItemRepository.findByTypeAndSlug(ContentType.EMAIL_TEMPLATE, slug)
-                .map(ContentItem::getTitle)
-                .filter(title -> !title.isBlank())
-                .orElseGet(() -> systemSettingRepository.findById(key)
-                        .map(setting -> setting.getValue())
-                        .orElse(fallback));
-        return value
-                .replace("{{name}}", nullToBlank(user.getName()))
-                .replace("{{email}}", nullToBlank(user.getEmail()))
-                .replace("{{link}}", nullToBlank(link))
-                .replace("{{token}}", nullToBlank(token))
-                .replace("{{code}}", nullToBlank(code))
-                .replace("{{brand}}", brandName())
-                .replace("{{expiresAt}}", expiresAt == null ? "" : expiresAt.toString());
-    }
-
-    private String brandName() {
-        return systemSettingRepository.findById("brand.name")
-                .map(s -> s.getValue())
-                .filter(v -> !v.isBlank())
-                .orElse("KendyDigital");
-    }
-
-    private String escapeHtml(String value) {
-        if (value == null) return "";
-        return value
-                .replace("&", "&amp;")
-                .replace("<", "&lt;")
-                .replace(">", "&gt;")
-                .replace("\"", "&quot;");
-    }
-
-    private String nullToBlank(String value) {
-        return value == null ? "" : value;
     }
 
     private String encode(String value) {
