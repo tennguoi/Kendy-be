@@ -8,6 +8,7 @@ import java.util.Optional;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -23,4 +24,14 @@ public interface CouponRepository extends JpaRepository<Coupon, Long> {
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select c from Coupon c where upper(c.code) = upper(:code)")
     Optional<Coupon> findByCodeForUpdate(@Param("code") String code);
+
+    @Modifying(clearAutomatically = true)
+    @Query("""
+            update Coupon c
+            set c.usedCount = c.usedCount + 1
+            where c.id = :couponId
+              and c.status = com.example.KendyDigital.model.coupon.CouponStatus.ACTIVE
+              and (c.usageLimit is null or c.usedCount < c.usageLimit)
+            """)
+    int atomicIncrementUsage(@Param("couponId") Long couponId);
 }

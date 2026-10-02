@@ -29,7 +29,9 @@ import lombok.NoArgsConstructor;
                 @Index(name = "idx_wallet_transactions_user_id", columnList = "user_id"),
                 @Index(name = "idx_wallet_transactions_created_at", columnList = "created_at"),
                 @Index(name = "idx_wallet_transactions_user_type_direction",
-                        columnList = "user_id,type,direction")
+                        columnList = "user_id,type,direction"),
+                @Index(name = "idx_wallet_tx_user_created_desc", columnList = "user_id, created_at DESC"),
+                @Index(name = "idx_wallet_tx_report", columnList = "type, direction, created_at")
         },
         uniqueConstraints = {
                 @UniqueConstraint(name = "uk_wallet_transactions_code", columnNames = "transaction_code")

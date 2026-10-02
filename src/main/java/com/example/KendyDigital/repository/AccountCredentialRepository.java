@@ -3,6 +3,7 @@ package com.example.KendyDigital.repository;
 import com.example.KendyDigital.model.inventory.AccountCredential;
 import com.example.KendyDigital.model.inventory.AccountCredentialStatus;
 import jakarta.persistence.LockModeType;
+import jakarta.persistence.QueryHint;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -11,6 +12,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.jpa.repository.QueryHints;
 import org.springframework.data.repository.query.Param;
 
 public interface AccountCredentialRepository extends JpaRepository<AccountCredential, Long> {
@@ -95,6 +97,7 @@ public interface AccountCredentialRepository extends JpaRepository<AccountCreden
     List<AccountCredential> findAllDeliveredForUser(@Param("userId") Long userId, Pageable pageable);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @QueryHints({@QueryHint(name = "jakarta.persistence.lock.timeout", value = "-2")})
     @Query("""
             select c from AccountCredential c
             where c.service.id = :serviceId

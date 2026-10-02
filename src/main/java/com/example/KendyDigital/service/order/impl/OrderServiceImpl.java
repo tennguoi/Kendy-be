@@ -165,90 +165,98 @@ public class OrderServiceImpl implements OrderService {
         }
         AppliedCoupon appliedCoupon = couponService.applyForPurchase(user, service, originalAmount,
                 request.couponCode());
-        BigDecimal orderAmount = appliedCoupon.payableAmount();
-        BigDecimal currentBalance = user.getBalance() == null
-                ? BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP)
-                : user.getBalance().setScale(2, RoundingMode.HALF_UP);
-        if (currentBalance.compareTo(orderAmount) < 0) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Insufficient wallet balance");
-        }
-        validateInputData(service, request.inputData());
-
+        BigDecimal orderAmount;
         AccountCredential credential = null;
-        if (service.getType() == ServiceType.ACCOUNT_STOCK) {
-            if (checkoutId != null) {
-                credential = accountInventoryService.takeReservedForOrder(service.getId(), checkoutId, userId);
-            } else {
+        OrderRecord order;
+        WalletTransaction walletTransaction;
+        try {
+            orderAmount = appliedCoupon.payableAmount();
+            BigDecimal currentBalance = user.getBalance() == null
+                    ? BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP)
+                    : user.getBalance().setScale(2, RoundingMode.HALF_UP);
+            if (currentBalance.compareTo(orderAmount) < 0) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT, "Insufficient wallet balance");
+            }
+            validateInputData(service, request.inputData());
+
+            if (service.getType() == ServiceType.ACCOUNT_STOCK) {
+                if (checkoutId != null) {
+                    credential = accountInventoryService.takeReservedForOrder(service.getId(), checkoutId, userId);
+                } else {
+                    if (accountInventoryService.availableCount(service.getId()) <= 0) {
+                        service.updatePricingMetadata(ServiceStockStatus.OUT_OF_STOCK, service.getCtaType(),
+                                service.getPricingBadge(), service.isFeatured(), service.isPublicVisible());
+                        throw new ResponseStatusException(HttpStatus.CONFLICT,
+                                "No account credentials available for this service");
+                    }
+                    credential = accountInventoryService.takeAvailableForOrder(service.getId());
+                }
+            }
+
+            order = orderRepository.save(new OrderRecord(
+                    nextOrderCode(),
+                    user,
+                    service,
+                    orderAmount,
+                    request.inputData(),
+                    idempotencyKey));
+            order.applyPricing(appliedCoupon.originalAmount(), appliedCoupon.discountAmount(), appliedCoupon.code());
+            orderEventRepository.save(new OrderEvent(order, null, OrderStatus.PROCESSING, userId, "USER", "Order created"));
+
+            walletTransaction = walletLedgerService.debit(
+                    userId,
+                    order.getAmount(),
+                    WalletTransactionType.PURCHASE,
+                    "ORDER",
+                    order.getId(),
+                    "Purchase order " + order.getOrderCode(),
+                    null);
+            order.attachPurchaseTransaction(walletTransaction);
+            couponService.redeemForOrder(user, order, appliedCoupon);
+
+            if (credential != null) {
+                credential.deliver(order, user);
+                order.attachDeliveredCredential(credential);
+                OrderStatus oldStatus = order.getStatus();
+                order.complete(deliveryResultData(order, credential, service), "Auto-delivered account credential");
+                orderEventRepository.save(new OrderEvent(order, oldStatus, order.getStatus(), null, "SYSTEM", "Auto-delivered account credential"));
                 if (accountInventoryService.availableCount(service.getId()) <= 0) {
                     service.updatePricingMetadata(ServiceStockStatus.OUT_OF_STOCK, service.getCtaType(),
                             service.getPricingBadge(), service.isFeatured(), service.isPublicVisible());
-                    throw new ResponseStatusException(HttpStatus.CONFLICT,
-                            "No account credentials available for this service");
                 }
-                credential = accountInventoryService.takeAvailableForOrder(service.getId());
+                userNotificationService.createLocalized(userId,
+                        "notification.order.credential_delivered.title",
+                        "notification.order.credential_delivered.body",
+                        null,
+                        new Object[]{order.getOrderCode()},
+                        "ORDER",
+                        "/locker");
+            } else {
+                order.initializeManualWorkflow(Instant.now().plusSeconds(24 * 60 * 60));
+                manualOrderTaskService.createDefaultTasks(order);
+                Ticket supportTicket = manualOrderSupportService.createManualOrderTicket(order, user);
+                order.attachSupportTicket(supportTicket);
+                userNotificationService.createLocalized(userId,
+                        "notification.order.manual_created.title",
+                        "notification.order.manual_created.body",
+                        null,
+                        new Object[]{order.getOrderCode(), supportTicket.getTicketCode()},
+                        "ORDER",
+                        "/orders/" + order.getOrderCode());
+                manualOrderSupportService.notifyAdminsManualOrder(order);
             }
-        }
 
-        OrderRecord order = orderRepository.save(new OrderRecord(
-                nextOrderCode(),
-                user,
-                service,
-                orderAmount,
-                request.inputData(),
-                idempotencyKey));
-        order.applyPricing(appliedCoupon.originalAmount(), appliedCoupon.discountAmount(), appliedCoupon.code());
-        orderEventRepository.save(new OrderEvent(order, null, OrderStatus.PROCESSING, userId, "USER", "Order created"));
-
-        WalletTransaction walletTransaction = walletLedgerService.debit(
-                userId,
-                order.getAmount(),
-                WalletTransactionType.PURCHASE,
-                "ORDER",
-                order.getId(),
-                "Purchase order " + order.getOrderCode(),
-                null);
-        order.attachPurchaseTransaction(walletTransaction);
-        couponService.redeemForOrder(user, order, appliedCoupon);
-
-        if (credential != null) {
-            credential.deliver(order, user);
-            order.attachDeliveredCredential(credential);
-            OrderStatus oldStatus = order.getStatus();
-            order.complete(deliveryResultData(order, credential, service), "Auto-delivered account credential");
-            orderEventRepository.save(new OrderEvent(order, oldStatus, order.getStatus(), null, "SYSTEM", "Auto-delivered account credential"));
-            if (accountInventoryService.availableCount(service.getId()) <= 0) {
-                service.updatePricingMetadata(ServiceStockStatus.OUT_OF_STOCK, service.getCtaType(),
-                        service.getPricingBadge(), service.isFeatured(), service.isPublicVisible());
-            }
-            userNotificationService.createLocalized(userId,
-                    "notification.order.credential_delivered.title",
-                    "notification.order.credential_delivered.body",
-                    null,
-                    new Object[]{order.getOrderCode()},
+            entitlementService.createForOrder(order, credential);
+            auditService.recordSystem(
+                    "ORDER_PURCHASED",
                     "ORDER",
-                    "/locker");
-        } else {
-            order.initializeManualWorkflow(Instant.now().plusSeconds(24 * 60 * 60));
-            manualOrderTaskService.createDefaultTasks(order);
-            Ticket supportTicket = manualOrderSupportService.createManualOrderTicket(order, user);
-            order.attachSupportTicket(supportTicket);
-            userNotificationService.createLocalized(userId,
-                    "notification.order.manual_created.title",
-                    "notification.order.manual_created.body",
-                    null,
-                    new Object[]{order.getOrderCode(), supportTicket.getTicketCode()},
-                    "ORDER",
-                    "/orders/" + order.getOrderCode());
-            manualOrderSupportService.notifyAdminsManualOrder(order);
+                    order.getId(),
+                    "walletTransactionId=" + walletTransaction.getId());
+            return toResponse(order);
+        } catch (Exception exception) {
+            couponService.rollbackPreClaim(userId, appliedCoupon);
+            throw exception;
         }
-
-        entitlementService.createForOrder(order, credential);
-        auditService.recordSystem(
-                "ORDER_PURCHASED",
-                "ORDER",
-                order.getId(),
-                "walletTransactionId=" + walletTransaction.getId());
-        return toResponse(order);
     }
 
     @Transactional(readOnly = true)

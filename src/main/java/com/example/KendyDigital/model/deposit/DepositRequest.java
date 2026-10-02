@@ -31,7 +31,9 @@ import lombok.NoArgsConstructor;
         name = "deposit_requests",
         indexes = {
                 @Index(name = "idx_deposit_requests_user_id", columnList = "user_id"),
-                @Index(name = "idx_deposit_requests_status", columnList = "status")
+                @Index(name = "idx_deposit_requests_status", columnList = "status"),
+                @Index(name = "idx_deposits_user_created_desc", columnList = "user_id, created_at DESC"),
+                @Index(name = "idx_deposits_status_expired", columnList = "status, expired_at ASC")
         },
         uniqueConstraints = {
                 @UniqueConstraint(name = "uk_deposit_requests_code", columnNames = "deposit_code"),

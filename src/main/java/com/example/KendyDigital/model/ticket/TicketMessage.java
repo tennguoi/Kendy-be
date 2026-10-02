@@ -25,7 +25,8 @@ import lombok.NoArgsConstructor;
         name = "ticket_messages",
         indexes = {
                 @Index(name = "idx_ticket_messages_ticket_id", columnList = "ticket_id"),
-                @Index(name = "idx_ticket_messages_created_at", columnList = "created_at")
+                @Index(name = "idx_ticket_messages_created_at", columnList = "created_at"),
+                @Index(name = "idx_ticket_messages_ticket_created", columnList = "ticket_id, created_at ASC")
         })
 public class TicketMessage extends TimestampedEntity {
     @Id

@@ -20,4 +20,5 @@ public interface CouponService {
     CouponValidationResponse validate(Long userId, CouponValidationRequest request);
     AppliedCoupon applyForPurchase(UserAccount user, ServiceItem service, BigDecimal originalAmount, String couponCode);
     void redeemForOrder(UserAccount user, OrderRecord order, AppliedCoupon appliedCoupon);
+    void rollbackPreClaim(Long userId, AppliedCoupon appliedCoupon);
 }

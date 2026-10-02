@@ -82,10 +82,11 @@ public class AdminSecurityManagerServiceImpl  implements AdminSecurityManagerSer
 
     @Transactional
     public List<AdminUserResponse> bulkUserStatus(Long adminUserId, List<Long> ids, UserStatus status, String reason) {
-        List<UserAccount> users = userAccountRepository.findAllByIdForUpdate(ids);
-        if (users.size() != ids.size()) {
+        List<Long> sortedIds = ids == null ? List.of() : ids.stream().distinct().sorted().toList();
+        List<UserAccount> users = userAccountRepository.findAllByIdForUpdate(sortedIds);
+        if (users.size() != sortedIds.size()) {
             List<Long> found = users.stream().map(UserAccount::getId).toList();
-            Long missing = ids.stream().filter(id -> !found.contains(id)).findFirst().orElse(null);
+            Long missing = sortedIds.stream().filter(id -> !found.contains(id)).findFirst().orElse(null);
             throw new ResponseStatusException(HttpStatus.NOT_FOUND,
                     "User not found: " + missing);
         }

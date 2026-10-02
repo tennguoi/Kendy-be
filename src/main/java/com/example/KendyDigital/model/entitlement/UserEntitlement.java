@@ -32,7 +32,9 @@ import lombok.NoArgsConstructor;
         indexes = {
                 @Index(name = "idx_entitlements_user_status", columnList = "user_id,status"),
                 @Index(name = "idx_entitlements_expires_at", columnList = "expires_at"),
-                @Index(name = "idx_entitlements_external_resource", columnList = "external_resource_id")
+                @Index(name = "idx_entitlements_external_resource", columnList = "external_resource_id"),
+                @Index(name = "idx_entitlements_user_created_desc", columnList = "user_id, created_at DESC"),
+                @Index(name = "idx_entitlements_status_expires", columnList = "status, expires_at ASC")
         },
         uniqueConstraints = {
                 @UniqueConstraint(name = "uk_entitlements_source_order", columnNames = "source_order_id")

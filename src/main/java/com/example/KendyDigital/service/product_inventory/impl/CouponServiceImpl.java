@@ -34,15 +34,18 @@ public class CouponServiceImpl implements CouponService {
     private final CouponRedemptionRepository couponRedemptionRepository;
     private final ServiceItemRepository serviceItemRepository;
     private final AuditService auditService;
+    private final com.example.KendyDigital.service.product_inventory.helper.CouponRedisService couponRedisService;
 
     public CouponServiceImpl(CouponRepository couponRepository,
             CouponRedemptionRepository couponRedemptionRepository,
             ServiceItemRepository serviceItemRepository,
-            AuditService auditService) {
+            AuditService auditService,
+            com.example.KendyDigital.service.product_inventory.helper.CouponRedisService couponRedisService) {
         this.couponRepository = couponRepository;
         this.couponRedemptionRepository = couponRedemptionRepository;
         this.serviceItemRepository = serviceItemRepository;
         this.auditService = auditService;
+        this.couponRedisService = couponRedisService;
     }
 
     @Transactional(readOnly = true)
@@ -77,6 +80,10 @@ public class CouponServiceImpl implements CouponService {
         if (request.status() == CouponStatus.DISABLED) {
             coupon.disable();
         }
+        if (coupon.getUsageLimit() != null) {
+            int remaining = coupon.getStatus() == CouponStatus.ACTIVE ? coupon.getUsageLimit() : 0;
+            couponRedisService.syncCoupon(coupon.getCode(), remaining, coupon.getStatus() == CouponStatus.ACTIVE);
+        }
         auditService.recordAdmin(adminUserId, "COUPON_CREATED", "COUPON", coupon.getId(), "code=" + coupon.getCode());
         return CouponResponse.from(coupon);
     }
@@ -108,6 +115,12 @@ public class CouponServiceImpl implements CouponService {
                 request.status() == null ? coupon.getStatus() : request.status(),
                 resolveService(request.serviceId()),
                 blankToNull(request.adminNote()));
+        if (coupon.getUsageLimit() != null) {
+            int remaining = Math.max(0, coupon.getUsageLimit() - coupon.getUsedCount());
+            couponRedisService.syncCoupon(coupon.getCode(), remaining, coupon.getStatus() == CouponStatus.ACTIVE);
+        } else {
+            couponRedisService.evictCoupon(coupon.getCode());
+        }
         auditService.recordAdmin(adminUserId, "COUPON_UPDATED", "COUPON", coupon.getId(), "code=" + coupon.getCode());
         return CouponResponse.from(coupon);
     }
@@ -121,6 +134,8 @@ public class CouponServiceImpl implements CouponService {
         } else {
             coupon.disable();
         }
+        int remaining = coupon.getUsageLimit() == null ? 0 : Math.max(0, coupon.getUsageLimit() - coupon.getUsedCount());
+        couponRedisService.syncCoupon(coupon.getCode(), remaining, status == CouponStatus.ACTIVE);
         auditService.recordAdmin(adminUserId, "COUPON_STATUS_UPDATED", "COUPON", coupon.getId(),
                 "status=" + coupon.getStatus());
         return CouponResponse.from(coupon);
@@ -131,8 +146,13 @@ public class CouponServiceImpl implements CouponService {
         ServiceItem service = serviceItemRepository.findById(request.serviceId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Service not found"));
         BigDecimal originalAmount = money(service.getPrice());
+        String normalizedCode = Coupon.normalizeCode(request.couponCode());
+        Boolean fastCheck = couponRedisService.fastCheckAvailable(normalizedCode, userId);
+        if (Boolean.FALSE.equals(fastCheck)) {
+            return CouponValidationResponse.invalid(request.couponCode(), "Coupon usage limit reached", originalAmount);
+        }
         try {
-            Coupon coupon = couponRepository.findByCodeIgnoreCase(Coupon.normalizeCode(request.couponCode()))
+            Coupon coupon = couponRepository.findByCodeIgnoreCase(normalizedCode)
                     .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Coupon not found"));
             validateCoupon(coupon, userId, service.getId(), originalAmount);
             BigDecimal discount = calculateDiscount(coupon, originalAmount);
@@ -159,13 +179,34 @@ public class CouponServiceImpl implements CouponService {
             return new AppliedCoupon(null, amount, BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP), amount);
         }
         BigDecimal normalizedOriginal = money(originalAmount);
-        Coupon coupon = couponRepository.findByCodeForUpdate(Coupon.normalizeCode(couponCode))
+        String normalizedCode = Coupon.normalizeCode(couponCode);
+        Coupon coupon = couponRepository.findByCodeIgnoreCase(normalizedCode)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Coupon not found"));
         validateCoupon(coupon, user.getId(), service.getId(), normalizedOriginal);
+
+        // Tầng 1: Redis Gatekeeper Atomic Pre-claim (O(1) in-memory)
+        int remainingInDb = coupon.getUsageLimit() == null ? 0 : Math.max(0, coupon.getUsageLimit() - coupon.getUsedCount());
+        com.example.KendyDigital.service.product_inventory.helper.CouponRedisService.AcquireResult acquireResult =
+                couponRedisService.tryAcquire(
+                        coupon.getCode(),
+                        user.getId(),
+                        coupon.getUsageLimit(),
+                        coupon.getPerUserLimit(),
+                        remainingInDb);
+
+        if (acquireResult == com.example.KendyDigital.service.product_inventory.helper.CouponRedisService.AcquireResult.OUT_OF_STOCK) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Coupon usage limit reached");
+        }
+        if (acquireResult == com.example.KendyDigital.service.product_inventory.helper.CouponRedisService.AcquireResult.USER_LIMIT_EXCEEDED) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Coupon user limit reached");
+        }
+
+        boolean acquiredFromRedis = (acquireResult == com.example.KendyDigital.service.product_inventory.helper.CouponRedisService.AcquireResult.SUCCESS);
+
         BigDecimal discount = calculateDiscount(coupon, normalizedOriginal);
         BigDecimal payable = normalizedOriginal.subtract(discount).max(BigDecimal.ZERO).setScale(2, RoundingMode.HALF_UP);
         ensurePositivePayable(payable);
-        return new AppliedCoupon(coupon, normalizedOriginal, discount, payable);
+        return new AppliedCoupon(coupon, normalizedOriginal, discount, payable, acquiredFromRedis);
     }
 
     @Transactional
@@ -178,16 +219,40 @@ public class CouponServiceImpl implements CouponService {
         }
         Coupon coupon = appliedCoupon.coupon();
         validateCoupon(coupon, user.getId(), order.getService().getId(), appliedCoupon.originalAmount());
-        coupon.incrementUsedCount();
-        couponRedemptionRepository.save(new CouponRedemption(
-                coupon,
-                user,
-                order,
-                appliedCoupon.originalAmount(),
-                appliedCoupon.discountAmount(),
-                appliedCoupon.payableAmount()));
+
+        // Tầng 2: Atomic SQL Update trực tiếp trong DB (Microsecond execution, no long-lived locks)
+        int updated = couponRepository.atomicIncrementUsage(coupon.getId());
+        if (updated == 0 && coupon.getUsageLimit() != null) {
+            if (appliedCoupon.acquiredFromRedis()) {
+                couponRedisService.release(coupon.getCode(), user.getId(), coupon.getUsageLimit(), coupon.getPerUserLimit());
+            }
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Coupon usage limit reached");
+        }
+
+        try {
+            couponRedemptionRepository.save(new CouponRedemption(
+                    coupon,
+                    user,
+                    order,
+                    appliedCoupon.originalAmount(),
+                    appliedCoupon.discountAmount(),
+                    appliedCoupon.payableAmount()));
+        } catch (Exception ex) {
+            if (appliedCoupon.acquiredFromRedis()) {
+                couponRedisService.release(coupon.getCode(), user.getId(), coupon.getUsageLimit(), coupon.getPerUserLimit());
+            }
+            throw ex;
+        }
         auditService.recordSystem("COUPON_REDEEMED", "COUPON", coupon.getId(),
                 "orderId=" + order.getId() + ",code=" + coupon.getCode());
+    }
+
+    @Transactional
+    public void rollbackPreClaim(Long userId, AppliedCoupon appliedCoupon) {
+        if (appliedCoupon != null && appliedCoupon.coupon() != null && appliedCoupon.acquiredFromRedis()) {
+            Coupon coupon = appliedCoupon.coupon();
+            couponRedisService.release(coupon.getCode(), userId, coupon.getUsageLimit(), coupon.getPerUserLimit());
+        }
     }
 
     private void validateCoupon(Coupon coupon, Long userId, Long serviceId, BigDecimal originalAmount) {

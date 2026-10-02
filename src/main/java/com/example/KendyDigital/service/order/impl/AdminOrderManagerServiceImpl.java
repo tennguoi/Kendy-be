@@ -70,6 +70,22 @@ public class AdminOrderManagerServiceImpl implements AdminOrderManagerService {
     @Override
     @Transactional(readOnly = true)
     public List<OrderResponse> listOrders(OrderStatus status, Long userId, Instant fromDate, Instant toDate, int page, int size) {
+        if (fromDate == null && toDate == null) {
+            if (userId != null && status != null) {
+                return orderRepository.findAllByUser_IdAndStatusOrderByCreatedAtDesc(userId, status, paged(page, size))
+                        .stream().map(this::toResponse).toList();
+            }
+            if (userId != null) {
+                return orderRepository.findAllByUser_IdOrderByCreatedAtDesc(userId, paged(page, size))
+                        .stream().map(this::toResponse).toList();
+            }
+            if (status != null) {
+                return orderRepository.findAllByStatusOrderByCreatedAtDesc(status, paged(page, size))
+                        .stream().map(this::toResponse).toList();
+            }
+            return orderRepository.findAllByOrderByCreatedAtDesc(paged(page, size))
+                    .stream().map(this::toResponse).toList();
+        }
         List<OrderRecord> orders = orderRepository.searchAdmin(
                 null, null, status, userId, fromDate, toDate, paged(page, size));
         return orders.stream().map(this::toResponse).toList();

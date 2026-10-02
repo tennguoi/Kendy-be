@@ -17,6 +17,7 @@ public interface UserEntitlementRepository extends JpaRepository<UserEntitlement
 
     @Query("""
             select e from UserEntitlement e
+            join fetch e.user
             join fetch e.service
             join fetch e.sourceOrder o
             left join fetch o.deliveredCredential

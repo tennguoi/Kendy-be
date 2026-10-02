@@ -19,7 +19,8 @@ import lombok.NoArgsConstructor;
         name = "audit_logs",
         indexes = {
                 @Index(name = "idx_audit_logs_action", columnList = "action"),
-                @Index(name = "idx_audit_logs_created_at", columnList = "created_at")
+                @Index(name = "idx_audit_logs_created_at", columnList = "created_at"),
+                @Index(name = "idx_audit_logs_actor_created", columnList = "actor_user_id, created_at DESC")
         })
 public class AuditLog extends TimestampedEntity {
     @Id

@@ -328,6 +328,73 @@ class OrderRaceConditionIntegrationTest {
     }
 
     @Test
+    @DisplayName("Concurrent purchase with limited coupon: at most usageLimit purchases with coupon should succeed")
+    void concurrentPurchase_limitedCoupon_onlyUsageLimitSucceeds() throws Exception {
+        TransactionTemplate tx = new TransactionTemplate(transactionManager);
+        String couponCode = "FLASH-" + counter.incrementAndGet();
+
+        Long manualServiceId = tx.execute(s -> {
+            var catReq = new CreateServiceCategoryRequest("CatCoupon " + counter.get(), "cat-coupon-" + counter.get(), null, 0, null, null, null, null, null, null, null);
+            var cat = categoryService.create(adminUser.getId(), catReq);
+            var svcReq = new CreateServiceRequest(
+                    "Manual Svc " + counter.get(), "manual-svc-" + counter.get(),
+                    "Short", "Full",
+                    BigDecimal.valueOf(100_000), "100.000đ", BigDecimal.valueOf(50_000),
+                    ServiceType.MANUAL, null, null, ServiceStatus.ACTIVE, ServiceStockStatus.AVAILABLE,
+                    ServiceCtaType.BUY_NOW, null, false, true, null,
+                    "Req", "Benefits", "Notes", "24h", "7 days",
+                    0, cat.id(), null, null, null);
+            Long sId = catalogService.create(adminUser.getId(), svcReq).id();
+
+            couponService.create(adminUser.getId(), new UpsertCouponRequest(
+                    couponCode,
+                    "Flash Sale Coupon",
+                    CouponType.PERCENT,
+                    BigDecimal.valueOf(10),
+                    BigDecimal.valueOf(20_000),
+                    BigDecimal.valueOf(50_000),
+                    2,
+                    1,
+                    null,
+                    null,
+                    null,
+                    sId,
+                    "Flash coupon"));
+            return sId;
+        });
+
+        int threadCount = 3;
+        ExecutorService executor = Executors.newFixedThreadPool(threadCount);
+        CyclicBarrier barrier = new CyclicBarrier(threadCount);
+        AtomicInteger successCount = new AtomicInteger(0);
+        AtomicInteger failCount = new AtomicInteger(0);
+        List<UserAccount> buyers = List.of(buyer1, buyer2, buyer3);
+
+        List<Future<?>> futures = new ArrayList<>();
+        for (int i = 0; i < threadCount; i++) {
+            UserAccount buyer = buyers.get(i);
+            futures.add(executor.submit(() -> {
+                try {
+                    barrier.await(10, TimeUnit.SECONDS);
+                    orderService.create(buyer.getId(),
+                            new CreateOrderRequest(manualServiceId, null, null, couponCode));
+                    successCount.incrementAndGet();
+                } catch (Exception e) {
+                    failCount.incrementAndGet();
+                }
+            }));
+        }
+
+        for (Future<?> f : futures) {
+            try { f.get(30, TimeUnit.SECONDS); } catch (Exception ignored) {}
+        }
+        executor.shutdown();
+
+        assertEquals(2, successCount.get(), "Exactly 2 purchases should succeed matching coupon usageLimit=2");
+        assertEquals(1, failCount.get(), "The 3rd buyer should fail because coupon is out of stock");
+    }
+
+    @Test
     @DisplayName("Bank checkout keeps reserved credential and creates order after reprocess")
     void bankCheckout_reservedCredential_reprocessCreatesOrder() {
         TransactionTemplate tx = new TransactionTemplate(transactionManager);

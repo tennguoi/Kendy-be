@@ -16,7 +16,9 @@ public interface UserFavoriteServiceRepository extends JpaRepository<UserFavorit
     boolean existsByUser_IdAndService_Id(Long userId, Long serviceId);
 
     @Query("""
-            select f from UserFavoriteService f join fetch f.service
+            select f from UserFavoriteService f
+            join fetch f.service s
+            left join fetch s.category
             where f.user.id = :userId
             order by f.createdAt desc
             """)
@@ -24,8 +26,10 @@ public interface UserFavoriteServiceRepository extends JpaRepository<UserFavorit
 
     @Query("""
             select o.service from OrderRecord o
+            join o.service s
+            left join fetch s.category
             where o.user.id = :userId
-            group by o.service
+            group by o.service, s.category
             order by max(o.createdAt) desc
             """)
     List<ServiceItem> findRecentServices(@Param("userId") Long userId, Pageable pageable);

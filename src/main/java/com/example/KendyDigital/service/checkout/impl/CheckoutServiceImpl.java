@@ -120,29 +120,34 @@ public class CheckoutServiceImpl  implements CheckoutService{
         BigDecimal originalAmount = service.getPrice().setScale(2, RoundingMode.HALF_UP);
         AppliedCoupon appliedCoupon = couponService.applyForPurchase(user, service, originalAmount,
                 request.couponCode());
-        if (appliedCoupon.payableAmount().compareTo(BigDecimal.valueOf(1000)) <= 0) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "Transfer checkout amount must be greater than 1,000 VND");
-        }
-        DepositRequest deposit = depositService.createDepositForAmount(userId, appliedCoupon.payableAmount());
-        CheckoutSession checkout = checkoutSessionRepository.save(new CheckoutSession(
-                nextCheckoutCode(),
-                user,
-                service,
-                deposit,
-                request.inputData(),
-                idempotencyKey));
-        checkout.applyPricing(appliedCoupon.originalAmount(), appliedCoupon.discountAmount(), appliedCoupon.code());
-        if (service.getType() == ServiceType.ACCOUNT_STOCK) {
-            accountInventoryService.reserveForCheckout(service.getId(), checkout, user, deposit.getExpiredAt());
-        }
+        try {
+            if (appliedCoupon.payableAmount().compareTo(BigDecimal.valueOf(1000)) <= 0) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "Transfer checkout amount must be greater than 1,000 VND");
+            }
+            DepositRequest deposit = depositService.createDepositForAmount(userId, appliedCoupon.payableAmount());
+            CheckoutSession checkout = checkoutSessionRepository.save(new CheckoutSession(
+                    nextCheckoutCode(),
+                    user,
+                    service,
+                    deposit,
+                    request.inputData(),
+                    idempotencyKey));
+            checkout.applyPricing(appliedCoupon.originalAmount(), appliedCoupon.discountAmount(), appliedCoupon.code());
+            if (service.getType() == ServiceType.ACCOUNT_STOCK) {
+                accountInventoryService.reserveForCheckout(service.getId(), checkout, user, deposit.getExpiredAt());
+            }
 
-        auditService.recordSystem(
-                "CHECKOUT_CREATED",
-                "CHECKOUT_SESSION",
-                checkout.getId(),
-                "depositId=" + deposit.getId() + ",serviceId=" + service.getId());
-        return CheckoutResponse.from(checkout);
+            auditService.recordSystem(
+                    "CHECKOUT_CREATED",
+                    "CHECKOUT_SESSION",
+                    checkout.getId(),
+                    "depositId=" + deposit.getId() + ",serviceId=" + service.getId());
+            return CheckoutResponse.from(checkout);
+        } catch (Exception exception) {
+            couponService.rollbackPreClaim(userId, appliedCoupon);
+            throw exception;
+        }
     }
 
     @Transactional

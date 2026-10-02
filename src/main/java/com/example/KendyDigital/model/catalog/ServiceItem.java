@@ -32,7 +32,9 @@ import lombok.Setter;
                 @Index(name = "idx_services_sort_order", columnList = "sort_order"),
                 @Index(name = "idx_services_featured", columnList = "featured"),
                 @Index(name = "idx_services_public_visible", columnList = "public_visible"),
-                @Index(name = "idx_services_category_id", columnList = "category_id")
+                @Index(name = "idx_services_category_id", columnList = "category_id"),
+                @Index(name = "idx_services_catalog_listing", columnList = "status, public_visible, sort_order, name"),
+                @Index(name = "idx_services_category_listing", columnList = "category_id, status, public_visible, sort_order")
         },
         uniqueConstraints = {
                 @UniqueConstraint(name = "uk_services_slug", columnNames = "slug")

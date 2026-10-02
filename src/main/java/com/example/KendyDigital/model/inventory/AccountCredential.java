@@ -34,7 +34,9 @@ import lombok.NoArgsConstructor;
                 @Index(name = "idx_account_credentials_service_status", columnList = "service_id,status"),
                 @Index(name = "idx_account_credentials_order", columnList = "assigned_order_id"),
                 @Index(name = "idx_account_credentials_user", columnList = "delivered_to_user_id"),
-                @Index(name = "idx_account_credentials_reserved_until", columnList = "reserved_until")
+                @Index(name = "idx_account_credentials_reserved_until", columnList = "reserved_until"),
+                @Index(name = "idx_credentials_service_status_created", columnList = "service_id, status, created_at ASC"),
+                @Index(name = "idx_credentials_user_delivered", columnList = "delivered_to_user_id, delivered_at DESC, created_at DESC")
         },
         uniqueConstraints = {
                 @UniqueConstraint(name = "uk_account_credentials_service_login", columnNames = {"service_id", "login_identifier"}),
