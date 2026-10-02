@@ -167,6 +167,18 @@ public class ApiExceptionHandler {
             if (upper.contains("UNIQUE") || upper.contains("ALREADY EXISTS")) {
                 return ErrorCode.DATA_UNIQUE_CONSTRAINT;
             }
+            if (upper.contains("COUPON USAGE LIMIT") || upper.contains("COUPON IS DISABLED") || upper.contains("USAGE LIMIT REACHED")) {
+                return ErrorCode.COUPON_USAGE_LIMIT;
+            }
+            if (upper.contains("COUPON USER LIMIT") || upper.contains("USER LIMIT REACHED") || upper.contains("ALREADY USED")) {
+                return ErrorCode.COUPON_ALREADY_USED;
+            }
+            if (upper.contains("COUPON NOT FOUND") || upper.contains("COUPON IS NOT ACTIVE") || upper.contains("COUPON HAS EXPIRED")) {
+                return ErrorCode.COUPON_INVALID;
+            }
+            if (upper.contains("NO ACCOUNT CREDENTIALS") || upper.contains("OUT OF STOCK")) {
+                return ErrorCode.SERVICE_OUT_OF_STOCK;
+            }
             if (upper.contains("UPLOAD") || upper.contains("AVATAR")) {
                 return ErrorCode.FILE_UPLOAD_FAILED;
             }
