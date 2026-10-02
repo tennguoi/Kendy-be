@@ -8,13 +8,21 @@ public record SystemSettingResponse(
         String value,
         boolean publicSetting,
         Long updatedBy,
-        Instant updatedAt) {
+        Instant updatedAt,
+        Long version) {
+
+    public SystemSettingResponse(String key, String value, boolean publicSetting, Long updatedBy, Instant updatedAt) {
+        this(key, value, publicSetting, updatedBy, updatedAt, 0L);
+    }
+
     public static SystemSettingResponse from(SystemSetting setting) {
         return new SystemSettingResponse(
                 setting.getKey(),
                 setting.getValue(),
                 setting.isPublicSetting(),
                 setting.getUpdatedBy(),
-                setting.getUpdatedAt());
+                setting.getUpdatedAt(),
+                setting.getVersion());
     }
 }
+

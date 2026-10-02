@@ -8,7 +8,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.test.context.SpringBootTest;
 
 /**
  * Test for the simplified EncryptedCredentialAttributeConverter.
@@ -16,7 +15,6 @@ import org.springframework.boot.test.context.SpringBootTest;
  * This test verifies that the simplified encryption/decryption works correctly
  * with various inputs including null, empty, and actual credential values.
  */
-@SpringBootTest
 class EncryptedCredentialAttributeConverterTest {
 
     private EncryptedCredentialAttributeConverter converter;

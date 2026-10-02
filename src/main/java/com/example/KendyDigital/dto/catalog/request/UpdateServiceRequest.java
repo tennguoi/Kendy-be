@@ -39,5 +39,22 @@ public record UpdateServiceRequest(
         Boolean clearCategory,
         @Size(max = 200) String metaTitle,
         @Size(max = 1000) String metaDescription,
-        @Size(max = 500) String iconUrl) {
+        @Size(max = 500) String iconUrl,
+        Long version) {
+
+    public UpdateServiceRequest(
+            String name, String slug, String shortDescription, String description,
+            BigDecimal price, String priceText, BigDecimal costPrice, ServiceType type,
+            AccessStrategy accessStrategy, Integer accessDurationDays, ServiceStatus status,
+            ServiceStockStatus stockStatus, ServiceCtaType ctaType, String pricingBadge,
+            Boolean featured, Boolean publicVisible, String inputSchema, String requirements,
+            String benefits, String usageNotes, String processingTime, String warrantyPolicy,
+            Integer sortOrder, Long categoryId, Boolean clearCategory, String metaTitle,
+            String metaDescription, String iconUrl) {
+        this(name, slug, shortDescription, description, price, priceText, costPrice, type,
+                accessStrategy, accessDurationDays, status, stockStatus, ctaType, pricingBadge,
+                featured, publicVisible, inputSchema, requirements, benefits, usageNotes,
+                processingTime, warrantyPolicy, sortOrder, categoryId, clearCategory, metaTitle,
+                metaDescription, iconUrl, null);
+    }
 }

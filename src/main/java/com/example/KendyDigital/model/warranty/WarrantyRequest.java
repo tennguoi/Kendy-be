@@ -1,6 +1,6 @@
 package com.example.KendyDigital.model.warranty;
 
-import com.example.KendyDigital.common.TimestampedEntity;
+import com.example.KendyDigital.common.VersionedEntity;
 import com.example.KendyDigital.model.inventory.AccountCredential;
 import com.example.KendyDigital.model.order.OrderRecord;
 import com.example.KendyDigital.model.user.UserAccount;
@@ -33,7 +33,7 @@ import lombok.NoArgsConstructor;
                 @Index(name = "idx_warranty_requests_user", columnList = "user_id"),
                 @Index(name = "idx_warranty_requests_status", columnList = "status")
         })
-public class WarrantyRequest extends TimestampedEntity {
+public class WarrantyRequest extends VersionedEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;

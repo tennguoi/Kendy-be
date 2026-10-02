@@ -93,6 +93,9 @@ public class ContentController {
         Long adminUserId = CurrentUser.require(authentication).userId();
         ContentItem item = contentItemRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Content not found"));
+        if (request.version() != null && !request.version().equals(item.getVersion())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "CONCURRENT_ADMIN_CONFLICT");
+        }
         String slug = normalizeSlug(request.slug());
         contentItemRepository.findByTypeAndSlug(request.type(), slug)
                 .filter(existing -> !existing.getId().equals(id))

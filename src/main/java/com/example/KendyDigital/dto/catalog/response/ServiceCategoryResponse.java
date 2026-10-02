@@ -17,7 +17,18 @@ public record ServiceCategoryResponse(
         String processingTime,
         String warranty,
         String requirements,
-        String cta) {
+        String cta,
+        Long version) {
+
+    public ServiceCategoryResponse(
+            Long id, String name, String slug, String description, int sortOrder,
+            Long parentId, Instant createdAt, Instant updatedAt, String microcopy,
+            String priceFrom, String processingTime, String warranty,
+            String requirements, String cta) {
+        this(id, name, slug, description, sortOrder, parentId, createdAt, updatedAt,
+                microcopy, priceFrom, processingTime, warranty, requirements, cta, 0L);
+    }
+
     public static ServiceCategoryResponse from(ServiceCategory category) {
         return new ServiceCategoryResponse(
                 category.getId(),
@@ -33,6 +44,7 @@ public record ServiceCategoryResponse(
                 category.getProcessingTime(),
                 category.getWarranty(),
                 category.getRequirements(),
-                category.getCta());
+                category.getCta(),
+                category.getVersion());
     }
 }

@@ -70,7 +70,7 @@ public class AdminSystemConfigServiceImpl  implements AdminSystemConfigService{
     public List<SystemSettingResponse> bulkUpdateSettings(Long adminUserId, SystemSettingsBulkUpdateRequest request) {
         return request.settings().stream()
                 .map(item -> upsertSetting(adminUserId, item.key(), item.value(),
-                        item.publicSetting() != null && item.publicSetting()))
+                        item.publicSetting() != null && item.publicSetting(), item.version()))
                 .toList();
     }
 
@@ -155,12 +155,15 @@ public class AdminSystemConfigServiceImpl  implements AdminSystemConfigService{
     }
 
     @Transactional
-    public SystemSettingResponse updateNotificationSettings(Long adminUserId, String value) {
-        return upsertSetting(adminUserId, "notifications.settings", value, false);
+    public SystemSettingResponse updateNotificationSettings(Long adminUserId, String value, Long version) {
+        return upsertSetting(adminUserId, "notifications.settings", value, false, version);
     }
 
-    private SystemSettingResponse upsertSetting(Long adminUserId, String key, String value, boolean publicSetting) {
+    private SystemSettingResponse upsertSetting(Long adminUserId, String key, String value, boolean publicSetting, Long version) {
         SystemSetting setting = systemSettingRepository.findById(key).orElse(null);
+        if (setting != null && version != null && !version.equals(setting.getVersion())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "CONCURRENT_ADMIN_CONFLICT");
+        }
         String oldValue = setting == null ? null : setting.getValue();
         if (setting != null && Objects.equals(oldValue, value)
                 && setting.isPublicSetting() == publicSetting) {
@@ -174,6 +177,10 @@ public class AdminSystemConfigServiceImpl  implements AdminSystemConfigService{
         systemSettingHistoryRepository.save(new SystemSettingHistory(key, oldValue, value, adminUserId));
         auditService.recordAdmin(adminUserId, "SETTING_UPDATED", "SYSTEM_SETTING", null, "key=" + key);
         return SystemSettingResponse.from(setting);
+    }
+
+    private SystemSettingResponse upsertSetting(Long adminUserId, String key, String value, boolean publicSetting) {
+        return upsertSetting(adminUserId, key, value, publicSetting, null);
     }
 
     private PageRequest page(Integer limit) {

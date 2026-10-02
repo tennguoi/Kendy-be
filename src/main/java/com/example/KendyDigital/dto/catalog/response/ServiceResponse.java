@@ -37,7 +37,25 @@ public record ServiceResponse(
         String categoryName,
         String metaTitle,
         String metaDescription,
-        String iconUrl) {
+        String iconUrl,
+        Long version) {
+
+    public ServiceResponse(
+            Long id, String name, String slug, String shortDescription, String description,
+            BigDecimal price, String priceText, BigDecimal costPrice, ServiceType type,
+            AccessStrategy accessStrategy, Integer accessDurationDays, ServiceStatus status,
+            ServiceStockStatus stockStatus, ServiceCtaType ctaType, String pricingBadge,
+            boolean featured, boolean publicVisible, String inputSchema, String requirements,
+            String benefits, String usageNotes, String processingTime, String warrantyPolicy,
+            int sortOrder, Long categoryId, String categoryName, String metaTitle,
+            String metaDescription, String iconUrl) {
+        this(id, name, slug, shortDescription, description, price, priceText, costPrice, type,
+                accessStrategy, accessDurationDays, status, stockStatus, ctaType, pricingBadge,
+                featured, publicVisible, inputSchema, requirements, benefits, usageNotes,
+                processingTime, warrantyPolicy, sortOrder, categoryId, categoryName, metaTitle,
+                metaDescription, iconUrl, 0L);
+    }
+
     public static ServiceResponse from(ServiceItem service) {
         return new ServiceResponse(
                 service.getId(),
@@ -68,6 +86,7 @@ public record ServiceResponse(
                 service.getCategory() == null ? null : service.getCategory().getName(),
                 service.getMetaTitle(),
                 service.getMetaDescription(),
-                service.getIconUrl());
+                service.getIconUrl(),
+                service.getVersion());
     }
 }

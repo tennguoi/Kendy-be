@@ -21,7 +21,19 @@ public record TicketResponse(
         Instant closedAt,
         Instant createdAt,
         Instant updatedAt,
-        List<TicketMessageResponse> messages) {
+        List<TicketMessageResponse> messages,
+        Long version) {
+
+    public TicketResponse(Long id, String ticketCode, Long userId, Long orderId,
+            Long depositRequestId, TicketCategory category, String subject,
+            TicketStatus status, TicketPriority priority, Long assignedAdminId,
+            Instant closedAt, Instant createdAt, Instant updatedAt,
+            List<TicketMessageResponse> messages) {
+        this(id, ticketCode, userId, orderId, depositRequestId, category, subject,
+                status, priority, assignedAdminId, closedAt, createdAt, updatedAt,
+                messages, 0L);
+    }
+
     public static TicketResponse from(Ticket ticket, List<TicketMessageResponse> messages) {
         return new TicketResponse(
                 ticket.getId(),
@@ -37,6 +49,7 @@ public record TicketResponse(
                 ticket.getClosedAt(),
                 ticket.getCreatedAt(),
                 ticket.getUpdatedAt(),
-                messages);
+                messages,
+                ticket.getVersion());
     }
 }

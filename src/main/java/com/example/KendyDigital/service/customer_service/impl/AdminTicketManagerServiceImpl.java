@@ -99,6 +99,9 @@ public class AdminTicketManagerServiceImpl implements AdminTicketManagerService 
     public TicketResponse updateForAdmin(Long adminUserId, String ticketCode, AdminTicketUpdateRequest request) {
         Ticket ticket = ticketRepository.findByTicketCodeForUpdate(ticketCode)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Ticket not found"));
+        if (request.version() != null && !request.version().equals(ticket.getVersion())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "CONCURRENT_ADMIN_CONFLICT");
+        }
         UserAccount assignedAdmin = null;
         if (request.assignedAdminId() != null) {
             assignedAdmin = userAccountRepository.findById(request.assignedAdminId())

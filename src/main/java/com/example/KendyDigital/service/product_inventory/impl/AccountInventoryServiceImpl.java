@@ -247,6 +247,9 @@ public class AccountInventoryServiceImpl implements AccountInventoryService {
             UpdateAccountCredentialRequest request) {
         AccountCredential credential = accountCredentialRepository.findById(credentialId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Credential not found"));
+        if (request.version() != null && !request.version().equals(credential.getVersion())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "CONCURRENT_ADMIN_CONFLICT");
+        }
         if (credential.getStatus() == AccountCredentialStatus.DELIVERED && request.status() == AccountCredentialStatus.AVAILABLE) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Delivered credential cannot be returned to stock");
         }

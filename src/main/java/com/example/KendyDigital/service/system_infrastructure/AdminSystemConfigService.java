@@ -21,5 +21,8 @@ public interface AdminSystemConfigService {
     AdminNotificationResponse markNotificationRead(Long adminUserId, Long id);
     List<AdminNotificationResponse> bulkReadNotifications(Long adminUserId, List<Long> ids);
     SystemSettingResponse notificationSettings();
-    SystemSettingResponse updateNotificationSettings(Long adminUserId, String value);
+    SystemSettingResponse updateNotificationSettings(Long adminUserId, String value, Long version);
+    default SystemSettingResponse updateNotificationSettings(Long adminUserId, String value) {
+        return updateNotificationSettings(adminUserId, value, null);
+    }
 }

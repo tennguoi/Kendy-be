@@ -26,12 +26,14 @@ class EncryptedCredentialAttributeConverterMissingKeyTest {
         System.clearProperty("spring.profiles.active");
         System.clearProperty("SPRING_PROFILES_ACTIVE");
         System.clearProperty("app.security.credential-encryption-key");
+        System.setProperty("credential.encryption.ignore-env", "true");
     }
 
     @AfterEach
     void restoreTestKey() {
         // Restore a test key so other tests aren't affected
         System.setProperty("credential.encryption.key", "test-restoration-key");
+        System.clearProperty("credential.encryption.ignore-env");
     }
 
     @Test

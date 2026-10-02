@@ -98,6 +98,9 @@ public class AdminRoleServiceImpl  implements AdminRoleService{
     @Transactional
     public AdminRoleResponse updateRole(Long adminUserId, Long id, UpdateAdminRoleRequest request) {
         AdminRole role = requireRole(id);
+        if (request.version() != null && !request.version().equals(role.getVersion())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "CONCURRENT_ADMIN_CONFLICT");
+        }
         if (role.isSystem()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Cannot modify system role");
         }

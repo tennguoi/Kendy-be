@@ -14,5 +14,14 @@ public record UpdateServiceCategoryRequest(
         @Size(max = 100) String processingTime,
         @Size(max = 100) String warranty,
         @Size(max = 2000) String requirements,
-        @Size(max = 50) String cta) {
+        @Size(max = 50) String cta,
+        Long version) {
+
+    public UpdateServiceCategoryRequest(
+            String name, String slug, String description, Integer sortOrder, Long parentId,
+            String microcopy, String priceFrom, String processingTime, String warranty,
+            String requirements, String cta) {
+        this(name, slug, description, sortOrder, parentId, microcopy, priceFrom, processingTime,
+                warranty, requirements, cta, null);
+    }
 }

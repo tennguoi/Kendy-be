@@ -22,5 +22,15 @@ public record UpsertCouponRequest(
         Instant endsAt,
         CouponStatus status,
         Long serviceId,
-        @Size(max = 1000) String adminNote) {
+        @Size(max = 1000) String adminNote,
+        Long version) {
+
+    public UpsertCouponRequest(
+            String code, String name, CouponType type, BigDecimal value,
+            BigDecimal maxDiscountAmount, BigDecimal minOrderAmount,
+            Integer usageLimit, Integer perUserLimit, Instant startsAt,
+            Instant endsAt, CouponStatus status, Long serviceId, String adminNote) {
+        this(code, name, type, value, maxDiscountAmount, minOrderAmount,
+                usageLimit, perUserLimit, startsAt, endsAt, status, serviceId, adminNote, null);
+    }
 }

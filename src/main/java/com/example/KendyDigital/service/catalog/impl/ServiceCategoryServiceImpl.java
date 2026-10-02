@@ -111,6 +111,10 @@ public class ServiceCategoryServiceImpl  implements ServiceCategoryService{
     public ServiceCategoryResponse update(Long adminUserId, Long id, UpdateServiceCategoryRequest request) {
         ServiceCategory category = requireCategory(id);
 
+        if (request.version() != null && !request.version().equals(category.getVersion())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "CONCURRENT_ADMIN_CONFLICT");
+        }
+
         if (request.name() != null) {
             category.setName(request.name().trim());
         }

@@ -6,5 +6,11 @@ import com.example.KendyDigital.model.ticket.TicketStatus;
 public record AdminTicketUpdateRequest(
         TicketStatus status,
         TicketPriority priority,
-        Long assignedAdminId) {
+        Long assignedAdminId,
+        Long version) {
+
+    public AdminTicketUpdateRequest(TicketStatus status, TicketPriority priority, Long assignedAdminId) {
+        this(status, priority, assignedAdminId, null);
+    }
 }
+

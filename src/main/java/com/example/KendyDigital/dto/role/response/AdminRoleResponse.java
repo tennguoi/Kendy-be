@@ -10,7 +10,14 @@ public record AdminRoleResponse(
         String description,
         boolean system,
         List<String> permissions,
-        Instant createdAt) {
+        Instant createdAt,
+        Long version) {
+
+    public AdminRoleResponse(Long id, String name, String description, boolean system,
+            List<String> permissions, Instant createdAt) {
+        this(id, name, description, system, permissions, createdAt, 0L);
+    }
+
     public static AdminRoleResponse from(AdminRole role, List<String> permissions) {
         return new AdminRoleResponse(
                 role.getId(),
@@ -18,6 +25,7 @@ public record AdminRoleResponse(
                 role.getDescription(),
                 role.isSystem(),
                 permissions,
-                role.getCreatedAt());
+                role.getCreatedAt(),
+                role.getVersion());
     }
 }

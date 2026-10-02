@@ -19,7 +19,17 @@ public record ContentItemResponse(
         int sortOrder,
         Long updatedBy,
         Instant createdAt,
-        Instant updatedAt) {
+        Instant updatedAt,
+        Long version) {
+
+    public ContentItemResponse(Long id, ContentType type, String slug, String title,
+            String summary, String content, String imageUrl, String ctaUrl,
+            String seoTitle, String seoDescription, boolean published, int sortOrder,
+            Long updatedBy, Instant createdAt, Instant updatedAt) {
+        this(id, type, slug, title, summary, content, imageUrl, ctaUrl, seoTitle, seoDescription,
+                published, sortOrder, updatedBy, createdAt, updatedAt, 0L);
+    }
+
     public static ContentItemResponse from(ContentItem item) {
         return new ContentItemResponse(
                 item.getId(),
@@ -36,6 +46,7 @@ public record ContentItemResponse(
                 item.getSortOrder(),
                 item.getUpdatedBy(),
                 item.getCreatedAt(),
-                item.getUpdatedAt());
+                item.getUpdatedAt(),
+                item.getVersion());
     }
 }

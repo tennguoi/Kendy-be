@@ -1,6 +1,6 @@
 package com.example.KendyDigital.model.order;
 
-import com.example.KendyDigital.common.TimestampedEntity;
+import com.example.KendyDigital.common.VersionedEntity;
 import com.example.KendyDigital.model.catalog.ServiceItem;
 import com.example.KendyDigital.model.inventory.AccountCredential;
 import com.example.KendyDigital.model.ticket.Ticket;
@@ -45,7 +45,7 @@ import lombok.NoArgsConstructor;
                 @UniqueConstraint(name = "uk_orders_wallet_tx", columnNames = "wallet_transaction_id"),
                 @UniqueConstraint(name = "uk_orders_refund_tx", columnNames = "refund_transaction_id")
         })
-public class OrderRecord extends TimestampedEntity {
+public class OrderRecord extends VersionedEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;

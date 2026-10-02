@@ -240,6 +240,10 @@ public class ServiceCatalogServiceImpl  implements ServiceCatalogService{
         ServiceItem service = serviceItemRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Service not found"));
 
+        if (request.version() != null && !request.version().equals(service.getVersion())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "CONCURRENT_ADMIN_CONFLICT");
+        }
+
         if (request.name() != null || request.slug() != null) {
             String name = request.name() == null
                     ? service.getName()

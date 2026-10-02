@@ -103,7 +103,7 @@ public class AdminSystemConfigController {
     public SystemSettingResponse updateNotificationSettings(Authentication authentication,
             @Valid @RequestBody SystemSettingUpdateRequest request) {
         return systemConfigService.updateNotificationSettings(CurrentUser.require(authentication).userId(),
-                request.value());
+                request.value(), request.version());
     }
 
     @GetMapping("/api/admin/health")

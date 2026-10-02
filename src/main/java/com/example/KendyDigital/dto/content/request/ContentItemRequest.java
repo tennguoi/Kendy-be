@@ -17,5 +17,13 @@ public record ContentItemRequest(
         @Size(max = 200) String seoTitle,
         @Size(max = 1000) String seoDescription,
         Boolean published,
-        Integer sortOrder) {
+        Integer sortOrder,
+        Long version) {
+
+    public ContentItemRequest(ContentType type, String slug, String title, String summary,
+            String content, String imageUrl, String ctaUrl, String seoTitle,
+            String seoDescription, Boolean published, Integer sortOrder) {
+        this(type, slug, title, summary, content, imageUrl, ctaUrl, seoTitle, seoDescription, published, sortOrder, null);
+    }
 }
+
