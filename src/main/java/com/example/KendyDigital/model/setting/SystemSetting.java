@@ -1,6 +1,6 @@
 package com.example.KendyDigital.model.setting;
 
-import com.example.KendyDigital.common.TimestampedEntity;
+import com.example.KendyDigital.common.VersionedEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
@@ -15,7 +15,7 @@ import lombok.Setter;
 @Setter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Table(name = "system_settings")
-public class SystemSetting extends TimestampedEntity {
+public class SystemSetting extends VersionedEntity {
     @Id
     @Column(name = "setting_key", columnDefinition = "TEXT", nullable = false)
     private String key;

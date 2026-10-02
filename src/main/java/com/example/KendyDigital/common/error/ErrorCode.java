@@ -123,6 +123,7 @@ public enum ErrorCode {
     ADMIN_CANNOT_MODIFY_SELF("admin.error.cannotModifySelf"),
     ADMIN_ROLE_NOT_FOUND("admin.error.roleNotFound"),
     ADMIN_PERMISSION_DENIED("admin.error.permissionDenied"),
+    CONCURRENT_ADMIN_CONFLICT("admin.error.concurrentConflict"),
 
     // Warranty
     WARRANTY_NOT_FOUND("warranty.error.notFound"),

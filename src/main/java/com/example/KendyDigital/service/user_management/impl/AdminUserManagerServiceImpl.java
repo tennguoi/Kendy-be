@@ -105,6 +105,9 @@ public class AdminUserManagerServiceImpl  implements AdminUserManagerService{
     public AdminUserResponse updateUserStatus(Long adminUserId, Long targetUserId, AdminUserStatusUpdateRequest request) {
         UserAccount user = userAccountRepository.findByIdForUpdate(targetUserId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+        if (request.version() != null && !request.version().equals(user.getVersion())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "CONCURRENT_ADMIN_CONFLICT");
+        }
         user.setStatus(request.status());
         auditService.recordAdmin(
                 adminUserId,
@@ -131,6 +134,9 @@ public class AdminUserManagerServiceImpl  implements AdminUserManagerService{
         }
         UserAccount user = userAccountRepository.findByIdForUpdate(targetUserId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+        if (request.version() != null && !request.version().equals(user.getVersion())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "CONCURRENT_ADMIN_CONFLICT");
+        }
         user.setRole(request.role());
         auditService.recordAdmin(
                 adminUserId,

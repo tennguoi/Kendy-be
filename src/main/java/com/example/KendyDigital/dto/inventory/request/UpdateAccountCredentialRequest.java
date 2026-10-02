@@ -13,5 +13,14 @@ public record UpdateAccountCredentialRequest(
         @Size(max = 2000) String internalNote,
         AccountCredentialStatus status,
         Instant expiresAt,
-        Instant warrantyUntil) {
+        Instant warrantyUntil,
+        Long version) {
+
+    public UpdateAccountCredentialRequest(
+            String loginIdentifier, String passwordSecret, String recoveryInfo,
+            String twoFactorSecret, String usageNote, String internalNote,
+            AccountCredentialStatus status, Instant expiresAt, Instant warrantyUntil) {
+        this(loginIdentifier, passwordSecret, recoveryInfo, twoFactorSecret,
+                usageNote, internalNote, status, expiresAt, warrantyUntil, null);
+    }
 }

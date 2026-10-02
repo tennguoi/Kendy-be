@@ -23,7 +23,20 @@ public record CouponResponse(
         Long serviceId,
         String serviceName,
         String adminNote,
-        Instant createdAt) {
+        Instant createdAt,
+        Long version) {
+
+    public CouponResponse(
+            Long id, String code, String name, CouponType type, BigDecimal value,
+            BigDecimal maxDiscountAmount, BigDecimal minOrderAmount, Integer usageLimit,
+            Integer perUserLimit, int usedCount, Instant startsAt, Instant endsAt,
+            CouponStatus status, Long serviceId, String serviceName, String adminNote,
+            Instant createdAt) {
+        this(id, code, name, type, value, maxDiscountAmount, minOrderAmount,
+                usageLimit, perUserLimit, usedCount, startsAt, endsAt, status,
+                serviceId, serviceName, adminNote, createdAt, 0L);
+    }
+
     public static CouponResponse from(Coupon coupon) {
         return new CouponResponse(
                 coupon.getId(),
@@ -42,6 +55,7 @@ public record CouponResponse(
                 coupon.getService() == null ? null : coupon.getService().getId(),
                 coupon.getService() == null ? null : coupon.getService().getName(),
                 coupon.getAdminNote(),
-                coupon.getCreatedAt());
+                coupon.getCreatedAt(),
+                coupon.getVersion());
     }
 }

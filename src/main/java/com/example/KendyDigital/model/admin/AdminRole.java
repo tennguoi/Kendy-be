@@ -1,6 +1,6 @@
 package com.example.KendyDigital.model.admin;
 
-import com.example.KendyDigital.common.TimestampedEntity;
+import com.example.KendyDigital.common.VersionedEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -17,7 +17,7 @@ import lombok.Setter;
 @Setter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Table(name = "admin_roles")
-public class AdminRole extends TimestampedEntity {
+public class AdminRole extends VersionedEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;

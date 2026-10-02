@@ -38,7 +38,11 @@ public class EncryptedCredentialAttributeConverter implements AttributeConverter
     private static final int IV_LENGTH = 12;
     private static final int TAG_LENGTH_BITS = 128;
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
-    private static final byte[] KEY = resolveKey();
+    private final byte[] key;
+
+    public EncryptedCredentialAttributeConverter() {
+        this.key = resolveKey();
+    }
 
     @Override
     public String convertToDatabaseColumn(String attribute) {
@@ -49,7 +53,7 @@ public class EncryptedCredentialAttributeConverter implements AttributeConverter
             byte[] iv = new byte[IV_LENGTH];
             SECURE_RANDOM.nextBytes(iv);
             Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
-            cipher.init(Cipher.ENCRYPT_MODE, new SecretKeySpec(KEY, "AES"), new GCMParameterSpec(TAG_LENGTH_BITS, iv));
+            cipher.init(Cipher.ENCRYPT_MODE, new SecretKeySpec(this.key, "AES"), new GCMParameterSpec(TAG_LENGTH_BITS, iv));
             byte[] encrypted = cipher.doFinal(attribute.getBytes(StandardCharsets.UTF_8));
             ByteBuffer buffer = ByteBuffer.allocate(iv.length + encrypted.length);
             buffer.put(iv);
@@ -66,7 +70,7 @@ public class EncryptedCredentialAttributeConverter implements AttributeConverter
             return dbData;
         }
         try {
-            return decrypt(dbData, KEY);
+            return decrypt(dbData, this.key);
         } catch (Exception exception) {
             LOG.error("Failed to decrypt credential data: {}", exception.getMessage());
             // Return a safe placeholder to avoid exposing encryption issues in UI
@@ -96,17 +100,19 @@ public class EncryptedCredentialAttributeConverter implements AttributeConverter
      * @throws IllegalStateException if no valid key can be resolved
      */
     private static byte[] resolveKey() {
-        // 1. Primary environment variable
-        String configured = System.getenv("CREDENTIAL_ENCRYPTION_KEY");
+        // 1. System property (for test compatibility)
+        String configured = System.getProperty("credential.encryption.key");
 
-        // 2. Backward compatibility environment variable
-        if (configured == null || configured.isBlank()) {
-            configured = System.getenv("APP_CREDENTIAL_ENCRYPTION_KEY");
+        boolean ignoreEnv = "true".equalsIgnoreCase(System.getProperty("credential.encryption.ignore-env"));
+
+        // 2. Primary environment variable
+        if (!ignoreEnv && (configured == null || configured.isBlank())) {
+            configured = System.getenv("CREDENTIAL_ENCRYPTION_KEY");
         }
 
-        // 3. System property (for test compatibility)
-        if (configured == null || configured.isBlank()) {
-            configured = System.getProperty("credential.encryption.key");
+        // 3. Backward compatibility environment variable
+        if (!ignoreEnv && (configured == null || configured.isBlank())) {
+            configured = System.getenv("APP_CREDENTIAL_ENCRYPTION_KEY");
         }
 
         // 4. Development fallback: Only allow in explicit development environments

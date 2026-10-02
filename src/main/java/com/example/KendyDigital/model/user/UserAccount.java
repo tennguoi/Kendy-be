@@ -1,6 +1,6 @@
 package com.example.KendyDigital.model.user;
 
-import com.example.KendyDigital.common.TimestampedEntity;
+import com.example.KendyDigital.common.VersionedEntity;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -38,7 +38,7 @@ import lombok.Setter;
                 @UniqueConstraint(name = "uk_users_email", columnNames = "email"),
                 @UniqueConstraint(name = "uk_users_public_id", columnNames = "public_id")
         })
-public class UserAccount extends TimestampedEntity {
+public class UserAccount extends VersionedEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;

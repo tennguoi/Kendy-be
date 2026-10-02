@@ -92,6 +92,9 @@ public class CouponServiceImpl implements CouponService {
     public CouponResponse update(Long adminUserId, Long couponId, UpsertCouponRequest request) {
         Coupon coupon = couponRepository.findById(couponId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Coupon not found"));
+        if (request.version() != null && !request.version().equals(coupon.getVersion())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "CONCURRENT_ADMIN_CONFLICT");
+        }
         String code = Coupon.normalizeCode(request.code());
         if (code == null || code.isBlank()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Coupon code is required");

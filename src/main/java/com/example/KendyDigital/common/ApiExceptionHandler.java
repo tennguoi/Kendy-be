@@ -14,6 +14,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import jakarta.persistence.OptimisticLockException;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
@@ -125,6 +127,20 @@ public class ApiExceptionHandler {
                 message));
     }
 
+    @ExceptionHandler({
+            ObjectOptimisticLockingFailureException.class,
+            OptimisticLockException.class
+    })
+    public ResponseEntity<ApiError> handleOptimisticLockConflict(Exception exception, Locale locale) {
+        log.warn("Optimistic locking conflict detected: {}", exception.getMessage());
+        String message = messageSource.getMessage(ErrorCode.CONCURRENT_ADMIN_CONFLICT.getMessageKey(), null, locale);
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(ApiError.of(
+                HttpStatus.CONFLICT.value(),
+                HttpStatus.CONFLICT.getReasonPhrase(),
+                ErrorCode.CONCURRENT_ADMIN_CONFLICT.name(),
+                message));
+    }
+
     private ErrorCode resolveErrorCode(HttpStatus status, String reason) {
         if (reason != null && !reason.isBlank()) {
             String upper = reason.toUpperCase();
@@ -178,6 +194,9 @@ public class ApiExceptionHandler {
             }
             if (upper.contains("NO ACCOUNT CREDENTIALS") || upper.contains("OUT OF STOCK")) {
                 return ErrorCode.SERVICE_OUT_OF_STOCK;
+            }
+            if (upper.contains("CONCURRENT_ADMIN_CONFLICT") || upper.contains("OPTIMISTIC") || upper.contains("STALE OBJECT")) {
+                return ErrorCode.CONCURRENT_ADMIN_CONFLICT;
             }
             if (upper.contains("UPLOAD") || upper.contains("AVATAR")) {
                 return ErrorCode.FILE_UPLOAD_FAILED;

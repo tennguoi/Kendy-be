@@ -19,8 +19,26 @@ public record AdminUserResponse(
         boolean twoFactorEnabled,
         Instant createdAt,
         Instant updatedAt,
-        String avatarUrl
+        String avatarUrl,
+        Long version
         ) {
+    public AdminUserResponse(
+            Long id,
+            UUID publicId,
+            String name,
+            String email,
+            String phone,
+            UserRole role,
+            UserStatus status,
+            BigDecimal balance,
+            boolean twoFactorEnabled,
+            Instant createdAt,
+            Instant updatedAt,
+            String avatarUrl
+    ) {
+        this(id, publicId, name, email, phone, role, status, balance, twoFactorEnabled, createdAt, updatedAt, avatarUrl, 0L);
+    }
+
     public static AdminUserResponse from(UserAccount user) {
         return new AdminUserResponse(
                 user.getId(),
@@ -34,7 +52,8 @@ public record AdminUserResponse(
                 user.isTwoFactorEnabled(),
                 user.getCreatedAt(),
                 user.getUpdatedAt(),
-                user.getAvatarUrl()
+                user.getAvatarUrl(),
+                user.getVersion()
         );
     }
 }

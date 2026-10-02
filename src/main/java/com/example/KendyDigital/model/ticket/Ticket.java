@@ -1,6 +1,6 @@
 package com.example.KendyDigital.model.ticket;
 
-import com.example.KendyDigital.common.TimestampedEntity;
+import com.example.KendyDigital.common.VersionedEntity;
 import com.example.KendyDigital.model.deposit.DepositRequest;
 import com.example.KendyDigital.model.order.OrderRecord;
 import com.example.KendyDigital.model.user.UserAccount;
@@ -39,7 +39,7 @@ import lombok.Setter;
         uniqueConstraints = {
                 @UniqueConstraint(name = "uk_tickets_code", columnNames = "ticket_code")
         })
-public class Ticket extends TimestampedEntity {
+public class Ticket extends VersionedEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;

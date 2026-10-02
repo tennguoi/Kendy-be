@@ -29,7 +29,26 @@ public record AccountCredentialAdminResponse(
         Instant deliveredAt,
         Instant expiresAt,
         Instant warrantyUntil,
-        Instant createdAt) {
+        Instant createdAt,
+        Long version) {
+
+    public AccountCredentialAdminResponse(
+            Long id, Long serviceId, String serviceName, String loginIdentifier,
+            String passwordSecret, String recoveryInfo, String twoFactorSecret,
+            String usageNote, String internalNote, AccountCredentialStatus status,
+            Long assignedOrderId, String assignedOrderCode, Long reservedCheckoutId,
+            String reservedCheckoutCode, Long reservedByUserId, Long deliveredToUserId,
+            String deliveredToName, String deliveredToEmail, String deliveredToPhone,
+            Instant reservedAt, Instant reservedUntil, Instant deliveredAt,
+            Instant expiresAt, Instant warrantyUntil, Instant createdAt) {
+        this(id, serviceId, serviceName, loginIdentifier, passwordSecret, recoveryInfo,
+                twoFactorSecret, usageNote, internalNote, status, assignedOrderId,
+                assignedOrderCode, reservedCheckoutId, reservedCheckoutCode, reservedByUserId,
+                deliveredToUserId, deliveredToName, deliveredToEmail, deliveredToPhone,
+                reservedAt, reservedUntil, deliveredAt, expiresAt, warrantyUntil,
+                createdAt, 0L);
+    }
+
     public static AccountCredentialAdminResponse from(AccountCredential credential) {
         return new AccountCredentialAdminResponse(
                 credential.getId(),
@@ -56,7 +75,8 @@ public record AccountCredentialAdminResponse(
                 credential.getDeliveredAt(),
                 credential.getExpiresAt(),
                 credential.getWarrantyUntil(),
-                credential.getCreatedAt());
+                credential.getCreatedAt(),
+                credential.getVersion());
     }
 
     private static String maskSecret(String value) {

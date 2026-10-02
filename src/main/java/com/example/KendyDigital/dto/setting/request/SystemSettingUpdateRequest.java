@@ -6,5 +6,11 @@ import jakarta.validation.constraints.NotNull;
 
 public record SystemSettingUpdateRequest(
         @NotNull @Size(max = 10000) String value,
-        Boolean publicSetting) {
+        Boolean publicSetting,
+        Long version) {
+
+    public SystemSettingUpdateRequest(String value, Boolean publicSetting) {
+        this(value, publicSetting, null);
+    }
 }
+

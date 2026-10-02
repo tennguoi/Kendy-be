@@ -1,6 +1,6 @@
 package com.example.KendyDigital.model.catalog;
 
-import com.example.KendyDigital.common.TimestampedEntity;
+import com.example.KendyDigital.common.VersionedEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -39,7 +39,7 @@ import lombok.Setter;
         uniqueConstraints = {
                 @UniqueConstraint(name = "uk_services_slug", columnNames = "slug")
         })
-public class ServiceItem extends TimestampedEntity {
+public class ServiceItem extends VersionedEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;

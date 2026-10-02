@@ -1,6 +1,6 @@
 package com.example.KendyDigital.model.coupon;
 
-import com.example.KendyDigital.common.TimestampedEntity;
+import com.example.KendyDigital.common.VersionedEntity;
 import com.example.KendyDigital.model.catalog.ServiceItem;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -33,7 +33,7 @@ import lombok.NoArgsConstructor;
         uniqueConstraints = {
                 @UniqueConstraint(name = "uk_coupons_code", columnNames = "code")
         })
-public class Coupon extends TimestampedEntity {
+public class Coupon extends VersionedEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;

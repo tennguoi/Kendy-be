@@ -13,6 +13,10 @@ public record SystemSettingsBulkUpdateRequest(
     public record Item(
             @NotBlank @Size(max = 100) String key,
             @NotNull @Size(max = 10000) String value,
-            Boolean publicSetting) {
+            Boolean publicSetting,
+            Long version) {
+        public Item(String key, String value, Boolean publicSetting) {
+            this(key, value, publicSetting, null);
+        }
     }
 }

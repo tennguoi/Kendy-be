@@ -1,6 +1,6 @@
 package com.example.KendyDigital.model.deposit;
 
-import com.example.KendyDigital.common.TimestampedEntity;
+import com.example.KendyDigital.common.VersionedEntity;
 import com.example.KendyDigital.model.bank.BankTransaction;
 import com.example.KendyDigital.model.user.UserAccount;
 import com.example.KendyDigital.model.wallet.WalletTransaction;
@@ -40,7 +40,7 @@ import lombok.NoArgsConstructor;
                 @UniqueConstraint(name = "uk_deposit_requests_bank_tx", columnNames = "matched_bank_transaction_id"),
                 @UniqueConstraint(name = "uk_deposit_requests_wallet_tx", columnNames = "wallet_transaction_id")
         })
-public class DepositRequest extends TimestampedEntity {
+public class DepositRequest extends VersionedEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;

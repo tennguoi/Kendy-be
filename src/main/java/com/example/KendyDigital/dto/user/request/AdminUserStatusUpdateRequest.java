@@ -7,5 +7,10 @@ import jakarta.validation.constraints.NotNull;
 
 public record AdminUserStatusUpdateRequest(
         @NotNull UserStatus status,
-        @Size(max = 500) String reason) {
+        @Size(max = 500) String reason,
+        Long version) {
+
+    public AdminUserStatusUpdateRequest(UserStatus status, String reason) {
+        this(status, reason, null);
+    }
 }
