@@ -64,6 +64,13 @@ public class EncryptedCredentialAttributeConverter implements AttributeConverter
         }
     }
 
+    private static final String[] HISTORICAL_FALLBACK_KEYS = {
+        "local-dev-only-kendy-credential-key-change-in-production",
+        "local-dev-fallback-kendy-credential-key",
+        "local-development-key-do-not-use-in-production",
+        "test-only-kendy-credential-key"
+    };
+
     @Override
     public String convertToEntityAttribute(String dbData) {
         if (dbData == null || dbData.isBlank() || !dbData.startsWith(PREFIX)) {
@@ -71,8 +78,14 @@ public class EncryptedCredentialAttributeConverter implements AttributeConverter
         }
         try {
             return decrypt(dbData, this.key);
-        } catch (Exception exception) {
-            LOG.error("Failed to decrypt credential data: {}", exception.getMessage());
+        } catch (Exception primaryException) {
+            for (String fallbackKeyStr : HISTORICAL_FALLBACK_KEYS) {
+                try {
+                    return decrypt(dbData, sha256(fallbackKeyStr));
+                } catch (Exception ignored) {
+                }
+            }
+            LOG.error("Failed to decrypt credential data with primary and fallback keys: {}", primaryException.getMessage());
             // Return a safe placeholder to avoid exposing encryption issues in UI
             return "[Encrypted - Decryption Failed]";
         }
