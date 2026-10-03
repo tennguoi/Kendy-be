@@ -46,6 +46,22 @@ public interface UserAccountRepository extends JpaRepository<UserAccount, Long> 
 
     long countByStatus(UserStatus status);
 
+    long countByLockedUntilGreaterThan(Instant now);
+
+    long countByFailedLoginAttemptsGreaterThan(int attempts);
+
+    long countByRoleIn(List<UserRole> roles);
+
+    long countByRoleInAndTwoFactorEnabledFalse(List<UserRole> roles);
+
+    @Query("""
+            select u from UserAccount u
+            where u.failedLoginAttempts > 0
+               or (u.lockedUntil is not null and u.lockedUntil > :now)
+            order by u.failedLoginAttempts desc, u.id desc
+            """)
+    List<UserAccount> findRiskyAccounts(@Param("now") Instant now, Pageable pageable);
+
     long countByCreatedAtGreaterThanEqual(Instant from);
 
     @Query("select coalesce(sum(u.balance), 0) from UserAccount u")

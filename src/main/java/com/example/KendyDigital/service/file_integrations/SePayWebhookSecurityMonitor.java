@@ -1,6 +1,7 @@
 package com.example.KendyDigital.service.file_integrations;
 
 import com.example.KendyDigital.config.SePayWebhookProperties;
+import com.example.KendyDigital.service.audit.AuditService;
 import java.time.Instant;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -15,10 +16,12 @@ public class SePayWebhookSecurityMonitor {
     private static final Logger LOGGER = LoggerFactory.getLogger(SePayWebhookSecurityMonitor.class);
 
     private final SePayWebhookProperties properties;
+    private final AuditService auditService;
     private final Map<String, RejectionCounter> signatureRejections = new ConcurrentHashMap<>();
 
-    public SePayWebhookSecurityMonitor(SePayWebhookProperties properties) {
+    public SePayWebhookSecurityMonitor(SePayWebhookProperties properties, AuditService auditService) {
         this.properties = properties;
+        this.auditService = auditService;
     }
 
     public void received(String ipAddress, int payloadBytes) {
@@ -47,9 +50,22 @@ public class SePayWebhookSecurityMonitor {
 
         int threshold = Math.max(1, properties.getRejectionAlertThreshold());
         int count = counter.count().get();
+        // Persist only the first rejection of a window and every threshold-th one, to avoid flooding audit_logs.
+        if (count == 1 || count % threshold == 0) {
+            recordAudit(ipAddress, reason, count);
+        }
         if (count == threshold || count % threshold == 0) {
             LOGGER.error("SECURITY ALERT: repeated invalid SePay webhook signatures ip={} count={} windowSeconds={}",
                     safe(ipAddress), count, rejectionWindowSeconds());
+        }
+    }
+
+    private void recordAudit(String ipAddress, String reason, int count) {
+        try {
+            auditService.recordSystem("SEPAY_WEBHOOK_REJECTED", "WEBHOOK", null,
+                    "ip=" + safe(ipAddress) + ",count=" + count + ",reason=" + safe(reason));
+        } catch (RuntimeException exception) {
+            LOGGER.debug("Could not persist webhook rejection audit event", exception);
         }
     }
 
