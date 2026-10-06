@@ -18,11 +18,15 @@ import com.example.KendyDigital.repository.AdminNotificationRepository;
 import com.example.KendyDigital.repository.OrderRepository;
 import com.example.KendyDigital.repository.UserAccountRepository;
 import com.example.KendyDigital.repository.WarrantyRequestRepository;
+import com.example.KendyDigital.model.security.SecurityEventType;
+import com.example.KendyDigital.model.security.SecuritySeverity;
 import com.example.KendyDigital.service.audit.AuditService;
 import com.example.KendyDigital.service.product_inventory.AccountInventoryService;
 import com.example.KendyDigital.service.notification.EmailNotificationService;
 import com.example.KendyDigital.service.notification.UserNotificationService;
 import com.example.KendyDigital.service.order.OrderService;
+import com.example.KendyDigital.service.security.monitor.SecuritySignal;
+import com.example.KendyDigital.service.security.monitor.SecuritySignalService;
 import java.time.Instant;
 import java.util.List;
 import java.util.Locale;
@@ -48,6 +52,7 @@ public class WarrantyServiceImpl implements WarrantyService {
     private final EmailNotificationService emailNotificationService;
     private final UserAccountRepository userAccountRepository;
     private final MessageSource messageSource;
+    private final SecuritySignalService securitySignalService;
 
     public WarrantyServiceImpl(WarrantyRequestRepository warrantyRequestRepository,
             OrderRepository orderRepository,
@@ -58,7 +63,8 @@ public class WarrantyServiceImpl implements WarrantyService {
             UserNotificationService userNotificationService,
             EmailNotificationService emailNotificationService,
             UserAccountRepository userAccountRepository,
-            MessageSource messageSource) {
+            MessageSource messageSource,
+            SecuritySignalService securitySignalService) {
         this.warrantyRequestRepository = warrantyRequestRepository;
         this.orderRepository = orderRepository;
         this.accountInventoryService = accountInventoryService;
@@ -69,6 +75,7 @@ public class WarrantyServiceImpl implements WarrantyService {
         this.emailNotificationService = emailNotificationService;
         this.userAccountRepository = userAccountRepository;
         this.messageSource = messageSource;
+        this.securitySignalService = securitySignalService;
     }
 
     @Transactional
@@ -98,6 +105,15 @@ public class WarrantyServiceImpl implements WarrantyService {
                 blankToNull(request.evidenceText())));
         auditService.recordSystem("WARRANTY_REQUEST_CREATED", "WARRANTY_REQUEST", warrantyRequest.getId(),
                 "orderId=" + order.getId() + ",userId=" + userId);
+        try {
+            securitySignalService.record(SecuritySignal
+                    .of(SecurityEventType.WARRANTY_ABUSE, SecuritySeverity.LOW, null)
+                    .user(userId)
+                    .metadata("orderId=" + order.getId())
+                    .risk(10)
+                    .build());
+        } catch (RuntimeException ignored) {
+        }
         Locale defaultLocale = Locale.forLanguageTag("vi");
         adminNotificationRepository.save(new AdminNotification(null,
                 messageSource.getMessage("admin.notification.warranty.new.title",

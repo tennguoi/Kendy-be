@@ -19,6 +19,8 @@ import com.example.KendyDigital.service.notification.EmailNotificationService;
 import com.example.KendyDigital.service.notification.UserNotificationService;
 import com.example.KendyDigital.service.security.TwoFactorService;
 import com.example.KendyDigital.service.security.impl.UserSecurityServiceImpl;
+import com.example.KendyDigital.service.security.monitor.SecuritySignalService;
+import com.example.KendyDigital.common.ClientIpResolver;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -42,6 +44,8 @@ class SecurityRegressionTest {
     @Mock private AuditService auditService;
     @Mock private UserNotificationService userNotificationService;
     @Mock private EmailNotificationService emailNotificationService;
+    @Mock private SecuritySignalService securitySignalService;
+    @Mock private ClientIpResolver clientIpResolver;
 
     private UserSecurityServiceImpl service;
 
@@ -57,7 +61,9 @@ class SecurityRegressionTest {
                 twoFactorService,
                 auditService,
                 userNotificationService,
-                emailNotificationService);
+                emailNotificationService,
+                securitySignalService,
+                clientIpResolver);
     }
 
     @Test

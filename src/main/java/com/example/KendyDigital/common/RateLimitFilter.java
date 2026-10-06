@@ -4,20 +4,22 @@ import com.example.KendyDigital.common.error.ApiError;
 import com.example.KendyDigital.common.error.ErrorCode;
 import com.example.KendyDigital.config.AppSecurityProperties;
 import com.example.KendyDigital.config.RateLimitProperties;
+import com.example.KendyDigital.model.security.SecurityEventType;
+import com.example.KendyDigital.model.security.SecuritySeverity;
 import com.example.KendyDigital.repository.SystemSettingRepository;
 import com.example.KendyDigital.security.AuthenticatedUser;
+import com.example.KendyDigital.service.audit.AuditService;
+import com.example.KendyDigital.service.security.monitor.SecuritySignal;
+import com.example.KendyDigital.service.security.monitor.SecuritySignalService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
-import java.net.InetAddress;
-import java.net.UnknownHostException;
 import java.time.Instant;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.time.Duration;
@@ -42,21 +44,26 @@ public class RateLimitFilter extends OncePerRequestFilter {
     private final ObjectProvider<StringRedisTemplate> redisTemplateProvider;
     private final MessageSource messageSource;
     private final ObjectMapper objectMapper;
+    private final ClientIpResolver clientIpResolver;
+    private final SecuritySignalService securitySignalService;
+    private final AuditService auditService;
     private final Map<String, WindowCounter> counters = new ConcurrentHashMap<>();
     private final Map<String, CachedSetting> settingCache = new ConcurrentHashMap<>();
-    private final Set<String> trustedProxyAddresses;
 
     public RateLimitFilter(RateLimitProperties properties, AppSecurityProperties securityProperties,
             SystemSettingRepository systemSettingRepository,
             ObjectProvider<StringRedisTemplate> redisTemplateProvider,
-            MessageSource messageSource, ObjectMapper objectMapper) {
+            MessageSource messageSource, ObjectMapper objectMapper, ClientIpResolver clientIpResolver,
+            SecuritySignalService securitySignalService, AuditService auditService) {
         this.properties = properties;
         this.securityProperties = securityProperties;
         this.systemSettingRepository = systemSettingRepository;
         this.redisTemplateProvider = redisTemplateProvider;
         this.messageSource = messageSource;
         this.objectMapper = objectMapper;
-        this.trustedProxyAddresses = Set.copyOf(securityProperties.getTrustedProxies());
+        this.clientIpResolver = clientIpResolver;
+        this.securitySignalService = securitySignalService;
+        this.auditService = auditService;
     }
 
     @Scheduled(fixedDelay = 30000)
@@ -78,7 +85,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
         Integer distributedCount = incrementDistributed(key);
         if (distributedCount != null) {
             if (distributedCount > limit) {
-                reject(request, response);
+                reject(request, response, limit);
                 return;
             }
             filterChain.doFilter(request, response);
@@ -89,7 +96,8 @@ public class RateLimitFilter extends OncePerRequestFilter {
             long now = Instant.now().getEpochSecond();
             counters.entrySet().removeIf(entry -> now - entry.getValue().windowStartedAt() >= WINDOW_SECONDS);
             if (counters.size() >= MAX_COUNTER_ENTRIES) {
-                filterChain.doFilter(request, response);
+                // Fail closed for security-sensitive endpoints instead of silently allowing traffic.
+                reject(request, response, limit);
                 return;
             }
         }
@@ -104,7 +112,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
         });
 
         if (counter.count().get() > limit) {
-            reject(request, response);
+            reject(request, response, limit);
             return;
         }
 
@@ -171,43 +179,6 @@ public class RateLimitFilter extends OncePerRequestFilter {
         }
     }
 
-    private String clientIp(HttpServletRequest request) {
-        String remoteAddr = request.getRemoteAddr();
-        String forwardedFor = request.getHeader("X-Forwarded-For");
-        if (isTrustedProxy(remoteAddr) && forwardedFor != null && !forwardedFor.isBlank()) {
-            String[] parts = forwardedFor.split(",");
-            // Get the first non-trusted proxy IP (client IP)
-            for (int i = parts.length - 1; i >= 0; i--) {
-                String ip = parts[i].trim();
-                if (!isTrustedProxy(ip)) {
-                    return ip;
-                }
-            }
-            // All proxies are trusted, return the last one
-            return parts[parts.length - 1].trim();
-        }
-        return remoteAddr;
-    }
-
-    private boolean isTrustedProxy(String address) {
-        if (address == null) return false;
-        if ("127.0.0.1".equals(address) || "0:0:0:0:0:0:0:1".equals(address) || "::1".equals(address)) {
-            return true;
-        }
-        if (trustedProxyAddresses.contains(address)) {
-            return true;
-        }
-        // Check CIDR notation if needed
-        try {
-            InetAddress inetAddress = InetAddress.getByName(address);
-            if (inetAddress.isLoopbackAddress() || inetAddress.isSiteLocalAddress()) {
-                return true;
-            }
-        } catch (UnknownHostException ignored) {
-        }
-        return false;
-    }
-
     private String rateLimitSubject(HttpServletRequest request) {
         if ("POST".equals(request.getMethod())
                 && ("/api/deposits".equals(request.getRequestURI())
@@ -217,7 +188,41 @@ public class RateLimitFilter extends OncePerRequestFilter {
                 return "user:" + user.userId();
             }
         }
-        return "ip:" + clientIp(request);
+        return "ip:" + clientIpResolver.resolve(request);
+    }
+
+    private void reject(HttpServletRequest request, HttpServletResponse response, int limit) throws IOException {
+        Locale locale = request.getLocale();
+        String ip = clientIpResolver.resolve(request);
+        String endpoint = request.getMethod() + " " + request.getRequestURI();
+        recordViolation(ip, endpoint, limit);
+        String message = messageSource.getMessage(ErrorCode.TOO_MANY_REQUESTS.getMessageKey(), null, locale);
+        ApiError apiError = ApiError.of(
+                HttpStatus.TOO_MANY_REQUESTS.value(),
+                HttpStatus.TOO_MANY_REQUESTS.getReasonPhrase(),
+                ErrorCode.TOO_MANY_REQUESTS.name(),
+                message);
+        response.setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
+        response.setContentType("application/json");
+        response.setHeader("Retry-After", String.valueOf(WINDOW_SECONDS));
+        response.getWriter().write(objectMapper.writeValueAsString(apiError));
+    }
+
+    private void recordViolation(String ip, String endpoint, int limit) {
+        try {
+            securitySignalService.record(SecuritySignal
+                    .of(SecurityEventType.RATE_LIMITED, SecuritySeverity.LOW, ip)
+                    .request(endpoint, endpoint)
+                    .metadata("endpoint=" + endpoint + ";limit=" + limit)
+                    .risk(20)
+                    .build());
+        } catch (RuntimeException ignored) {
+        }
+        try {
+            auditService.recordSystem("RATE_LIMIT_EXCEEDED", "IP", null,
+                    "ip=" + ip + ",endpoint=" + endpoint + ",limit=" + limit);
+        } catch (RuntimeException ignored) {
+        }
     }
 
     private record WindowCounter(long windowStartedAt, AtomicInteger count) {
@@ -251,19 +256,5 @@ public class RateLimitFilter extends OncePerRequestFilter {
         } catch (RuntimeException exception) {
             return null;
         }
-    }
-
-    private void reject(HttpServletRequest request, HttpServletResponse response) throws IOException {
-        Locale locale = request.getLocale();
-        String message = messageSource.getMessage(ErrorCode.TOO_MANY_REQUESTS.getMessageKey(), null, locale);
-        ApiError apiError = ApiError.of(
-                HttpStatus.TOO_MANY_REQUESTS.value(),
-                HttpStatus.TOO_MANY_REQUESTS.getReasonPhrase(),
-                ErrorCode.TOO_MANY_REQUESTS.name(),
-                message);
-        response.setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
-        response.setContentType("application/json");
-        response.setHeader("Retry-After", String.valueOf(WINDOW_SECONDS));
-        response.getWriter().write(objectMapper.writeValueAsString(apiError));
     }
 }

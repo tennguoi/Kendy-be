@@ -1,7 +1,11 @@
 package com.example.KendyDigital.service.file_integrations;
 
 import com.example.KendyDigital.config.SePayWebhookProperties;
+import com.example.KendyDigital.model.security.SecurityEventType;
+import com.example.KendyDigital.model.security.SecuritySeverity;
 import com.example.KendyDigital.service.audit.AuditService;
+import com.example.KendyDigital.service.security.monitor.SecuritySignal;
+import com.example.KendyDigital.service.security.monitor.SecuritySignalService;
 import java.time.Instant;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -17,11 +21,14 @@ public class SePayWebhookSecurityMonitor {
 
     private final SePayWebhookProperties properties;
     private final AuditService auditService;
+    private final SecuritySignalService securitySignalService;
     private final Map<String, RejectionCounter> signatureRejections = new ConcurrentHashMap<>();
 
-    public SePayWebhookSecurityMonitor(SePayWebhookProperties properties, AuditService auditService) {
+    public SePayWebhookSecurityMonitor(SePayWebhookProperties properties, AuditService auditService,
+            SecuritySignalService securitySignalService) {
         this.properties = properties;
         this.auditService = auditService;
+        this.securitySignalService = securitySignalService;
     }
 
     public void received(String ipAddress, int payloadBytes) {
@@ -35,6 +42,7 @@ public class SePayWebhookSecurityMonitor {
 
     public void rejected(String ipAddress, String reason, boolean signatureFailure) {
         LOGGER.warn("SePay webhook rejected ip={} reason={}", safe(ipAddress), safe(reason));
+        emitSignal(ipAddress, reason);
         if (!signatureFailure) {
             return;
         }
@@ -57,6 +65,19 @@ public class SePayWebhookSecurityMonitor {
         if (count == threshold || count % threshold == 0) {
             LOGGER.error("SECURITY ALERT: repeated invalid SePay webhook signatures ip={} count={} windowSeconds={}",
                     safe(ipAddress), count, rejectionWindowSeconds());
+        }
+    }
+
+    private void emitSignal(String ipAddress, String reason) {
+        try {
+            securitySignalService.record(SecuritySignal
+                    .of(SecurityEventType.WEBHOOK_REJECTED, SecuritySeverity.MEDIUM, ipAddress)
+                    .request("POST", "/api/webhooks/sepay")
+                    .metadata("reason=" + safe(reason))
+                    .risk(30)
+                    .build());
+        } catch (RuntimeException exception) {
+            LOGGER.debug("Could not emit webhook rejection signal", exception);
         }
     }
 

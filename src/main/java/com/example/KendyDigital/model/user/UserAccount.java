@@ -90,8 +90,35 @@ public class UserAccount extends VersionedEntity {
     @Column(name = "failed_login_attempts", nullable = false, columnDefinition = "integer default 0")
     private int failedLoginAttempts = 0;
 
+    @Column(name = "failed_two_factor_attempts", nullable = false, columnDefinition = "integer default 0")
+    private int failedTwoFactorAttempts = 0;
+
+    @Column(name = "two_factor_locked_until")
+    private Instant twoFactorLockedUntil;
+
     @Column(name = "locked_until")
     private Instant lockedUntil;
+
+    @Column(name = "last_login_at")
+    private Instant lastLoginAt;
+
+    @Column(name = "last_login_ip", length = 45)
+    private String lastLoginIp;
+
+    @Column(name = "last_login_country", length = 2)
+    private String lastLoginCountry;
+
+    @Column(name = "wallet_frozen", nullable = false)
+    private boolean walletFrozen = false;
+
+    @Column(name = "wallet_frozen_reason", length = 255)
+    private String walletFrozenReason;
+
+    @Column(name = "wallet_frozen_at")
+    private Instant walletFrozenAt;
+
+    @Column(name = "wallet_frozen_by")
+    private Long walletFrozenBy;
 
     @Column(name = "locale", length = 10)
     private String locale;
@@ -169,6 +196,30 @@ public class UserAccount extends VersionedEntity {
 
     public void recordSuccessfulLogin() {
         resetFailedLoginAttempts();
+        this.failedTwoFactorAttempts = 0;
+        this.twoFactorLockedUntil = null;
+    }
+
+    public void recordFailedTwoFactor() {
+        this.failedTwoFactorAttempts++;
+        if (this.failedTwoFactorAttempts >= 5) {
+            this.twoFactorLockedUntil = Instant.now().plus(java.time.Duration.ofMinutes(30));
+        }
+    }
+
+    public boolean isTwoFactorLocked() {
+        return twoFactorLockedUntil != null && twoFactorLockedUntil.isAfter(Instant.now());
+    }
+
+    public void resetTwoFactorAttempts() {
+        this.failedTwoFactorAttempts = 0;
+        this.twoFactorLockedUntil = null;
+    }
+
+    public void recordLoginContext(Instant at, String ip, String country) {
+        this.lastLoginAt = at;
+        this.lastLoginIp = ip;
+        this.lastLoginCountry = country;
     }
 
     /**
@@ -178,6 +229,20 @@ public class UserAccount extends VersionedEntity {
      */
     public boolean hasPassword() {
         return oauthProvider == null || passwordChangedAt != null;
+    }
+
+    public void freezeWallet(String reason, Long frozenBy) {
+        this.walletFrozen = true;
+        this.walletFrozenReason = reason;
+        this.walletFrozenAt = Instant.now();
+        this.walletFrozenBy = frozenBy;
+    }
+
+    public void unfreezeWallet() {
+        this.walletFrozen = false;
+        this.walletFrozenReason = null;
+        this.walletFrozenAt = null;
+        this.walletFrozenBy = null;
     }
 
 }

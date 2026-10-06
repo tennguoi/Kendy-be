@@ -2,6 +2,7 @@ package com.example.KendyDigital.service.security.impl;
 
 import com.example.KendyDigital.service.security.*;
 
+import com.example.KendyDigital.common.ClientIpResolver;
 import com.example.KendyDigital.dto.auth.request.AuthEmailRequest;
 import com.example.KendyDigital.dto.auth.request.AuthForgotPasswordRequest;
 import com.example.KendyDigital.dto.auth.request.AuthResetPasswordRequest;
@@ -22,6 +23,8 @@ import com.example.KendyDigital.model.user.UserAccount;
 import com.example.KendyDigital.model.user.UserSecurityToken;
 import com.example.KendyDigital.model.user.UserSecurityTokenType;
 import com.example.KendyDigital.model.user.UserStatus;
+import com.example.KendyDigital.model.security.SecurityEventType;
+import com.example.KendyDigital.model.security.SecuritySeverity;
 import com.example.KendyDigital.security.ResolvedApiKey;
 import com.example.KendyDigital.repository.UserAccountRepository;
 import com.example.KendyDigital.repository.UserSecurityTokenRepository;
@@ -30,6 +33,8 @@ import com.example.KendyDigital.service.auth.AuthTokenService;
 import com.example.KendyDigital.service.notification.EmailNotificationService;
 import com.example.KendyDigital.service.notification.UserNotificationService;
 import com.example.KendyDigital.service.security.apikey.UserApiKeyService;
+import com.example.KendyDigital.service.security.monitor.SecuritySignal;
+import com.example.KendyDigital.service.security.monitor.SecuritySignalService;
 import com.example.KendyDigital.service.security.session.UserSessionService;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -75,6 +80,8 @@ public class UserSecurityServiceImpl  implements UserSecurityService{
     private final AuditService auditService;
     private final UserNotificationService userNotificationService;
     private final EmailNotificationService emailNotificationService;
+    private final SecuritySignalService securitySignalService;
+    private final ClientIpResolver clientIpResolver;
     private final SecureRandom secureRandom = new SecureRandom();
 
     public UserSecurityServiceImpl(UserAccountRepository userAccountRepository,
@@ -86,7 +93,9 @@ public class UserSecurityServiceImpl  implements UserSecurityService{
             TwoFactorService twoFactorService,
             AuditService auditService,
             UserNotificationService userNotificationService,
-            EmailNotificationService emailNotificationService) {
+            EmailNotificationService emailNotificationService,
+            SecuritySignalService securitySignalService,
+            ClientIpResolver clientIpResolver) {
         this.userAccountRepository = userAccountRepository;
         this.userSessionService = userSessionService;
         this.securityTokenRepository = securityTokenRepository;
@@ -97,6 +106,8 @@ public class UserSecurityServiceImpl  implements UserSecurityService{
         this.auditService = auditService;
         this.userNotificationService = userNotificationService;
         this.emailNotificationService = emailNotificationService;
+        this.securitySignalService = securitySignalService;
+        this.clientIpResolver = clientIpResolver;
     }
 
     @Transactional
@@ -141,6 +152,7 @@ public class UserSecurityServiceImpl  implements UserSecurityService{
         token.markUsed();
         revokeAllSessions(user.getId());
         auditService.recordSystem("USER_PASSWORD_RESET_COMPLETED", "USER", user.getId(), null);
+        recordAccountChange(SecurityEventType.PASSWORD_RESET, user);
         userNotificationService.create(user.getId(), "Password changed",
                 "Your password was reset successfully.", "SECURITY", "/account/security");
         return AuthUserResponse.from(user);
@@ -300,6 +312,7 @@ public class UserSecurityServiceImpl  implements UserSecurityService{
         }
         user.disableTwoFactor();
         auditService.recordSystem("USER_2FA_DISABLED", "USER", user.getId(), null);
+        recordAccountChange(SecurityEventType.TWO_FACTOR_DISABLED, user);
         userNotificationService.create(user.getId(), "Two-factor authentication disabled",
                 "2FA was disabled for your account.", "SECURITY", "/account/security");
         return AuthUserResponse.from(user);
@@ -314,6 +327,7 @@ public class UserSecurityServiceImpl  implements UserSecurityService{
         }
         user.resetTwoFactor();
         auditService.recordSystem("USER_2FA_RESET", "USER", user.getId(), null);
+        recordAccountChange(SecurityEventType.TWO_FACTOR_DISABLED, user);
         emailNotificationService.sendSecurityAlert(user, "KendyDigital 2FA reset",
                 "Two-factor authentication was reset for your account.");
         return setupTwoFactor(userId);
@@ -523,6 +537,21 @@ public class UserSecurityServiceImpl  implements UserSecurityService{
             return HexFormat.of().formatHex(digest.digest(token.getBytes(StandardCharsets.UTF_8)));
         } catch (NoSuchAlgorithmException exception) {
             throw new IllegalStateException("SHA-256 is not available", exception);
+        }
+    }
+
+    private void recordAccountChange(SecurityEventType type, UserAccount user) {
+        try {
+            boolean admin = user.getRole() == com.example.KendyDigital.model.user.UserRole.ADMIN
+                    || user.getRole() == com.example.KendyDigital.model.user.UserRole.SUPER_ADMIN;
+            securitySignalService.record(SecuritySignal
+                    .of(type, SecuritySeverity.HIGH, clientIpResolver.resolveCurrent())
+                    .user(user.getId())
+                    .metadata("admin=" + admin + ";source=selfService")
+                    .risk(40)
+                    .build());
+        } catch (RuntimeException exception) {
+            LOGGER.debug("Could not record account change signal {}", type, exception);
         }
     }
 

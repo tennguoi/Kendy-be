@@ -12,6 +12,8 @@ import org.springframework.data.repository.query.Param;
 public interface AuthSessionRepository extends JpaRepository<AuthSession, Long> {
     Optional<AuthSession> findByTokenHashAndRevokedAtIsNull(String tokenHash);
 
+    Optional<AuthSession> findByTokenHash(String tokenHash);
+
     List<AuthSession> findAllByUser_IdOrderByCreatedAtDesc(Long userId, Pageable pageable);
 
     Optional<AuthSession> findByIdAndUser_Id(Long id, Long userId);

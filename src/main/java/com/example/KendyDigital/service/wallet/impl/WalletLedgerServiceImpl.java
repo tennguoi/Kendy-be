@@ -10,8 +10,10 @@ import com.example.KendyDigital.model.wallet.WalletTransactionType;
 import com.example.KendyDigital.repository.*;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 @Service
 public class WalletLedgerServiceImpl  implements WalletLedgerService{
@@ -59,6 +61,11 @@ public class WalletLedgerServiceImpl  implements WalletLedgerService{
         BigDecimal normalizedAmount = normalizePositiveAmount(amount);
         UserAccount user = userAccountRepository.findByIdForUpdate(userId)
                 .orElseThrow(() -> new IllegalArgumentException("User not found: " + userId));
+        if (user.isWalletFrozen()
+                && type != WalletTransactionType.ADMIN_ADJUST
+                && type != WalletTransactionType.CORRECTION) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "WALLET_FROZEN");
+        }
         BigDecimal balanceBefore = normalizeMoney(user.getBalance());
         BigDecimal balanceAfter = balanceBefore.subtract(normalizedAmount);
         if (balanceAfter.compareTo(BigDecimal.ZERO) < 0) {

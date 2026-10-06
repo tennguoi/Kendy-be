@@ -1,9 +1,12 @@
 package com.example.KendyDigital.config;
 
+import com.example.KendyDigital.common.AttackPatternFilter;
+import com.example.KendyDigital.common.IpBanFilter;
 import com.example.KendyDigital.common.MaintenanceModeFilter;
 import com.example.KendyDigital.common.RateLimitFilter;
 import com.example.KendyDigital.common.RequestIdFilter;
 import com.example.KendyDigital.common.SecurityHeadersFilter;
+import com.example.KendyDigital.common.SecurityResponseSignalFilter;
 import com.example.KendyDigital.common.ServerTimeFilter;
 import com.example.KendyDigital.security.ApiKeyAuthenticationFilter;
 import com.example.KendyDigital.security.BearerTokenAuthenticationFilter;
@@ -57,7 +60,9 @@ public class SecurityConfig {
                         ApiKeyAuthenticationFilter apiKeyAuthenticationFilter,
                         RequestIdFilter requestIdFilter, RateLimitFilter rateLimitFilter,
                         MaintenanceModeFilter maintenanceModeFilter, ServerTimeFilter serverTimeFilter,
-                        SecurityHeadersFilter securityHeadersFilter)
+                        SecurityHeadersFilter securityHeadersFilter, IpBanFilter ipBanFilter,
+                        AttackPatternFilter attackPatternFilter,
+                        SecurityResponseSignalFilter securityResponseSignalFilter)
                         throws Exception {
                 http.csrf(csrf -> csrf.disable())
                                 .cors(Customizer.withDefaults())
@@ -92,7 +97,9 @@ public class SecurityConfig {
                                                 .permitAll()
                                                 .requestMatchers("/api/admin/**").hasAnyRole("ADMIN", "SUPER_ADMIN")
                                                 .requestMatchers("/api/**").authenticated()
-                                                .anyRequest().permitAll())
+                                                .requestMatchers("/actuator/health").permitAll()
+                                                .requestMatchers("/error").permitAll()
+                                                .anyRequest().denyAll())
                                 .headers(headers -> headers
                                                 .frameOptions(frame -> frame.deny())
                                                 .contentSecurityPolicy(csp -> csp.policyDirectives(
@@ -104,6 +111,9 @@ public class SecurityConfig {
                                 .addFilterBefore(requestIdFilter, UsernamePasswordAuthenticationFilter.class)
                                 .addFilterBefore(serverTimeFilter, RequestIdFilter.class)
                                 .addFilterBefore(maintenanceModeFilter, UsernamePasswordAuthenticationFilter.class)
+                                .addFilterAfter(ipBanFilter, RequestIdFilter.class)
+                                .addFilterAfter(attackPatternFilter, IpBanFilter.class)
+                                .addFilterAfter(securityResponseSignalFilter, AttackPatternFilter.class)
                                 .addFilterBefore(apiKeyAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
                                 .addFilterBefore(bearerTokenAuthenticationFilter,
                                                 UsernamePasswordAuthenticationFilter.class)

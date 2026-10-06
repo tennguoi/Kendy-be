@@ -48,6 +48,18 @@ public class AuditLog extends TimestampedEntity {
     @Column(name = "ip_address", length = 45)
     private String ipAddress;
 
+    @Column(name = "user_agent", length = 512)
+    private String userAgent;
+
+    @Column(name = "request_id", length = 64)
+    private String requestId;
+
+    @Column(name = "prev_hash", length = 64)
+    private String prevHash;
+
+    @Column(name = "hash", length = 64)
+    private String hash;
+
     public AuditLog(Long actorUserId, String actorRole, String action, String targetType, Long targetId,
             String metadata) {
         this.actorUserId = actorUserId;
@@ -60,6 +72,16 @@ public class AuditLog extends TimestampedEntity {
 
     public void recordIpAddress(String ipAddress) {
         this.ipAddress = ipAddress;
+    }
+
+    public void recordRequestContext(String userAgent, String requestId) {
+        this.userAgent = userAgent;
+        this.requestId = requestId;
+    }
+
+    public void recordChain(String prevHash, String hash) {
+        this.prevHash = prevHash;
+        this.hash = hash;
     }
 
 }

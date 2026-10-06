@@ -11,7 +11,11 @@ public record SecuritySessionResponse(
         String userRole,
         Instant createdAt,
         Instant lastUsedAt,
-        Instant expiresAt) {
+        Instant expiresAt,
+        String createdIp,
+        String lastIp,
+        String country,
+        String userAgent) {
     public static SecuritySessionResponse from(AuthSession session) {
         return new SecuritySessionResponse(
                 session.getId(),
@@ -21,6 +25,10 @@ public record SecuritySessionResponse(
                 session.getUser().getRole() == null ? null : session.getUser().getRole().name(),
                 session.getCreatedAt(),
                 session.getLastUsedAt(),
-                session.getExpiresAt());
+                session.getExpiresAt(),
+                session.getCreatedIp(),
+                session.getLastIp(),
+                session.getCountry(),
+                session.getUserAgent());
     }
 }

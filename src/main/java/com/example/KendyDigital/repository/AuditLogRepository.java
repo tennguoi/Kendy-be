@@ -10,6 +10,10 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 public interface AuditLogRepository extends JpaRepository<AuditLog, Long> {
+    java.util.Optional<AuditLog> findTopByOrderByIdDesc();
+
+    List<AuditLog> findAllByOrderByIdAsc(Pageable pageable);
+
     List<AuditLog> findAllByOrderByCreatedAtDesc(Pageable pageable);
 
     List<AuditLog> findAllByActionOrderByCreatedAtDesc(String action, Pageable pageable);

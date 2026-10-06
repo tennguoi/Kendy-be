@@ -16,6 +16,10 @@ public class AppSecurityProperties {
 
     private boolean enableHttpOnlyCookie = false;
 
+    private boolean trustCloudflare = false;
+
+    private List<String> ipAllowlist = new ArrayList<>();
+
     public List<String> getCorsAllowedOrigins() {
         return corsAllowedOrigins;
     }
@@ -38,5 +42,21 @@ public class AppSecurityProperties {
 
     public void setEnableHttpOnlyCookie(boolean enableHttpOnlyCookie) {
         this.enableHttpOnlyCookie = enableHttpOnlyCookie;
+    }
+
+    public boolean isTrustCloudflare() {
+        return trustCloudflare;
+    }
+
+    public void setTrustCloudflare(boolean trustCloudflare) {
+        this.trustCloudflare = trustCloudflare;
+    }
+
+    public List<String> getIpAllowlist() {
+        return ipAllowlist;
+    }
+
+    public void setIpAllowlist(List<String> ipAllowlist) {
+        this.ipAllowlist = ipAllowlist;
     }
 }

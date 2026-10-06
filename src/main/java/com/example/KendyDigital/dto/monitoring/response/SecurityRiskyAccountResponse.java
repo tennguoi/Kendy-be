@@ -12,7 +12,8 @@ public record SecurityRiskyAccountResponse(
         int failedLoginAttempts,
         boolean locked,
         Instant lockedUntil,
-        boolean twoFactorEnabled) {
+        boolean twoFactorEnabled,
+        boolean walletFrozen) {
     public static SecurityRiskyAccountResponse from(UserAccount user) {
         return new SecurityRiskyAccountResponse(
                 user.getId(),
@@ -23,6 +24,7 @@ public record SecurityRiskyAccountResponse(
                 user.getFailedLoginAttempts(),
                 user.isLocked(),
                 user.getLockedUntil(),
-                user.isTwoFactorEnabled());
+                user.isTwoFactorEnabled(),
+                user.isWalletFrozen());
     }
 }

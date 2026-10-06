@@ -1,6 +1,7 @@
 package com.example.KendyDigital.controller;
 
 import com.example.KendyDigital.config.AppOAuth2Properties;
+import com.example.KendyDigital.common.ClientIpResolver;
 import com.example.KendyDigital.dto.auth.request.AuthEmailRequest;
 import com.example.KendyDigital.dto.auth.request.AuthForgotPasswordRequest;
 import com.example.KendyDigital.dto.auth.request.AuthLoginRequest;
@@ -17,6 +18,7 @@ import com.example.KendyDigital.repository.*;
 import com.example.KendyDigital.security.*;
 import com.example.KendyDigital.service.auth.AuthService;
 import com.example.KendyDigital.service.security.UserSecurityService;
+import com.example.KendyDigital.service.security.monitor.CaptchaService;
 import jakarta.validation.Valid;
 import java.util.ArrayList;
 import java.util.List;
@@ -37,25 +39,43 @@ public class AuthController {
     private final AuthService authService;
     private final UserSecurityService userSecurityService;
     private final AppOAuth2Properties oAuth2Properties;
+    private final CaptchaService captchaService;
+    private final ClientIpResolver clientIpResolver;
 
     public AuthController(AuthService authService, UserSecurityService userSecurityService,
-            AppOAuth2Properties oAuth2Properties) {
+            AppOAuth2Properties oAuth2Properties, CaptchaService captchaService,
+            ClientIpResolver clientIpResolver) {
         this.authService = authService;
         this.userSecurityService = userSecurityService;
         this.oAuth2Properties = oAuth2Properties;
+        this.captchaService = captchaService;
+        this.clientIpResolver = clientIpResolver;
     }
 
     @PostMapping("/register")
     public AuthUserResponse register(@Valid @RequestBody AuthRegisterRequest request,
-            @RequestHeader(name = "Accept-Language", required = false) String acceptLanguage) {
+            @RequestHeader(name = "Accept-Language", required = false) String acceptLanguage,
+            @RequestHeader(name = "X-Turnstile-Token", required = false) String turnstileToken,
+            jakarta.servlet.http.HttpServletRequest httpRequest) {
+        enforceCaptcha(turnstileToken, httpRequest);
         return authService.register(request, acceptLanguage);
     }
 
     @PostMapping("/login")
     public AuthTokenResponse login(@Valid @RequestBody AuthLoginRequest request,
             @RequestHeader(name = "Accept-Language", required = false) String acceptLanguage,
+            @RequestHeader(name = "X-Turnstile-Token", required = false) String turnstileToken,
+            jakarta.servlet.http.HttpServletRequest httpRequest,
             jakarta.servlet.http.HttpServletResponse response) {
+        enforceCaptcha(turnstileToken, httpRequest);
         return authService.login(request, acceptLanguage, response);
+    }
+
+    private void enforceCaptcha(String turnstileToken, jakarta.servlet.http.HttpServletRequest request) {
+        String ip = clientIpResolver.resolve(request);
+        if (captchaService.isRequired(ip) && !captchaService.verify(turnstileToken, ip)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "CAPTCHA_REQUIRED");
+        }
     }
 
     @PostMapping("/2fa/email-code")

@@ -173,6 +173,12 @@
 			<artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
 			<version>3.0.0</version>
 		</dependency>
+		<!-- GeoLite2 (MaxMind) for IP country/ASN enrichment; database files are optional at runtime. -->
+		<dependency>
+			<groupId>com.maxmind.geoip2</groupId>
+			<artifactId>geoip2</artifactId>
+			<version>4.2.1</version>
+		</dependency>
 
 <dependency>
             <groupId>org.springframework.boot</groupId>

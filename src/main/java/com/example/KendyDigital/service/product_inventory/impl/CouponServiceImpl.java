@@ -17,7 +17,12 @@ import com.example.KendyDigital.model.user.UserAccount;
 import com.example.KendyDigital.repository.CouponRedemptionRepository;
 import com.example.KendyDigital.repository.CouponRepository;
 import com.example.KendyDigital.repository.ServiceItemRepository;
+import com.example.KendyDigital.common.ClientIpResolver;
+import com.example.KendyDigital.model.security.SecurityEventType;
+import com.example.KendyDigital.model.security.SecuritySeverity;
 import com.example.KendyDigital.service.audit.AuditService;
+import com.example.KendyDigital.service.security.monitor.SecuritySignal;
+import com.example.KendyDigital.service.security.monitor.SecuritySignalService;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Instant;
@@ -35,17 +40,23 @@ public class CouponServiceImpl implements CouponService {
     private final ServiceItemRepository serviceItemRepository;
     private final AuditService auditService;
     private final com.example.KendyDigital.service.product_inventory.helper.CouponRedisService couponRedisService;
+    private final SecuritySignalService securitySignalService;
+    private final ClientIpResolver clientIpResolver;
 
     public CouponServiceImpl(CouponRepository couponRepository,
             CouponRedemptionRepository couponRedemptionRepository,
             ServiceItemRepository serviceItemRepository,
             AuditService auditService,
-            com.example.KendyDigital.service.product_inventory.helper.CouponRedisService couponRedisService) {
+            com.example.KendyDigital.service.product_inventory.helper.CouponRedisService couponRedisService,
+            SecuritySignalService securitySignalService,
+            ClientIpResolver clientIpResolver) {
         this.couponRepository = couponRepository;
         this.couponRedemptionRepository = couponRedemptionRepository;
         this.serviceItemRepository = serviceItemRepository;
         this.auditService = auditService;
         this.couponRedisService = couponRedisService;
+        this.securitySignalService = securitySignalService;
+        this.clientIpResolver = clientIpResolver;
     }
 
     @Transactional(readOnly = true)
@@ -248,6 +259,15 @@ public class CouponServiceImpl implements CouponService {
         }
         auditService.recordSystem("COUPON_REDEEMED", "COUPON", coupon.getId(),
                 "orderId=" + order.getId() + ",code=" + coupon.getCode());
+        try {
+            securitySignalService.record(SecuritySignal
+                    .of(SecurityEventType.COUPON_ABUSE, SecuritySeverity.LOW, clientIpResolver.resolveCurrent())
+                    .user(user.getId())
+                    .metadata("couponCode=" + coupon.getCode())
+                    .risk(10)
+                    .build());
+        } catch (RuntimeException ignored) {
+        }
     }
 
     @Transactional

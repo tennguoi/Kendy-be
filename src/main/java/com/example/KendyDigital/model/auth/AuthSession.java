@@ -53,6 +53,24 @@ public class AuthSession extends TimestampedEntity {
     @Column(name = "last_used_at")
     private Instant lastUsedAt;
 
+    @Column(name = "created_ip", length = 45)
+    private String createdIp;
+
+    @Column(name = "last_ip", length = 45)
+    private String lastIp;
+
+    @Column(name = "user_agent", length = 512)
+    private String userAgent;
+
+    @Column(name = "device_hash", length = 64)
+    private String deviceHash;
+
+    @Column(name = "country", length = 2)
+    private String country;
+
+    @Column(name = "asn", length = 64)
+    private String asn;
+
     public AuthSession(String tokenHash, UserAccount user, Instant expiresAt) {
         this.tokenHash = tokenHash;
         this.user = user;
@@ -61,6 +79,13 @@ public class AuthSession extends TimestampedEntity {
 
     public void markUsed() {
         this.lastUsedAt = Instant.now();
+    }
+
+    public void markUsed(String ip) {
+        this.lastUsedAt = Instant.now();
+        if (ip != null && !ip.isBlank()) {
+            this.lastIp = ip;
+        }
     }
 
     public void revoke() {
