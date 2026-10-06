@@ -12,6 +12,7 @@ import com.example.KendyDigital.repository.SystemSettingRepository;
 import com.example.KendyDigital.repository.UserAccountRepository;
 import com.example.KendyDigital.service.audit.AuditService;
 import com.example.KendyDigital.service.security.UserSecurityService;
+import jakarta.servlet.http.HttpServletResponse;
 import java.security.SecureRandom;
 import java.util.Base64;
 import java.util.List;
@@ -50,8 +51,15 @@ public class OAuth2AuthServiceImpl  implements OAuth2AuthService{
         this.auditService = auditService;
     }
 
+    @Override
     @Transactional(noRollbackFor = OAuthTwoFactorRequiredException.class)
     public AuthTokenResponse login(String registrationId, Map<String, Object> attributes, String accessToken, String acceptLanguage) {
+        return login(registrationId, attributes, accessToken, acceptLanguage, null);
+    }
+
+    @Override
+    @Transactional(noRollbackFor = OAuthTwoFactorRequiredException.class)
+    public AuthTokenResponse login(String registrationId, Map<String, Object> attributes, String accessToken, String acceptLanguage, HttpServletResponse response) {
         OAuthProfile profile = profile(registrationId, attributes, accessToken);
         UserAccount user = userAccountRepository
                 .findByOauthProviderAndOauthProviderId(profile.provider(), profile.providerId())
@@ -67,10 +75,10 @@ public class OAuth2AuthServiceImpl  implements OAuth2AuthService{
                     }
                     // If email not verified, create new account (don't link to existing)
                     return userAccountRepository.save(new UserAccount(
-                            profile.name(),
-                            profile.email(),
-                            null,
-                            passwordEncoder.encode(randomPassword())));
+                        profile.name(),
+                        profile.email(),
+                        null,
+                        passwordEncoder.encode(randomPassword())));
                 });
 
         if (user.getStatus() == UserStatus.LOCKED) {
@@ -91,7 +99,7 @@ public class OAuth2AuthServiceImpl  implements OAuth2AuthService{
                     profile.providerDisplayName());
         }
 
-        AuthTokenService.IssuedToken issuedToken = authTokenService.issue(user, null);
+        AuthTokenService.IssuedToken issuedToken = authTokenService.issue(user, response);
         auditService.recordSystem("USER_OAUTH_LOGIN", "USER", user.getId(), "provider=" + profile.provider());
         return new AuthTokenResponse(issuedToken.token(), issuedToken.expiresAt(), AuthUserResponse.from(user));
     }

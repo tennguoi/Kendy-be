@@ -89,14 +89,32 @@ public class AuthController {
     }
 
     @PostMapping("/refresh")
-    public AuthTokenResponse refresh(@RequestHeader(name = "Authorization", required = false) String authorization) {
-        return userSecurityService.refresh(extractBearerToken(authorization));
+    public AuthTokenResponse refresh(jakarta.servlet.http.HttpServletRequest request) {
+        String token = extractBearerToken(request.getHeader("Authorization"));
+        if (token == null && request.getCookies() != null) {
+            for (jakarta.servlet.http.Cookie cookie : request.getCookies()) {
+                if ("access_token".equals(cookie.getName())) {
+                    token = cookie.getValue();
+                    break;
+                }
+            }
+        }
+        return userSecurityService.refresh(token);
     }
 
     @PostMapping("/logout")
-    public void logout(@RequestHeader(name = "Authorization", required = false) String authorization,
+    public void logout(jakarta.servlet.http.HttpServletRequest request,
             jakarta.servlet.http.HttpServletResponse response) {
-        authService.logout(extractBearerToken(authorization), response);
+        String token = extractBearerToken(request.getHeader("Authorization"));
+        if (token == null && request.getCookies() != null) {
+            for (jakarta.servlet.http.Cookie cookie : request.getCookies()) {
+                if ("access_token".equals(cookie.getName())) {
+                    token = cookie.getValue();
+                    break;
+                }
+            }
+        }
+        authService.logout(token, response);
     }
 
     @PostMapping("/forgot-password")

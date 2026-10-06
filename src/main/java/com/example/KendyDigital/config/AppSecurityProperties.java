@@ -14,7 +14,11 @@ public class AppSecurityProperties {
             "127.0.0.1",
             "::1"));
 
-    private boolean enableHttpOnlyCookie = false;
+    private boolean enableHttpOnlyCookie = true;
+
+    private String cookieSameSite = "Lax";
+
+    private Boolean cookieSecure = null;
 
     private boolean trustCloudflare = false;
 
@@ -42,6 +46,22 @@ public class AppSecurityProperties {
 
     public void setEnableHttpOnlyCookie(boolean enableHttpOnlyCookie) {
         this.enableHttpOnlyCookie = enableHttpOnlyCookie;
+    }
+
+    public String getCookieSameSite() {
+        return cookieSameSite;
+    }
+
+    public void setCookieSameSite(String cookieSameSite) {
+        this.cookieSameSite = cookieSameSite;
+    }
+
+    public Boolean getCookieSecure() {
+        return cookieSecure;
+    }
+
+    public void setCookieSecure(Boolean cookieSecure) {
+        this.cookieSecure = cookieSecure;
     }
 
     public boolean isTrustCloudflare() {

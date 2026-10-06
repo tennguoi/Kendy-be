@@ -15,6 +15,7 @@ import com.example.KendyDigital.dto.user.response.UserApiKeyResponse;
 import com.example.KendyDigital.dto.user.response.UserDashboardResponse;
 import com.example.KendyDigital.dto.user.response.UserSecurityOverviewResponse;
 import com.example.KendyDigital.security.CurrentUser;
+import com.example.KendyDigital.service.auth.AuthTokenService;
 import com.example.KendyDigital.service.security.UserSecurityService;
 import com.example.KendyDigital.service.user_management.UserProfileService;
 import jakarta.validation.Valid;
@@ -38,10 +39,14 @@ import org.springframework.web.multipart.MultipartFile;
 public class MeController {
     private final UserProfileService userProfileService;
     private final UserSecurityService userSecurityService;
+    private final AuthTokenService authTokenService;
 
-    public MeController(UserProfileService userProfileService, UserSecurityService userSecurityService) {
+    public MeController(UserProfileService userProfileService,
+            UserSecurityService userSecurityService,
+            AuthTokenService authTokenService) {
         this.userProfileService = userProfileService;
         this.userSecurityService = userSecurityService;
+        this.authTokenService = authTokenService;
     }
 
     @GetMapping("/api/me")
@@ -92,8 +97,11 @@ public class MeController {
     }
 
     @DeleteMapping("/api/me")
-    public Map<String, Object> deleteAccount(Authentication authentication) {
-        return userProfileService.deleteAccount(CurrentUser.require(authentication).userId());
+    public Map<String, Object> deleteAccount(Authentication authentication,
+            jakarta.servlet.http.HttpServletResponse response) {
+        Map<String, Object> result = userProfileService.deleteAccount(CurrentUser.require(authentication).userId());
+        authTokenService.revoke(null, response);
+        return result;
     }
 
     @GetMapping("/api/me/security")

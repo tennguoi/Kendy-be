@@ -45,7 +45,8 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
                     token.getAuthorizedClientRegistrationId(),
                     token.getPrincipal().getAttributes(),
                     accessToken(token),
-                    acceptLanguage);
+                    acceptLanguage,
+                    response);
             response.sendRedirect(successUrl(authToken));
         } catch (OAuthTwoFactorRequiredException exception) {
             response.sendRedirect(twoFactorUrl(exception));

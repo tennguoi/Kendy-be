@@ -41,6 +41,7 @@ public class AuthTokenServiceImpl  implements AuthTokenService{
     private final UserAccountRepository userAccountRepository;
     private final int maxActiveSessions;
     private final boolean enableHttpOnlyCookie;
+    private final AppSecurityProperties securityProperties;
     private final ClientIpResolver clientIpResolver;
     private final GeoIpService geoIpService;
     private final SecuritySignalService securitySignalService;
@@ -56,6 +57,7 @@ public class AuthTokenServiceImpl  implements AuthTokenService{
         this.authSessionRepository = authSessionRepository;
         this.userAccountRepository = userAccountRepository;
         this.maxActiveSessions = Math.max(1, maxActiveSessions);
+        this.securityProperties = securityProperties;
         this.enableHttpOnlyCookie = securityProperties.isEnableHttpOnlyCookie();
         this.clientIpResolver = clientIpResolver;
         this.geoIpService = geoIpService;
@@ -90,10 +92,10 @@ public class AuthTokenServiceImpl  implements AuthTokenService{
         if (enableHttpOnlyCookie && response != null) {
             Cookie cookie = new Cookie(TOKEN_COOKIE_NAME, token);
             cookie.setHttpOnly(true);
-            cookie.setSecure(true);
+            cookie.setSecure(isCookieSecure());
             cookie.setPath("/");
             cookie.setMaxAge((int) ACCESS_TOKEN_TTL.getSeconds());
-            cookie.setAttribute("SameSite", "Strict");
+            cookie.setAttribute("SameSite", securityProperties.getCookieSameSite());
             response.addCookie(cookie);
         }
 
@@ -135,19 +137,18 @@ public class AuthTokenServiceImpl  implements AuthTokenService{
 
     @Transactional
     public void revoke(String token, HttpServletResponse response) {
-        if (token == null || token.isBlank()) {
-            return;
+        if (token != null && !token.isBlank()) {
+            authSessionRepository.findByTokenHashAndRevokedAtIsNull(sha256(token))
+                    .ifPresent(AuthSession::revoke);
         }
-        authSessionRepository.findByTokenHashAndRevokedAtIsNull(sha256(token))
-                .ifPresent(AuthSession::revoke);
 
         if (enableHttpOnlyCookie && response != null) {
             Cookie cookie = new Cookie(TOKEN_COOKIE_NAME, "");
             cookie.setHttpOnly(true);
-            cookie.setSecure(true);
+            cookie.setSecure(isCookieSecure());
             cookie.setPath("/");
             cookie.setMaxAge(0);
-            cookie.setAttribute("SameSite", "Strict");
+            cookie.setAttribute("SameSite", securityProperties.getCookieSameSite());
             response.addCookie(cookie);
         }
     }
@@ -214,5 +215,19 @@ public class AuthTokenServiceImpl  implements AuthTokenService{
         } catch (NoSuchAlgorithmException exception) {
             throw new IllegalStateException("SHA-256 is not available", exception);
         }
+    }
+
+    private boolean isCookieSecure() {
+        if (securityProperties.getCookieSecure() != null) {
+            return securityProperties.getCookieSecure();
+        }
+        try {
+            RequestAttributes attributes = RequestContextHolder.getRequestAttributes();
+            if (attributes instanceof ServletRequestAttributes servletAttributes) {
+                return servletAttributes.getRequest().isSecure();
+            }
+        } catch (RuntimeException ignored) {
+        }
+        return false;
     }
 }
