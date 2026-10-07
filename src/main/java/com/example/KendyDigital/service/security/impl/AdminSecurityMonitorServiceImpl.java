@@ -49,6 +49,8 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
+import com.example.KendyDigital.repository.specification.SecurityEventSpecifications;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -327,11 +329,16 @@ public class AdminSecurityMonitorServiceImpl implements AdminSecurityMonitorServ
             Instant from, Instant to, Integer limit) {
         SecurityEventType parsedType = parseEnum(type, SecurityEventType.class);
         SecuritySeverity parsedSeverity = parseEnum(severity, SecuritySeverity.class);
-        return securityEventRepository.searchSecurityEvents(
-                        parsedType == null ? null : parsedType.name(),
-                        parsedSeverity == null ? null : parsedSeverity.name(),
-                        ip == null || ip.isBlank() ? null : ip.trim(), userId, from, to,
-                        PageRequest.of(0, clamp(limit, 100, 500)))
+        var spec = SecurityEventSpecifications.searchEvents(
+                parsedType,
+                parsedSeverity,
+                ip == null || ip.isBlank() ? null : ip.trim(),
+                userId,
+                from,
+                to);
+        return securityEventRepository.findAll(
+                        spec,
+                        PageRequest.of(0, clamp(limit, 100, 500), Sort.by(Sort.Direction.DESC, "occurredAt")))
                 .stream()
                 .map(SecurityEventResponse::from)
                 .toList();
@@ -398,8 +405,10 @@ public class AdminSecurityMonitorServiceImpl implements AdminSecurityMonitorServ
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "IP is required");
         }
         String normalized = ip.trim();
-        List<SecurityEventResponse> recent = securityEventRepository.searchSecurityEvents(
-                        null, null, normalized, null, null, null, PageRequest.of(0, clamp(limit, 50, 200)))
+        var spec = SecurityEventSpecifications.searchEvents(null, null, normalized, null, null, null);
+        List<SecurityEventResponse> recent = securityEventRepository.findAll(
+                        spec,
+                        PageRequest.of(0, clamp(limit, 50, 200), Sort.by(Sort.Direction.DESC, "occurredAt")))
                 .stream()
                 .map(SecurityEventResponse::from)
                 .toList();
@@ -422,8 +431,10 @@ public class AdminSecurityMonitorServiceImpl implements AdminSecurityMonitorServ
         UserAccount user = userAccountRepository.findById(userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
         Instant since = Instant.now().minus(Duration.ofHours(24));
-        List<SecurityEventResponse> recent = securityEventRepository.searchSecurityEvents(
-                        null, null, null, userId, null, null, PageRequest.of(0, clamp(limit, 50, 200)))
+        var spec = SecurityEventSpecifications.searchEvents(null, null, null, userId, null, null);
+        List<SecurityEventResponse> recent = securityEventRepository.findAll(
+                        spec,
+                        PageRequest.of(0, clamp(limit, 50, 200), Sort.by(Sort.Direction.DESC, "occurredAt")))
                 .stream()
                 .map(SecurityEventResponse::from)
                 .toList();

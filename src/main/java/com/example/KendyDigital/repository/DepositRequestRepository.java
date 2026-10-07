@@ -7,13 +7,25 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-public interface DepositRequestRepository extends JpaRepository<DepositRequest, Long> {
+public interface DepositRequestRepository extends JpaRepository<DepositRequest, Long>, JpaSpecificationExecutor<DepositRequest> {
+    @Override
+    @EntityGraph(attributePaths = "user")
+    Page<DepositRequest> findAll(Specification<DepositRequest> spec, Pageable pageable);
+
+    @Override
+    @EntityGraph(attributePaths = "user")
+    List<DepositRequest> findAll(Specification<DepositRequest> spec);
+
     boolean existsByDepositCode(String depositCode);
 
     Optional<DepositRequest> findByDepositCode(String depositCode);
@@ -31,27 +43,6 @@ public interface DepositRequestRepository extends JpaRepository<DepositRequest, 
     @Query("select d from DepositRequest d left join fetch d.user where d.status = :status order by d.createdAt desc")
     List<DepositRequest> findAllByStatusOrderByCreatedAtDesc(@Param("status") DepositStatus status, Pageable pageable);
 
-    @Query("""
-            select d from DepositRequest d
-            join fetch d.user u
-            where (cast(:status as string) is null or d.status = :status)
-              and (cast(:userId as long) is null or u.id = :userId)
-              and (cast(:fromDate as timestamp) is null or d.createdAt >= :fromDate)
-              and (cast(:toDate as timestamp) is null or d.createdAt < :toDate)
-              and (
-                cast(:queryPattern as string) is null
-                or lower(d.depositCode) like :queryPattern
-                or lower(d.transferContent) like :queryPattern
-                or lower(d.bankAccount) like :queryPattern
-                or lower(u.email) like :queryPattern
-                or lower(u.name) like :queryPattern
-                or (cast(:exactId as long) is not null and d.id = :exactId)
-              )
-            order by d.createdAt desc
-            """)
-    List<DepositRequest> searchAdmin(@Param("queryPattern") String queryPattern, @Param("exactId") Long exactId,
-            @Param("status") DepositStatus status, @Param("userId") Long userId,
-            @Param("fromDate") Instant fromDate, @Param("toDate") Instant toDate, Pageable pageable);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("""

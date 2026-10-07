@@ -7,11 +7,12 @@ import java.time.Instant;
 import java.util.List;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-public interface SecurityEventRepository extends JpaRepository<SecurityEvent, Long> {
+public interface SecurityEventRepository extends JpaRepository<SecurityEvent, Long>, JpaSpecificationExecutor<SecurityEvent> {
 
     long countByOccurredAtGreaterThanEqual(Instant from);
 
@@ -21,19 +22,6 @@ public interface SecurityEventRepository extends JpaRepository<SecurityEvent, Lo
 
     long countByTypeAndOccurredAtGreaterThanEqual(SecurityEventType type, Instant from);
 
-    @Query("""
-            select e from SecurityEvent e
-            where (:type is null or cast(e.type as string) = :type)
-              and (:severity is null or cast(e.severity as string) = :severity)
-              and (:ip is null or e.ip = :ip)
-              and (cast(:userId as long) is null or e.userId = :userId)
-              and (cast(:from as timestamp) is null or e.occurredAt >= :from)
-              and (cast(:to as timestamp) is null or e.occurredAt <= :to)
-            order by e.occurredAt desc
-            """)
-    List<SecurityEvent> searchSecurityEvents(@Param("type") String type,
-            @Param("severity") String severity, @Param("ip") String ip, @Param("userId") Long userId,
-            @Param("from") Instant from, @Param("to") Instant to, Pageable pageable);
 
     @Query("""
             select e.ip as ip, count(e) as total,

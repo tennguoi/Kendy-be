@@ -107,10 +107,19 @@ public class CheckoutServiceImpl  implements CheckoutService{
             }
         }
 
-        UserAccount user = userAccountRepository.findById(userId)
+        UserAccount user = userAccountRepository.findByIdForUpdate(userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
         if (user.getStatus() != UserStatus.ACTIVE) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "User is not active");
+        }
+
+        if (idempotencyKey != null) {
+            CheckoutSession existing = checkoutSessionRepository
+                    .findByUser_IdAndIdempotencyKey(userId, idempotencyKey)
+                    .orElse(null);
+            if (existing != null) {
+                return CheckoutResponse.from(existing);
+            }
         }
 
         ServiceItem service = serviceItemRepository.findById(request.serviceId())

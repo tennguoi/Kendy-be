@@ -16,7 +16,6 @@ import com.example.KendyDigital.service.notification.UserNotificationService;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
-import java.util.Locale;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -72,13 +71,10 @@ public class AdminWalletManagerServiceImpl  implements AdminWalletManagerService
             WalletTransactionType type, WalletTransactionDirection direction,
             Instant fromDate, Instant toDate, int page, int size) {
         String normalizedQuery = normalizeQuery(query);
-        List<WalletTransaction> transactions = walletTransactionRepository.searchAdmin(
-                likePattern(normalizedQuery),
-                parseLongOrNull(normalizedQuery),
-                userId,
-                type,
-                direction,
-                paged(page, size));
+        List<WalletTransaction> transactions = walletTransactionRepository.findAll(
+                com.example.KendyDigital.repository.specification.WalletTransactionSpecifications.searchAdmin(
+                        normalizedQuery, userId, type, direction),
+                paged(page, size)).getContent();
         return transactions.stream().map(WalletTransactionResponse::from).toList();
     }
 
@@ -155,21 +151,6 @@ public class AdminWalletManagerServiceImpl  implements AdminWalletManagerService
 
     private String normalizeQuery(String query) {
         return query == null || query.isBlank() ? null : query.trim();
-    }
-
-    private String likePattern(String query) {
-        return query == null ? null : "%" + query.toLowerCase(Locale.ROOT) + "%";
-    }
-
-    private Long parseLongOrNull(String value) {
-        if (value == null) {
-            return null;
-        }
-        try {
-            return Long.parseLong(value);
-        } catch (NumberFormatException ex) {
-            return null;
-        }
     }
 }
 

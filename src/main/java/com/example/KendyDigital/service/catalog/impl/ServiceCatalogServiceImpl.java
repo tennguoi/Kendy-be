@@ -34,7 +34,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 @Service
-public class ServiceCatalogServiceImpl  implements ServiceCatalogService{
+public class ServiceCatalogServiceImpl implements ServiceCatalogService {
     private final ServiceItemRepository serviceItemRepository;
     private final OrderRepository orderRepository;
     private final AuditService auditService;
@@ -49,7 +49,7 @@ public class ServiceCatalogServiceImpl  implements ServiceCatalogService{
     }
 
     @Transactional
-    @CacheEvict(cacheNames = {"publicServices", "publicPricing"}, allEntries = true)
+    @CacheEvict(cacheNames = { "publicServices", "publicPricing" }, allEntries = true)
     public ServiceResponse create(Long adminUserId, CreateServiceRequest request) {
         String slug = normalizeSlug(request.slug());
         if (serviceItemRepository.existsBySlug(slug)) {
@@ -122,15 +122,14 @@ public class ServiceCatalogServiceImpl  implements ServiceCatalogService{
     public List<ServiceResponse> searchActive(String query, Long categoryId, String categorySlug, String sort,
             Integer limit) {
         String normalizedQuery = query == null || query.isBlank() ? null : query.trim();
-        String queryPattern = likePattern(normalizedQuery);
         int normalizedLimit = normalizedLimit(limit);
-        List<ServiceItem> services = serviceItemRepository.searchPublic(
-                queryPattern,
-                parseLongOrNull(normalizedQuery),
-                categoryId,
-                normalizeOptionalSlug(categorySlug),
-                null,
-                page(200));
+        List<ServiceItem> services = serviceItemRepository.findAll(
+                com.example.KendyDigital.repository.specification.ServiceItemSpecifications.searchPublic(
+                        normalizedQuery,
+                        categoryId,
+                        normalizeOptionalSlug(categorySlug),
+                        null),
+                page(200)).getContent();
         java.util.Map<Long, Long> orderCounts = new java.util.HashMap<>();
         if ("popular".equalsIgnoreCase(sort) || "most_purchased".equalsIgnoreCase(sort)) {
             orderCounts = getServiceOrderCounts();
@@ -160,16 +159,15 @@ public class ServiceCatalogServiceImpl  implements ServiceCatalogService{
     public List<ServiceResponse> searchForAdmin(String query, ServiceStatus status, Long categoryId,
             String categorySlug, Boolean featured, String sort, Integer limit) {
         String normalizedQuery = query == null || query.isBlank() ? null : query.trim();
-        String queryPattern = likePattern(normalizedQuery);
         int normalizedLimit = normalizedLimit(limit);
-        List<ServiceItem> services = serviceItemRepository.searchAdmin(
-                queryPattern,
-                parseLongOrNull(normalizedQuery),
-                status,
-                categoryId,
-                normalizeOptionalSlug(categorySlug),
-                featured,
-                page(200));
+        List<ServiceItem> services = serviceItemRepository.findAll(
+                com.example.KendyDigital.repository.specification.ServiceItemSpecifications.searchAdmin(
+                        normalizedQuery,
+                        status,
+                        categoryId,
+                        normalizeOptionalSlug(categorySlug),
+                        featured),
+                page(200)).getContent();
         return services
                 .stream()
                 .sorted(comparator(sort))
@@ -183,19 +181,18 @@ public class ServiceCatalogServiceImpl  implements ServiceCatalogService{
     public List<ServicePricingResponse> searchPricing(String query, Long categoryId, String categorySlug,
             Boolean featured, String sort, Integer limit) {
         String normalizedQuery = query == null || query.isBlank() ? null : query.trim();
-        String queryPattern = likePattern(normalizedQuery);
         int normalizedLimit = normalizedLimit(limit);
         java.util.Map<Long, Long> orderCounts = new java.util.HashMap<>();
         if ("popular".equalsIgnoreCase(sort) || "most_purchased".equalsIgnoreCase(sort)) {
             orderCounts = getServiceOrderCounts();
         }
-        return serviceItemRepository.searchPublic(
-                queryPattern,
-                parseLongOrNull(normalizedQuery),
-                categoryId,
-                normalizeOptionalSlug(categorySlug),
-                featured,
-                page(200))
+        return serviceItemRepository.findAll(
+                com.example.KendyDigital.repository.specification.ServiceItemSpecifications.searchPublic(
+                        normalizedQuery,
+                        categoryId,
+                        normalizeOptionalSlug(categorySlug),
+                        featured),
+                page(200)).getContent()
                 .stream()
                 .sorted(comparator(sort, orderCounts))
                 .limit(normalizedLimit)
@@ -207,16 +204,15 @@ public class ServiceCatalogServiceImpl  implements ServiceCatalogService{
     public List<ServicePricingResponse> searchPricingForAdmin(String query, ServiceStatus status, Long categoryId,
             String categorySlug, Boolean featured, String sort, Integer limit) {
         String normalizedQuery = query == null || query.isBlank() ? null : query.trim();
-        String queryPattern = likePattern(normalizedQuery);
         int normalizedLimit = normalizedLimit(limit);
-        return serviceItemRepository.searchAdmin(
-                queryPattern,
-                parseLongOrNull(normalizedQuery),
-                status,
-                categoryId,
-                normalizeOptionalSlug(categorySlug),
-                featured,
-                page(200))
+        return serviceItemRepository.findAll(
+                com.example.KendyDigital.repository.specification.ServiceItemSpecifications.searchAdmin(
+                        normalizedQuery,
+                        status,
+                        categoryId,
+                        normalizeOptionalSlug(categorySlug),
+                        featured),
+                page(200)).getContent()
                 .stream()
                 .sorted(comparator(sort))
                 .limit(normalizedLimit)
@@ -235,7 +231,7 @@ public class ServiceCatalogServiceImpl  implements ServiceCatalogService{
     }
 
     @Transactional
-    @CacheEvict(cacheNames = {"publicServices", "publicPricing"}, allEntries = true)
+    @CacheEvict(cacheNames = { "publicServices", "publicPricing" }, allEntries = true)
     public ServiceResponse update(Long id, Long adminUserId, UpdateServiceRequest request) {
         ServiceItem service = serviceItemRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Service not found"));
@@ -327,12 +323,13 @@ public class ServiceCatalogServiceImpl  implements ServiceCatalogService{
                     request.iconUrl() != null ? request.iconUrl() : service.getIconUrl());
         }
 
-        auditService.recordAdmin(adminUserId, "SERVICE_UPDATED", "SERVICE", service.getId(), "slug=" + service.getSlug());
+        auditService.recordAdmin(adminUserId, "SERVICE_UPDATED", "SERVICE", service.getId(),
+                "slug=" + service.getSlug());
         return ServiceResponse.from(service);
     }
 
     @Transactional
-    @CacheEvict(cacheNames = {"publicServices", "publicPricing"}, allEntries = true)
+    @CacheEvict(cacheNames = { "publicServices", "publicPricing" }, allEntries = true)
     public ServiceResponse updateStatus(Long id, Long adminUserId, ServiceStatusUpdateRequest request) {
         ServiceItem service = serviceItemRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Service not found"));
@@ -347,12 +344,13 @@ public class ServiceCatalogServiceImpl  implements ServiceCatalogService{
     }
 
     @Transactional
-    @CacheEvict(cacheNames = {"publicServices", "publicPricing"}, allEntries = true)
+    @CacheEvict(cacheNames = { "publicServices", "publicPricing" }, allEntries = true)
     public ServiceResponse delete(Long id, Long adminUserId) {
         ServiceItem service = serviceItemRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Service not found"));
         service.deactivate();
-        auditService.recordAdmin(adminUserId, "SERVICE_DEACTIVATED", "SERVICE", service.getId(), "slug=" + service.getSlug());
+        auditService.recordAdmin(adminUserId, "SERVICE_DEACTIVATED", "SERVICE", service.getId(),
+                "slug=" + service.getSlug());
         return ServiceResponse.from(service);
     }
 
@@ -363,7 +361,8 @@ public class ServiceCatalogServiceImpl  implements ServiceCatalogService{
         if (service.getCategory() == null) {
             return List.of();
         }
-        return List.of(com.example.KendyDigital.dto.catalog.response.ServiceCategoryResponse.from(service.getCategory()));
+        return List
+                .of(com.example.KendyDigital.dto.catalog.response.ServiceCategoryResponse.from(service.getCategory()));
     }
 
     @Transactional(readOnly = true)
@@ -410,8 +409,8 @@ public class ServiceCatalogServiceImpl  implements ServiceCatalogService{
     private AccessStrategy normalizeAccessStrategy(ServiceType type, AccessStrategy requested) {
         AccessStrategy strategy = requested == null
                 ? (type == ServiceType.ACCOUNT_STOCK
-                    ? AccessStrategy.DEDICATED_ACCOUNT
-                    : AccessStrategy.MANUAL)
+                        ? AccessStrategy.DEDICATED_ACCOUNT
+                        : AccessStrategy.MANUAL)
                 : requested;
         if (type == ServiceType.ACCOUNT_STOCK && strategy != AccessStrategy.DEDICATED_ACCOUNT) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
@@ -462,10 +461,6 @@ public class ServiceCatalogServiceImpl  implements ServiceCatalogService{
         return slug == null || slug.isBlank() ? null : slug.trim().toLowerCase(Locale.ROOT);
     }
 
-    private String likePattern(String query) {
-        return query == null ? null : "%" + query.toLowerCase(Locale.ROOT) + "%";
-    }
-
     private java.util.Map<Long, Long> getServiceOrderCounts() {
         java.util.Map<Long, Long> counts = new java.util.HashMap<>();
         List<Object[]> performance = orderRepository.servicePerformance(PageRequest.of(0, 1000));
@@ -492,9 +487,11 @@ public class ServiceCatalogServiceImpl  implements ServiceCatalogService{
         return switch (normalized) {
             case "name", "name_asc" -> Comparator.comparing(ServiceItem::getName, String.CASE_INSENSITIVE_ORDER);
             case "price", "price_asc" -> Comparator.comparing(ServiceItem::getPrice).thenComparing(defaultComparator);
-            case "price_desc" -> Comparator.comparing(ServiceItem::getPrice).reversed().thenComparing(defaultComparator);
+            case "price_desc" ->
+                Comparator.comparing(ServiceItem::getPrice).reversed().thenComparing(defaultComparator);
             case "newest", "created_desc" -> Comparator.comparing(ServiceItem::getCreatedAt).reversed();
-            case "featured" -> Comparator.comparing(ServiceItem::isFeatured).reversed().thenComparing(defaultComparator);
+            case "featured" ->
+                Comparator.comparing(ServiceItem::isFeatured).reversed().thenComparing(defaultComparator);
             case "popular", "most_purchased" -> {
                 yield Comparator.<ServiceItem, Long>comparing(s -> orderCounts.getOrDefault(s.getId(), 0L))
                         .reversed()
@@ -504,4 +501,3 @@ public class ServiceCatalogServiceImpl  implements ServiceCatalogService{
         };
     }
 }
-

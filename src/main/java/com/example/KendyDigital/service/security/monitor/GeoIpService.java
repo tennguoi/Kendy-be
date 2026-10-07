@@ -73,6 +73,35 @@ public class GeoIpService {
                 || normalized.contains("linode") || normalized.contains("vultr") || normalized.contains("cloudflare");
     }
 
+    /** Reloads the databases from disk (used after an update) and resets cached readers. */
+    public synchronized void reload() {
+        closeQuietly(countryReader);
+        closeQuietly(asnReader);
+        countryReader = null;
+        asnReader = null;
+        initialized = false;
+    }
+
+    public boolean isCountryDatabaseLoaded() {
+        ensureInitialized();
+        return countryReader != null;
+    }
+
+    public boolean isAsnDatabaseLoaded() {
+        ensureInitialized();
+        return asnReader != null;
+    }
+
+    private void closeQuietly(DatabaseReader reader) {
+        if (reader != null) {
+            try {
+                reader.close();
+            } catch (IOException ignored) {
+                // nothing we can do while replacing the file
+            }
+        }
+    }
+
     public boolean isMobileNetwork(String ip) {
         String asn = lookup(ip).asn();
         if (asn == null || properties.getMobileAsns().isEmpty()) {

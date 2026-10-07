@@ -525,4 +525,97 @@ class OrderRaceConditionIntegrationTest {
             throw new IllegalStateException("Cannot create test bank transaction", exception);
         }
     }
+
+    @Test
+    @DisplayName("Order creation with same idempotency key returns existing order and charges only once")
+    void orderIdempotency_sameKey_returnsExistingOrderWithoutDoubleCharging() {
+        TransactionTemplate tx = new TransactionTemplate(transactionManager);
+        String idempotencyKey = "idemp-" + counter.incrementAndGet();
+
+        BigDecimal initialBalance = tx.execute(s ->
+                userAccountRepository.findById(buyer1.getId()).orElseThrow().getBalance());
+
+        OrderResponse firstOrder = tx.execute(s -> orderService.create(buyer1.getId(),
+                new CreateOrderRequest(stockServiceId, null, idempotencyKey, null)));
+        assertNotNull(firstOrder);
+
+        BigDecimal balanceAfterFirst = tx.execute(s ->
+                userAccountRepository.findById(buyer1.getId()).orElseThrow().getBalance());
+        assertEquals(new BigDecimal("100000.00"), initialBalance.subtract(balanceAfterFirst));
+
+        OrderResponse secondOrder = tx.execute(s -> orderService.create(buyer1.getId(),
+                new CreateOrderRequest(stockServiceId, null, idempotencyKey, null)));
+        assertNotNull(secondOrder);
+
+        assertEquals(firstOrder.orderCode(), secondOrder.orderCode());
+        assertEquals(firstOrder.id(), secondOrder.id());
+
+        BigDecimal balanceAfterSecond = tx.execute(s ->
+                userAccountRepository.findById(buyer1.getId()).orElseThrow().getBalance());
+        assertEquals(balanceAfterFirst, balanceAfterSecond);
+    }
+
+    @Test
+    @DisplayName("Concurrent order creation with same idempotency key: all threads receive the exact same order")
+    void concurrentOrderCreation_sameIdempotencyKey_singleOrderAndSingleCharge() throws Exception {
+        TransactionTemplate tx = new TransactionTemplate(transactionManager);
+        String idempotencyKey = "race-idemp-" + counter.incrementAndGet();
+
+        BigDecimal initialBalance = tx.execute(s ->
+                userAccountRepository.findById(buyer1.getId()).orElseThrow().getBalance());
+
+        int threadCount = 4;
+        ExecutorService executor = Executors.newFixedThreadPool(threadCount);
+        CyclicBarrier barrier = new CyclicBarrier(threadCount);
+        List<OrderResponse> orders = new CopyOnWriteArrayList<>();
+        AtomicInteger failCount = new AtomicInteger(0);
+
+        List<Future<?>> futures = new ArrayList<>();
+        for (int i = 0; i < threadCount; i++) {
+            futures.add(executor.submit(() -> {
+                try {
+                    barrier.await(10, TimeUnit.SECONDS);
+                    OrderResponse resp = orderService.create(buyer1.getId(),
+                            new CreateOrderRequest(stockServiceId, null, idempotencyKey, null));
+                    orders.add(resp);
+                } catch (Exception e) {
+                    failCount.incrementAndGet();
+                }
+            }));
+        }
+
+        for (Future<?> f : futures) {
+            try { f.get(30, TimeUnit.SECONDS); } catch (Exception ignored) {}
+        }
+        executor.shutdown();
+
+        assertFalse(orders.isEmpty(), "At least one order must be returned");
+        String firstOrderCode = orders.get(0).orderCode();
+        for (OrderResponse o : orders) {
+            assertEquals(firstOrderCode, o.orderCode(), "All returned orders must share the same orderCode");
+        }
+
+        BigDecimal finalBalance = tx.execute(s ->
+                userAccountRepository.findById(buyer1.getId()).orElseThrow().getBalance());
+        assertEquals(new BigDecimal("100000.00"), initialBalance.subtract(finalBalance),
+                "Balance must only be debited once regardless of concurrency");
+    }
+
+    @Test
+    @DisplayName("Checkout creation with same idempotency key returns same checkout session and does not duplicate deposit")
+    void checkoutIdempotency_sameKey_returnsSameCheckoutSession() {
+        TransactionTemplate tx = new TransactionTemplate(transactionManager);
+        String idempotencyKey = "checkout-idemp-" + counter.incrementAndGet();
+
+        var firstCheckout = tx.execute(s -> checkoutService.createServiceCheckout(buyer2.getId(),
+                new CreateServiceCheckoutRequest(stockServiceId, null, idempotencyKey, null)));
+        assertNotNull(firstCheckout);
+
+        var secondCheckout = tx.execute(s -> checkoutService.createServiceCheckout(buyer2.getId(),
+                new CreateServiceCheckoutRequest(stockServiceId, null, idempotencyKey, null)));
+        assertNotNull(secondCheckout);
+
+        assertEquals(firstCheckout.checkoutCode(), secondCheckout.checkoutCode());
+        assertEquals(firstCheckout.deposit().depositCode(), secondCheckout.deposit().depositCode());
+    }
 }

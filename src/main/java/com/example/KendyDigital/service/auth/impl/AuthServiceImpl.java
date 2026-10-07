@@ -36,7 +36,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 @Service
-public class AuthServiceImpl  implements AuthService{
+public class AuthServiceImpl implements AuthService {
     private static final Logger LOGGER = LoggerFactory.getLogger(AuthServiceImpl.class);
     private static final String DUMMY_PASSWORD_HASH = new BCryptPasswordEncoder().encode("kendy-timing-equalizer");
 
@@ -72,8 +72,9 @@ public class AuthServiceImpl  implements AuthService{
         var existing = userAccountRepository.findByEmailIgnoreCase(email);
         if (existing.isPresent()) {
             UserAccount existingUser = existing.get();
-            LOGGER.info("Existing user found: userId={}, emailVerifiedAt={}, oauthProvider={}, hasPassword={}", 
-                existingUser.getId(), existingUser.getEmailVerifiedAt(), existingUser.getOauthProvider(), existingUser.hasPassword());
+            LOGGER.info("Existing user found: userId={}, emailVerifiedAt={}, oauthProvider={}, hasPassword={}",
+                    existingUser.getId(), existingUser.getEmailVerifiedAt(), existingUser.getOauthProvider(),
+                    existingUser.hasPassword());
             // If the existing account was created via OAuth, hint the user
             if (existingUser.getOauthProvider() != null && !existingUser.hasPassword()) {
                 String provider = existingUser.getOauthProvider().substring(0, 1).toUpperCase()
@@ -83,7 +84,8 @@ public class AuthServiceImpl  implements AuthService{
                                 + ". Vui lòng đăng nhập với " + provider
                                 + " hoặc dùng 'Quên mật khẩu'.");
             }
-            // If account was registered previously but NOT yet verified, allow updating info and resend verification
+            // If account was registered previously but NOT yet verified, allow updating
+            // info and resend verification
             if (existingUser.getEmailVerifiedAt() == null) {
                 LOGGER.info("Existing unverified user - updating info and resending verification");
                 existingUser.setName(request.name().trim());
@@ -120,7 +122,8 @@ public class AuthServiceImpl  implements AuthService{
     }
 
     @Transactional
-    public AuthTokenResponse login(AuthLoginRequest request, String acceptLanguage, jakarta.servlet.http.HttpServletResponse response) {
+    public AuthTokenResponse login(AuthLoginRequest request, String acceptLanguage,
+            jakarta.servlet.http.HttpServletResponse response) {
         String email = normalizeEmail(request.email());
         Optional<UserAccount> found = userAccountRepository.findByEmailIgnoreCase(email);
         if (found.isEmpty()) {
@@ -144,14 +147,15 @@ public class AuthServiceImpl  implements AuthService{
             userAccountRepository.save(user);
             boolean locked = user.isLocked();
             recordSignal(SecuritySignal.of(
-                            locked ? SecurityEventType.ACCOUNT_LOCKED : SecurityEventType.LOGIN_FAILED,
-                            locked ? SecuritySeverity.MEDIUM : SecuritySeverity.LOW, clientIp())
+                    locked ? SecurityEventType.ACCOUNT_LOCKED : SecurityEventType.LOGIN_FAILED,
+                    locked ? SecuritySeverity.MEDIUM : SecuritySeverity.LOW, clientIp())
                     .user(user.getId())
                     .request("POST", "/api/auth/login")
                     .metadata("emailHash=" + emailHash(email) + ";reason=badPassword")
                     .risk(20)
                     .build());
-            // If this is an OAuth-only account (no user-set password), hint them to use OAuth
+            // If this is an OAuth-only account (no user-set password), hint them to use
+            // OAuth
             if (!user.hasPassword() && user.getOauthProvider() != null) {
                 String provider = user.getOauthProvider().substring(0, 1).toUpperCase()
                         + user.getOauthProvider().substring(1);

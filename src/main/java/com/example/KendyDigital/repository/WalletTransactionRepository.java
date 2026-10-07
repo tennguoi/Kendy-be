@@ -6,12 +6,24 @@ import com.example.KendyDigital.model.wallet.WalletTransactionType;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-public interface WalletTransactionRepository extends JpaRepository<WalletTransaction, Long> {
+public interface WalletTransactionRepository extends JpaRepository<WalletTransaction, Long>, JpaSpecificationExecutor<WalletTransaction> {
+    @Override
+    @EntityGraph(attributePaths = "user")
+    Page<WalletTransaction> findAll(Specification<WalletTransaction> spec, Pageable pageable);
+
+    @Override
+    @EntityGraph(attributePaths = "user")
+    List<WalletTransaction> findAll(Specification<WalletTransaction> spec);
+
     boolean existsByTransactionCode(String transactionCode);
 
     @Query("select w from WalletTransaction w join fetch w.user u where u.id = :userId order by w.createdAt desc")
@@ -33,48 +45,6 @@ public interface WalletTransactionRepository extends JpaRepository<WalletTransac
 
     @Query("select w from WalletTransaction w join fetch w.user u where w.id = :id and u.id = :userId")
     Optional<WalletTransaction> findByIdAndUser_Id(@Param("id") Long id, @Param("userId") Long userId);
-
-    @Query("""
-            select w from WalletTransaction w
-            join fetch w.user u
-            where u.id = :userId
-              and (cast(:type as string) is null or w.type = :type)
-              and (cast(:direction as string) is null or w.direction = :direction)
-              and (
-                cast(:queryPattern as string) is null
-                or lower(w.transactionCode) like :queryPattern
-                or lower(coalesce(w.referenceType, '')) like :queryPattern
-                or lower(coalesce(w.description, '')) like :queryPattern
-                or (cast(:exactId as long) is not null and w.id = :exactId)
-                or (cast(:exactId as long) is not null and w.referenceId = :exactId)
-              )
-            order by w.createdAt desc
-            """)
-    List<WalletTransaction> searchUser(@Param("userId") Long userId, @Param("queryPattern") String queryPattern,
-            @Param("exactId") Long exactId, @Param("type") WalletTransactionType type,
-            @Param("direction") WalletTransactionDirection direction, Pageable pageable);
-
-    @Query("""
-            select w from WalletTransaction w
-            join fetch w.user u
-            where (cast(:userId as long) is null or u.id = :userId)
-              and (cast(:type as string) is null or w.type = :type)
-              and (cast(:direction as string) is null or w.direction = :direction)
-              and (
-                cast(:queryPattern as string) is null
-                or lower(w.transactionCode) like :queryPattern
-                or lower(coalesce(w.referenceType, '')) like :queryPattern
-                or lower(coalesce(w.description, '')) like :queryPattern
-                or lower(u.email) like :queryPattern
-                or lower(u.name) like :queryPattern
-                or (cast(:exactId as long) is not null and w.id = :exactId)
-                or (cast(:exactId as long) is not null and w.referenceId = :exactId)
-              )
-            order by w.createdAt desc
-            """)
-    List<WalletTransaction> searchAdmin(@Param("queryPattern") String queryPattern, @Param("exactId") Long exactId,
-            @Param("userId") Long userId, @Param("type") WalletTransactionType type,
-            @Param("direction") WalletTransactionDirection direction, Pageable pageable);
 
     long countByUser_Id(Long userId);
 

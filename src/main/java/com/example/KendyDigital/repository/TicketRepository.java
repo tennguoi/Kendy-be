@@ -7,13 +7,25 @@ import com.example.KendyDigital.model.ticket.TicketStatus;
 import jakarta.persistence.LockModeType;
 import java.util.List;
 import java.util.Optional;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-public interface TicketRepository extends JpaRepository<Ticket, Long> {
+public interface TicketRepository extends JpaRepository<Ticket, Long>, JpaSpecificationExecutor<Ticket> {
+    @Override
+    @EntityGraph(attributePaths = {"user", "order", "depositRequest"})
+    Page<Ticket> findAll(Specification<Ticket> spec, Pageable pageable);
+
+    @Override
+    @EntityGraph(attributePaths = {"user", "order", "depositRequest"})
+    List<Ticket> findAll(Specification<Ticket> spec);
+
     boolean existsByTicketCode(String ticketCode);
 
     @Query("select t from Ticket t join fetch t.user u left join fetch t.order o left join fetch t.depositRequest d where t.ticketCode = :ticketCode")
@@ -36,56 +48,6 @@ public interface TicketRepository extends JpaRepository<Ticket, Long> {
 
     @Query("select t from Ticket t join fetch t.user u left join fetch t.order o left join fetch t.depositRequest d where t.status = :status order by t.createdAt desc")
     List<Ticket> findAllByStatusOrderByCreatedAtDesc(@Param("status") TicketStatus status, Pageable pageable);
-
-    @Query("""
-            select t from Ticket t
-            join fetch t.user u
-            left join fetch t.order o
-            left join fetch t.depositRequest d
-            where t.user.id = :userId
-              and (cast(:status as string) is null or t.status = :status)
-              and (cast(:category as string) is null or t.category = :category)
-              and (cast(:priority as string) is null or t.priority = :priority)
-              and (
-                cast(:queryPattern as string) is null
-                or lower(t.ticketCode) like :queryPattern
-                or lower(t.subject) like :queryPattern
-                or lower(coalesce(o.orderCode, '')) like :queryPattern
-                or lower(coalesce(d.depositCode, '')) like :queryPattern
-                or (cast(:exactId as long) is not null and t.id = :exactId)
-              )
-            order by t.createdAt desc
-            """)
-    List<Ticket> searchUser(@Param("userId") Long userId, @Param("queryPattern") String queryPattern,
-            @Param("exactId") Long exactId, @Param("status") TicketStatus status,
-            @Param("category") TicketCategory category, @Param("priority") TicketPriority priority,
-            Pageable pageable);
-
-    @Query("""
-            select t from Ticket t
-            join fetch t.user u
-            left join fetch t.order o
-            left join fetch t.depositRequest d
-            where (cast(:status as string) is null or t.status = :status)
-              and (cast(:category as string) is null or t.category = :category)
-              and (cast(:priority as string) is null or t.priority = :priority)
-              and (cast(:userId as long) is null or u.id = :userId)
-              and (
-                cast(:queryPattern as string) is null
-                or lower(t.ticketCode) like :queryPattern
-                or lower(t.subject) like :queryPattern
-                or lower(u.email) like :queryPattern
-                or lower(u.name) like :queryPattern
-                or lower(coalesce(o.orderCode, '')) like :queryPattern
-                or lower(coalesce(d.depositCode, '')) like :queryPattern
-                or (cast(:exactId as long) is not null and t.id = :exactId)
-              )
-            order by t.createdAt desc
-            """)
-    List<Ticket> searchAdmin(@Param("queryPattern") String queryPattern, @Param("exactId") Long exactId,
-            @Param("status") TicketStatus status, @Param("category") TicketCategory category,
-            @Param("priority") TicketPriority priority, @Param("userId") Long userId, Pageable pageable);
-
     long countByStatus(TicketStatus status);
 
     long countByUser_Id(Long userId);

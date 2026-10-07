@@ -52,7 +52,9 @@ public class AdminSystemConfigServiceImpl  implements AdminSystemConfigService{
 
     @Transactional(readOnly = true)
     public List<SystemSettingResponse> searchSettings(String query, Integer limit) {
-        return systemSettingRepository.search(likePattern(normalizeQuery(query)), page(limit))
+        return systemSettingRepository.findAll(
+                com.example.KendyDigital.repository.specification.SystemSettingSpecifications.search(normalizeQuery(query)),
+                page(limit)).getContent()
                 .stream()
                 .map(SystemSettingResponse::from)
                 .toList();
@@ -98,7 +100,9 @@ public class AdminSystemConfigServiceImpl  implements AdminSystemConfigService{
         response.put("requireHmac", sePayWebhookProperties.isRequireHmac());
         response.put("hmacConfigured", isConfigured(sePayWebhookProperties.getHmacSecret()));
         response.put("signatureHeader", sePayWebhookProperties.getSignatureHeader());
-        response.put("recentWebhookLogs", auditLogRepository.searchAdmin(likePattern("SEPAY"), null, null, null, null, PageRequest.of(0, 10))
+        response.put("recentWebhookLogs", auditLogRepository.findAll(
+                com.example.KendyDigital.repository.specification.AuditLogSpecifications.searchAdmin("SEPAY", null, null, null, null),
+                PageRequest.of(0, 10)).getContent()
                 .stream()
                 .map(com.example.KendyDigital.dto.audit.response.AuditLogResponse::from)
                 .toList());
@@ -190,10 +194,6 @@ public class AdminSystemConfigServiceImpl  implements AdminSystemConfigService{
 
     private String normalizeQuery(String value) {
         return value == null || value.isBlank() ? null : value.trim();
-    }
-
-    private String likePattern(String value) {
-        return value == null ? null : "%" + value.toLowerCase(java.util.Locale.ROOT) + "%";
     }
 
     private boolean isConfigured(String value) {

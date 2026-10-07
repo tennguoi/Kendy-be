@@ -91,18 +91,18 @@ public class AccountInventoryServiceImpl implements AccountInventoryService {
     public List<AccountCredentialAdminResponse> searchByService(Long serviceId, AccountCredentialStatus status,
             String query, Instant createdFrom, Instant createdTo, Instant deliveredFrom, Instant deliveredTo,
             Instant expiresBefore, Integer limit) {
-        String pattern = query == null || query.isBlank() ? null
-                : "%" + query.trim().toLowerCase(Locale.ROOT) + "%";
-        return accountCredentialRepository.searchForAdmin(
-                        serviceId,
-                        status,
-                        pattern,
-                        createdFrom,
-                        createdTo,
-                        deliveredFrom,
-                        deliveredTo,
-                        expiresBefore,
-                        page(normalizedLimit(limit)))
+        String normalizedQuery = query == null || query.isBlank() ? null : query.trim();
+        return accountCredentialRepository.findAll(
+                        com.example.KendyDigital.repository.specification.AccountCredentialSpecifications.searchForAdmin(
+                                serviceId,
+                                status,
+                                normalizedQuery,
+                                createdFrom,
+                                createdTo,
+                                deliveredFrom,
+                                deliveredTo,
+                                expiresBefore),
+                        page(normalizedLimit(limit))).getContent()
                 .stream()
                 .map(AccountCredentialAdminResponse::from)
                 .toList();
@@ -111,15 +111,15 @@ public class AccountInventoryServiceImpl implements AccountInventoryService {
     @Transactional(readOnly = true)
     public List<AccountCredentialAdminResponse> searchAssigned(AccountCredentialStatus status, String query,
             Instant deliveredFrom, Instant deliveredTo, Instant expiresBefore, Integer limit) {
-        String pattern = query == null || query.isBlank() ? null
-                : "%" + query.trim().toLowerCase(Locale.ROOT) + "%";
-        return accountCredentialRepository.searchAssignedForAdmin(
-                        status,
-                        pattern,
-                        deliveredFrom,
-                        deliveredTo,
-                        expiresBefore,
-                        page(normalizedLimit(limit)))
+        String normalizedQuery = query == null || query.isBlank() ? null : query.trim();
+        return accountCredentialRepository.findAll(
+                        com.example.KendyDigital.repository.specification.AccountCredentialSpecifications.searchAssignedForAdmin(
+                                status,
+                                normalizedQuery,
+                                deliveredFrom,
+                                deliveredTo,
+                                expiresBefore),
+                        page(normalizedLimit(limit))).getContent()
                 .stream()
                 .map(AccountCredentialAdminResponse::from)
                 .toList();

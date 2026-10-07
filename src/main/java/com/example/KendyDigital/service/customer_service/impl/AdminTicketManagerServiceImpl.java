@@ -21,7 +21,6 @@ import com.example.KendyDigital.service.customer_service.helper.TicketNotificati
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.stream.Collectors;
 import org.springframework.data.domain.PageRequest;
@@ -67,9 +66,10 @@ public class AdminTicketManagerServiceImpl implements AdminTicketManagerService 
     public List<TicketResponse> searchForAdmin(String query, TicketStatus status, TicketCategory category,
             TicketPriority priority, Long userId, Integer limit) {
         String normalizedQuery = normalizeQuery(query);
-        String pattern = likePattern(normalizedQuery);
-        Long queryId = parseLongOrNull(normalizedQuery);
-        List<Ticket> tickets = ticketRepository.searchAdmin(pattern, queryId, status, category, priority, userId, page(limit));
+        List<Ticket> tickets = ticketRepository.findAll(
+                com.example.KendyDigital.repository.specification.TicketSpecifications.searchAdmin(
+                        normalizedQuery, status, category, priority, userId),
+                page(limit)).getContent();
         return toResponseList(tickets);
     }
 
@@ -211,21 +211,6 @@ public class AdminTicketManagerServiceImpl implements AdminTicketManagerService 
 
     private String normalizeQuery(String value) {
         return value == null || value.isBlank() ? null : value.trim();
-    }
-
-    private String likePattern(String value) {
-        return value == null ? null : "%" + value.toLowerCase(Locale.ROOT) + "%";
-    }
-
-    private Long parseLongOrNull(String value) {
-        if (value == null) {
-            return null;
-        }
-        try {
-            return Long.parseLong(value);
-        } catch (NumberFormatException ex) {
-            return null;
-        }
     }
 
     private PageRequest page(Integer limit) {

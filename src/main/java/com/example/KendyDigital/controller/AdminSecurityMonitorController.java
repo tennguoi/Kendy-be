@@ -19,6 +19,7 @@ import com.example.KendyDigital.dto.monitoring.response.ThreatOverviewResponse;
 import com.example.KendyDigital.security.CurrentUser;
 import com.example.KendyDigital.service.security.AdminSecurityMonitorService;
 import com.example.KendyDigital.service.security.monitor.AuditIntegrityService;
+import com.example.KendyDigital.service.security.monitor.GeoIpDatabaseUpdater;
 import jakarta.validation.Valid;
 import java.time.Instant;
 import java.util.List;
@@ -42,9 +43,12 @@ import org.springframework.web.bind.annotation.RestController;
 @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
 public class AdminSecurityMonitorController {
     private final AdminSecurityMonitorService monitorService;
+    private final GeoIpDatabaseUpdater geoIpDatabaseUpdater;
 
-    public AdminSecurityMonitorController(AdminSecurityMonitorService monitorService) {
+    public AdminSecurityMonitorController(AdminSecurityMonitorService monitorService,
+            GeoIpDatabaseUpdater geoIpDatabaseUpdater) {
         this.monitorService = monitorService;
+        this.geoIpDatabaseUpdater = geoIpDatabaseUpdater;
     }
 
     @GetMapping("/api/admin/security/overview")
@@ -187,5 +191,11 @@ public class AdminSecurityMonitorController {
     @PreAuthorize("hasRole('SUPER_ADMIN')")
     public AuditIntegrityService.IntegrityReport auditIntegrity() {
         return monitorService.auditIntegrity();
+    }
+
+    @PostMapping("/api/admin/security/geoip/update")
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    public GeoIpDatabaseUpdater.UpdateResult updateGeoIpDatabases() {
+        return geoIpDatabaseUpdater.updateAll();
     }
 }

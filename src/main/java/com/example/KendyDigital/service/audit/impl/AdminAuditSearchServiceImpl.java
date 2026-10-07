@@ -4,7 +4,6 @@ import com.example.KendyDigital.dto.audit.response.AuditLogResponse;
 import com.example.KendyDigital.repository.AuditLogRepository;
 import com.example.KendyDigital.service.audit.AdminAuditSearchService;
 import java.util.List;
-import java.util.Locale;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -22,7 +21,10 @@ public class AdminAuditSearchServiceImpl implements AdminAuditSearchService {
     @Override
     @Transactional(readOnly = true)
     public List<AuditLogResponse> sepayLogs(Integer limit) {
-        return auditLogRepository.searchAdmin(likePattern("SEPAY"), null, null, null, null, page(limit))
+        return auditLogRepository.findAll(
+                com.example.KendyDigital.repository.specification.AuditLogSpecifications.searchAdmin(
+                        "SEPAY", null, null, null, null),
+                page(limit)).getContent()
                 .stream()
                 .map(AuditLogResponse::from)
                 .toList();
@@ -32,8 +34,10 @@ public class AdminAuditSearchServiceImpl implements AdminAuditSearchService {
     @Transactional(readOnly = true)
     public List<AuditLogResponse> searchAudit(String query, String action, Long actorUserId, String targetType,
             Long targetId, Integer limit) {
-        return auditLogRepository.searchAdmin(likePattern(normalizeQuery(query)), blankToNull(action), actorUserId,
-                        blankToNull(targetType), targetId, page(limit))
+        return auditLogRepository.findAll(
+                com.example.KendyDigital.repository.specification.AuditLogSpecifications.searchAdmin(
+                        normalizeQuery(query), blankToNull(action), actorUserId, blankToNull(targetType), targetId),
+                page(limit)).getContent()
                 .stream()
                 .map(AuditLogResponse::from)
                 .toList();
@@ -63,10 +67,6 @@ public class AdminAuditSearchServiceImpl implements AdminAuditSearchService {
 
     private String normalizeQuery(String value) {
         return value == null || value.isBlank() ? null : value.trim();
-    }
-
-    private String likePattern(String value) {
-        return value == null ? null : "%" + value.toLowerCase(Locale.ROOT) + "%";
     }
 
     private String blankToNull(String value) {

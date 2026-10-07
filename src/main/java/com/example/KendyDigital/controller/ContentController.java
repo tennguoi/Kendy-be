@@ -62,7 +62,9 @@ public class ContentController {
             @RequestParam(required = false) Boolean published,
             @RequestParam(required = false) String query,
             @RequestParam(required = false) Integer limit) {
-        return contentItemRepository.search(type, published, likePattern(query), page(limit))
+        return contentItemRepository.findAll(
+                com.example.KendyDigital.repository.specification.ContentItemSpecifications.withFilter(type, published, query),
+                page(limit)).getContent()
                 .stream()
                 .map(ContentItemResponse::from)
                 .toList();
@@ -148,9 +150,5 @@ public class ContentController {
 
     private String blankToNull(String value) {
         return value == null || value.isBlank() ? null : value.trim();
-    }
-
-    private String likePattern(String value) {
-        return value == null || value.isBlank() ? null : "%" + value.trim().toLowerCase(Locale.ROOT) + "%";
     }
 }

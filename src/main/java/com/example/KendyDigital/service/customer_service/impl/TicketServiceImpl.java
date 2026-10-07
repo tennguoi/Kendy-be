@@ -29,7 +29,6 @@ import com.example.KendyDigital.service.customer_service.attachment.TicketAttach
 import com.example.KendyDigital.service.customer_service.helper.TicketNotificationHelper;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.stream.Collectors;
 import org.springframework.data.domain.PageRequest;
@@ -122,10 +121,10 @@ public class TicketServiceImpl implements TicketService {
     public List<TicketResponse> searchForUser(Long userId, String query, TicketStatus status, TicketCategory category,
             TicketPriority priority, int page, int size) {
         String normalizedQuery = normalizeQuery(query);
-        String pattern = likePattern(normalizedQuery);
-        Long queryId = parseLongOrNull(normalizedQuery);
-        List<Ticket> tickets = ticketRepository.searchUser(userId, pattern, queryId, status, category, priority,
-                paged(page, size));
+        List<Ticket> tickets = ticketRepository.findAll(
+                com.example.KendyDigital.repository.specification.TicketSpecifications.searchUser(
+                        userId, normalizedQuery, status, category, priority),
+                paged(page, size)).getContent();
         return toResponseList(tickets);
     }
 
@@ -392,21 +391,6 @@ public class TicketServiceImpl implements TicketService {
 
     private String normalizeQuery(String value) {
         return value == null || value.isBlank() ? null : value.trim();
-    }
-
-    private String likePattern(String value) {
-        return value == null ? null : "%" + value.toLowerCase(Locale.ROOT) + "%";
-    }
-
-    private Long parseLongOrNull(String value) {
-        if (value == null) {
-            return null;
-        }
-        try {
-            return Long.parseLong(value);
-        } catch (NumberFormatException ex) {
-            return null;
-        }
     }
 
     private PageRequest paged(int page, int size) {

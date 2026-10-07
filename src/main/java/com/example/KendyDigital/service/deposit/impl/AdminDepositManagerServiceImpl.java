@@ -53,8 +53,10 @@ public class AdminDepositManagerServiceImpl  implements AdminDepositManagerServi
 
     @Transactional(readOnly = true)
     public List<DepositResponse> listDeposits(DepositStatus status, Long userId, Instant fromDate, Instant toDate, int page, int size) {
-        List<DepositRequest> deposits = depositRequestRepository.searchAdmin(
-                null, null, status, userId, fromDate, toDate, paged(page, size));
+        List<DepositRequest> deposits = depositRequestRepository.findAll(
+                com.example.KendyDigital.repository.specification.DepositRequestSpecifications.searchAdmin(
+                        null, status, userId, fromDate, toDate),
+                paged(page, size)).getContent();
         return deposits.stream().map(DepositResponse::from).toList();
     }
 
@@ -67,14 +69,10 @@ public class AdminDepositManagerServiceImpl  implements AdminDepositManagerServi
     public List<DepositResponse> searchDeposits(String query, DepositStatus status, Long userId,
             Instant fromDate, Instant toDate, int page, int size) {
         String normalizedQuery = normalizeQuery(query);
-        List<DepositRequest> deposits = depositRequestRepository.searchAdmin(
-                likePattern(normalizedQuery),
-                parseLongOrNull(normalizedQuery),
-                status,
-                userId,
-                fromDate,
-                toDate,
-                paged(page, size));
+        List<DepositRequest> deposits = depositRequestRepository.findAll(
+                com.example.KendyDigital.repository.specification.DepositRequestSpecifications.searchAdmin(
+                        normalizedQuery, status, userId, fromDate, toDate),
+                paged(page, size)).getContent();
         return deposits.stream().map(DepositResponse::from).toList();
     }
 
@@ -198,21 +196,6 @@ public class AdminDepositManagerServiceImpl  implements AdminDepositManagerServi
 
     private String normalizeQuery(String query) {
         return query == null || query.isBlank() ? null : query.trim();
-    }
-
-    private String likePattern(String query) {
-        return query == null ? null : "%" + query.toLowerCase(Locale.ROOT) + "%";
-    }
-
-    private Long parseLongOrNull(String value) {
-        if (value == null) {
-            return null;
-        }
-        try {
-            return Long.parseLong(value);
-        } catch (NumberFormatException ex) {
-            return null;
-        }
     }
 }
 

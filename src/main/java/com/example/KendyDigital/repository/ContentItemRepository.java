@@ -6,26 +6,11 @@ import java.util.List;
 import java.util.Optional;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.repository.query.Param;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
-public interface ContentItemRepository extends JpaRepository<ContentItem, Long> {
+public interface ContentItemRepository extends JpaRepository<ContentItem, Long>, JpaSpecificationExecutor<ContentItem> {
     Optional<ContentItem> findByTypeAndSlug(ContentType type, String slug);
 
     List<ContentItem> findAllByTypeAndPublishedOrderBySortOrderAscCreatedAtDesc(ContentType type, boolean published);
-
-    @Query("""
-            select c from ContentItem c
-            where (cast(:type as string) is null or c.type = :type)
-              and (cast(:published as boolean) is null or c.published = :published)
-              and (
-                cast(:queryPattern as string) is null
-                or lower(c.slug) like :queryPattern
-                or lower(c.title) like :queryPattern
-                or lower(coalesce(c.summary, '')) like :queryPattern
-              )
-            order by c.type asc, c.sortOrder asc, c.createdAt desc
-            """)
-    List<ContentItem> search(@Param("type") ContentType type, @Param("published") Boolean published,
-            @Param("queryPattern") String queryPattern, Pageable pageable);
 }
+

@@ -7,15 +7,26 @@ import jakarta.persistence.QueryHint;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.jpa.repository.QueryHints;
 import org.springframework.data.repository.query.Param;
 
-public interface AccountCredentialRepository extends JpaRepository<AccountCredential, Long> {
+public interface AccountCredentialRepository extends JpaRepository<AccountCredential, Long>, JpaSpecificationExecutor<AccountCredential> {
+    @Override
+    @EntityGraph(attributePaths = {"service", "assignedOrder", "reservedCheckout", "reservedByUser", "deliveredToUser"})
+    Page<AccountCredential> findAll(Specification<AccountCredential> spec, Pageable pageable);
+
+    @Override
+    @EntityGraph(attributePaths = {"service", "assignedOrder", "reservedCheckout", "reservedByUser", "deliveredToUser"})
+    List<AccountCredential> findAll(Specification<AccountCredential> spec);
+
     boolean existsByService_IdAndLoginIdentifierIgnoreCase(Long serviceId, String loginIdentifier);
 
     boolean existsByService_IdAndPayloadHash(Long serviceId, String payloadHash);
@@ -29,63 +40,6 @@ public interface AccountCredentialRepository extends JpaRepository<AccountCreden
     List<AccountCredential> findAllByService_IdAndStatusOrderByCreatedAtDesc(Long serviceId,
             AccountCredentialStatus status, Pageable pageable);
 
-    @Query("""
-            select c from AccountCredential c
-            join fetch c.service
-            left join fetch c.assignedOrder
-            left join fetch c.reservedCheckout
-            left join fetch c.reservedByUser
-            left join fetch c.deliveredToUser
-            where c.service.id = :serviceId
-              and (cast(:status as string) is null or c.status = :status)
-              and (cast(:queryPattern as string) is null
-                or lower(c.loginIdentifier) like :queryPattern
-                or lower(coalesce(c.internalNote, '')) like :queryPattern
-              )
-              and (cast(:createdFrom as timestamp) is null or c.createdAt >= :createdFrom)
-              and (cast(:createdTo as timestamp) is null or c.createdAt < :createdTo)
-              and (cast(:deliveredFrom as timestamp) is null or c.deliveredAt >= :deliveredFrom)
-              and (cast(:deliveredTo as timestamp) is null or c.deliveredAt < :deliveredTo)
-              and (cast(:expiresBefore as timestamp) is null or c.expiresAt < :expiresBefore)
-            order by c.createdAt desc
-            """)
-    List<AccountCredential> searchForAdmin(@Param("serviceId") Long serviceId,
-            @Param("status") AccountCredentialStatus status,
-            @Param("queryPattern") String queryPattern,
-            @Param("createdFrom") Instant createdFrom,
-            @Param("createdTo") Instant createdTo,
-            @Param("deliveredFrom") Instant deliveredFrom,
-            @Param("deliveredTo") Instant deliveredTo,
-            @Param("expiresBefore") Instant expiresBefore,
-            Pageable pageable);
-
-    @Query("""
-            select c from AccountCredential c
-            join fetch c.service
-            join fetch c.deliveredToUser
-            left join fetch c.assignedOrder
-            where c.deliveredToUser is not null
-              and (cast(:status as string) is null or c.status = :status)
-              and (cast(:queryPattern as string) is null
-                or lower(c.loginIdentifier) like :queryPattern
-                or lower(c.service.name) like :queryPattern
-                or lower(c.deliveredToUser.name) like :queryPattern
-                or lower(c.deliveredToUser.email) like :queryPattern
-                or lower(coalesce(c.deliveredToUser.phone, '')) like :queryPattern
-                or lower(coalesce(c.assignedOrder.orderCode, '')) like :queryPattern
-              )
-              and (cast(:deliveredFrom as timestamp) is null or c.deliveredAt >= :deliveredFrom)
-              and (cast(:deliveredTo as timestamp) is null or c.deliveredAt < :deliveredTo)
-              and (cast(:expiresBefore as timestamp) is null or c.expiresAt < :expiresBefore)
-            order by c.deliveredAt desc, c.createdAt desc
-            """)
-    List<AccountCredential> searchAssignedForAdmin(
-            @Param("status") AccountCredentialStatus status,
-            @Param("queryPattern") String queryPattern,
-            @Param("deliveredFrom") Instant deliveredFrom,
-            @Param("deliveredTo") Instant deliveredTo,
-            @Param("expiresBefore") Instant expiresBefore,
-            Pageable pageable);
 
     @Query("""
             select c from AccountCredential c

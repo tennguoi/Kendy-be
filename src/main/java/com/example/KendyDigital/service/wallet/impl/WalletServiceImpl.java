@@ -11,7 +11,6 @@ import com.example.KendyDigital.model.wallet.WalletTransactionType;
 import com.example.KendyDigital.repository.UserAccountRepository;
 import com.example.KendyDigital.repository.WalletTransactionRepository;
 import java.util.List;
-import java.util.Locale;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -69,13 +68,10 @@ public class WalletServiceImpl  implements WalletService{
     public List<WalletTransactionResponse> searchTransactions(Long userId, String query, WalletTransactionType type,
             WalletTransactionDirection direction, int page, int size) {
         String normalizedQuery = normalizeQuery(query);
-        return walletTransactionRepository.searchUser(
-                        userId,
-                        likePattern(normalizedQuery),
-                        parseLongOrNull(normalizedQuery),
-                        type,
-                        direction,
-                        paged(page, size))
+        return walletTransactionRepository.findAll(
+                        com.example.KendyDigital.repository.specification.WalletTransactionSpecifications.searchUser(
+                                userId, normalizedQuery, type, direction),
+                        paged(page, size)).getContent()
                 .stream()
                 .map(WalletTransactionResponse::from)
                 .toList();
@@ -94,21 +90,6 @@ public class WalletServiceImpl  implements WalletService{
 
     private String normalizeQuery(String value) {
         return value == null || value.isBlank() ? null : value.trim();
-    }
-
-    private String likePattern(String value) {
-        return value == null ? null : "%" + value.toLowerCase(Locale.ROOT) + "%";
-    }
-
-    private Long parseLongOrNull(String value) {
-        if (value == null) {
-            return null;
-        }
-        try {
-            return Long.parseLong(value);
-        } catch (NumberFormatException exception) {
-            return null;
-        }
     }
 }
 

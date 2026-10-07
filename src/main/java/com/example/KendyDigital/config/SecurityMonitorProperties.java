@@ -15,6 +15,8 @@ public class SecurityMonitorProperties {
     private boolean geoIpEnabled = false;
     private String geoLiteDatabasePath = "";
     private String geoLiteAsnDatabasePath = "";
+    private boolean geoIpAutoUpdateEnabled = false;
+    private String maxmindLicenseKey = "";
 
     private int maxBanHours = 24;
     private int riskDecayPercentPerHour = 50;
@@ -84,6 +86,22 @@ public class SecurityMonitorProperties {
 
     public void setGeoLiteAsnDatabasePath(String geoLiteAsnDatabasePath) {
         this.geoLiteAsnDatabasePath = geoLiteAsnDatabasePath;
+    }
+
+    public boolean isGeoIpAutoUpdateEnabled() {
+        return geoIpAutoUpdateEnabled;
+    }
+
+    public void setGeoIpAutoUpdateEnabled(boolean geoIpAutoUpdateEnabled) {
+        this.geoIpAutoUpdateEnabled = geoIpAutoUpdateEnabled;
+    }
+
+    public String getMaxmindLicenseKey() {
+        return maxmindLicenseKey;
+    }
+
+    public void setMaxmindLicenseKey(String maxmindLicenseKey) {
+        this.maxmindLicenseKey = maxmindLicenseKey;
     }
 
     public int getMaxBanHours() {

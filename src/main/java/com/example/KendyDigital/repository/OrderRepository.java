@@ -7,13 +7,24 @@ import jakarta.persistence.LockModeType;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-public interface OrderRepository extends JpaRepository<OrderRecord, Long> {
+public interface OrderRepository extends JpaRepository<OrderRecord, Long>, JpaSpecificationExecutor<OrderRecord> {
+    @Override
+    @EntityGraph(attributePaths = {"user", "service", "deliveredCredential", "assignedAdmin", "supportTicket"})
+    Page<OrderRecord> findAll(Specification<OrderRecord> spec, Pageable pageable);
+
+    @Override
+    @EntityGraph(attributePaths = {"user", "service", "deliveredCredential", "assignedAdmin", "supportTicket"})
+    List<OrderRecord> findAll(Specification<OrderRecord> spec);
     boolean existsByOrderCode(String orderCode);
 
     @Query("""
@@ -89,56 +100,6 @@ public interface OrderRepository extends JpaRepository<OrderRecord, Long> {
             order by o.createdAt desc
             """)
     List<OrderRecord> findAllByStatusOrderByCreatedAtDesc(@Param("status") OrderStatus status, Pageable pageable);
-
-    @Query("""
-            select o from OrderRecord o
-            join fetch o.service s
-            left join fetch o.deliveredCredential
-            left join fetch o.assignedAdmin
-            left join fetch o.supportTicket
-            join fetch o.user u
-            where u.id = :userId
-              and (cast(:status as string) is null or o.status = :status)
-              and (
-                cast(:queryPattern as string) is null
-                or lower(o.orderCode) like :queryPattern
-                or lower(s.name) like :queryPattern
-                or lower(s.slug) like :queryPattern
-                or lower(coalesce(o.inputData, '')) like :queryPattern
-                or (cast(:exactId as long) is not null and o.id = :exactId)
-              )
-            order by o.createdAt desc
-            """)
-    List<OrderRecord> searchUser(@Param("userId") Long userId, @Param("queryPattern") String queryPattern,
-            @Param("exactId") Long exactId, @Param("status") OrderStatus status, Pageable pageable);
-
-    @Query("""
-            select o from OrderRecord o
-            join fetch o.user u
-            join fetch o.service s
-            left join fetch o.deliveredCredential
-            left join fetch o.assignedAdmin
-            left join fetch o.supportTicket
-            where (cast(:status as string) is null or o.status = :status)
-              and (cast(:userId as long) is null or u.id = :userId)
-              and (cast(:fromDate as timestamp) is null or o.createdAt >= :fromDate)
-              and (cast(:toDate as timestamp) is null or o.createdAt < :toDate)
-              and (
-                cast(:queryPattern as string) is null
-                or lower(o.orderCode) like :queryPattern
-                or lower(u.email) like :queryPattern
-                or lower(u.name) like :queryPattern
-                or lower(s.name) like :queryPattern
-                or lower(s.slug) like :queryPattern
-                or (cast(:exactId as long) is not null and o.id = :exactId)
-              )
-            order by o.createdAt desc
-            """)
-    List<OrderRecord> searchAdmin(@Param("queryPattern") String queryPattern, @Param("exactId") Long exactId,
-            @Param("status") OrderStatus status, @Param("userId") Long userId,
-            @Param("fromDate") java.time.Instant fromDate, @Param("toDate") java.time.Instant toDate,
-            Pageable pageable);
-
     long countByStatus(OrderStatus status);
 
     long countByUser_Id(Long userId);

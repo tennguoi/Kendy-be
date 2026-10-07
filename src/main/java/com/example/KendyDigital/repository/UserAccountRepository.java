@@ -10,11 +10,12 @@ import java.util.List;
 import java.util.Optional;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-public interface UserAccountRepository extends JpaRepository<UserAccount, Long> {
+public interface UserAccountRepository extends JpaRepository<UserAccount, Long>, JpaSpecificationExecutor<UserAccount> {
     Optional<UserAccount> findByEmailIgnoreCase(String email);
 
     Optional<UserAccount> findByOauthProviderAndOauthProviderId(String oauthProvider, String oauthProviderId);
@@ -28,21 +29,6 @@ public interface UserAccountRepository extends JpaRepository<UserAccount, Long> 
     List<UserAccount> findAllByRoleInOrderByCreatedAtDesc(List<UserRole> roles, Pageable pageable);
 
     List<UserAccount> findByRoleIn(List<UserRole> roles);
-
-    @Query("""
-            select u from UserAccount u
-            where (cast(:status as string) is null or u.status = :status)
-              and (
-                cast(:queryPattern as string) is null
-                or lower(u.name) like :queryPattern
-                or lower(u.email) like :queryPattern
-                or lower(coalesce(u.phone, '')) like :queryPattern
-                or (cast(:exactId as long) is not null and u.id = :exactId)
-              )
-            order by u.createdAt desc
-            """)
-    List<UserAccount> searchAdmin(@Param("queryPattern") String queryPattern, @Param("exactId") Long exactId,
-            @Param("status") UserStatus status, Pageable pageable);
 
     long countByStatus(UserStatus status);
 

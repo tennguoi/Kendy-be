@@ -57,7 +57,6 @@ import java.math.RoundingMode;
 import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
@@ -140,6 +139,15 @@ public class OrderServiceImpl implements OrderService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
         if (user.getStatus() != UserStatus.ACTIVE) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "User is not active");
+        }
+
+        if (idempotencyKey != null) {
+            OrderRecord existingOrder = orderRepository
+                    .findByUser_IdAndIdempotencyKey(userId, idempotencyKey)
+                    .orElse(null);
+            if (existingOrder != null) {
+                return toResponse(existingOrder);
+            }
         }
 
         ServiceItem service = serviceItemRepository.findById(request.serviceId())
@@ -278,12 +286,9 @@ public class OrderServiceImpl implements OrderService {
     @Transactional(readOnly = true)
     public List<OrderResponse> searchForUser(Long userId, String query, OrderStatus status, int page, int size) {
         String normalizedQuery = normalizeQuery(query);
-        return orderRepository.searchUser(
-                        userId,
-                        likePattern(normalizedQuery),
-                        parseLongOrNull(normalizedQuery),
-                        status,
-                        paged(page, size))
+        return orderRepository.findAll(
+                        com.example.KendyDigital.repository.specification.OrderSpecifications.searchUser(userId, normalizedQuery, status),
+                        paged(page, size)).getContent()
                 .stream()
                 .map(this::toResponse)
                 .toList();
@@ -450,20 +455,6 @@ public class OrderServiceImpl implements OrderService {
         return value == null || value.isBlank() ? null : value.trim();
     }
 
-    private String likePattern(String value) {
-        return value == null ? null : "%" + value.toLowerCase(Locale.ROOT) + "%";
-    }
-
-    private Long parseLongOrNull(String value) {
-        if (value == null) {
-            return null;
-        }
-        try {
-            return Long.parseLong(value);
-        } catch (NumberFormatException ex) {
-            return null;
-        }
-    }
 
     private PageRequest page(Integer limit) {
         int normalizedLimit = limit == null ? 100 : Math.max(1, Math.min(limit, 200));

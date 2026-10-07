@@ -19,7 +19,6 @@ import com.example.KendyDigital.repository.WalletTransactionRepository;
 import com.example.KendyDigital.service.audit.AuditService;
 import com.example.KendyDigital.service.notification.UserNotificationService;
 import java.util.List;
-import java.util.Locale;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -27,7 +26,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 @Service
-public class AdminUserManagerServiceImpl  implements AdminUserManagerService{
+public class AdminUserManagerServiceImpl implements AdminUserManagerService {
     private final UserAccountRepository userAccountRepository;
     private final OrderRepository orderRepository;
     private final DepositRequestRepository depositRequestRepository;
@@ -73,11 +72,9 @@ public class AdminUserManagerServiceImpl  implements AdminUserManagerService{
     @Transactional(readOnly = true)
     public List<AdminUserResponse> searchUsers(String query, UserStatus status, int page, int size) {
         String normalizedQuery = normalizeQuery(query);
-        List<UserAccount> users = userAccountRepository.searchAdmin(
-                likePattern(normalizedQuery),
-                parseLongOrNull(normalizedQuery),
-                status,
-                paged(page, size));
+        List<UserAccount> users = userAccountRepository.findAll(
+                com.example.KendyDigital.repository.specification.UserAccountSpecifications.searchAdmin(normalizedQuery, status),
+                paged(page, size)).getContent();
         return users.stream().map(AdminUserResponse::from).toList();
     }
 
@@ -102,7 +99,8 @@ public class AdminUserManagerServiceImpl  implements AdminUserManagerService{
     }
 
     @Transactional
-    public AdminUserResponse updateUserStatus(Long adminUserId, Long targetUserId, AdminUserStatusUpdateRequest request) {
+    public AdminUserResponse updateUserStatus(Long adminUserId, Long targetUserId,
+            AdminUserStatusUpdateRequest request) {
         UserAccount user = userAccountRepository.findByIdForUpdate(targetUserId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
         if (request.version() != null && !request.version().equals(user.getVersion())) {
@@ -116,8 +114,9 @@ public class AdminUserManagerServiceImpl  implements AdminUserManagerService{
                 user.getId(),
                 "status=" + request.status() + ",reason=" + blankToNull(request.reason()));
         userNotificationService.create(user.getId(), "Account status changed",
-            "Your account status has been changed to " + request.status() + ". Reason: " + blankToNull(request.reason()),
-            "SECURITY", "/account/security");
+                "Your account status has been changed to " + request.status() + ". Reason: "
+                        + blankToNull(request.reason()),
+                "SECURITY", "/account/security");
         return AdminUserResponse.from(user);
     }
 
@@ -145,8 +144,8 @@ public class AdminUserManagerServiceImpl  implements AdminUserManagerService{
                 user.getId(),
                 "role=" + request.role() + ",reason=" + blankToNull(request.reason()));
         userNotificationService.create(user.getId(), "Account role changed",
-            "Your account role has been changed to " + request.role(),
-            "SECURITY", "/account/security");
+                "Your account role has been changed to " + request.role(),
+                "SECURITY", "/account/security");
         return AdminUserResponse.from(user);
     }
 
@@ -158,23 +157,7 @@ public class AdminUserManagerServiceImpl  implements AdminUserManagerService{
         return query == null || query.isBlank() ? null : query.trim();
     }
 
-    private String likePattern(String query) {
-        return query == null ? null : "%" + query.toLowerCase(Locale.ROOT) + "%";
-    }
-
-    private Long parseLongOrNull(String value) {
-        if (value == null) {
-            return null;
-        }
-        try {
-            return Long.parseLong(value);
-        } catch (NumberFormatException ex) {
-            return null;
-        }
-    }
-
     private String blankToNull(String value) {
         return value == null || value.isBlank() ? null : value.trim();
     }
 }
-

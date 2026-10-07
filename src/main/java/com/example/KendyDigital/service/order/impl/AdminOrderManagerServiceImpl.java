@@ -30,7 +30,6 @@ import com.example.KendyDigital.service.product_inventory.EntitlementService;
 import com.example.KendyDigital.service.wallet.WalletLedgerService;
 import java.time.Instant;
 import java.util.List;
-import java.util.Locale;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -86,8 +85,10 @@ public class AdminOrderManagerServiceImpl implements AdminOrderManagerService {
             return orderRepository.findAllByOrderByCreatedAtDesc(paged(page, size))
                     .stream().map(this::toResponse).toList();
         }
-        List<OrderRecord> orders = orderRepository.searchAdmin(
-                null, null, status, userId, fromDate, toDate, paged(page, size));
+        List<OrderRecord> orders = orderRepository.findAll(
+                com.example.KendyDigital.repository.specification.OrderSpecifications.searchAdmin(
+                        null, status, userId, fromDate, toDate),
+                paged(page, size)).getContent();
         return orders.stream().map(this::toResponse).toList();
     }
 
@@ -96,14 +97,10 @@ public class AdminOrderManagerServiceImpl implements AdminOrderManagerService {
     public List<OrderResponse> searchOrders(String query, OrderStatus status, Long userId,
             Instant fromDate, Instant toDate, int page, int size) {
         String normalizedQuery = normalizeQuery(query);
-        List<OrderRecord> orders = orderRepository.searchAdmin(
-                likePattern(normalizedQuery),
-                parseLongOrNull(normalizedQuery),
-                status,
-                userId,
-                fromDate,
-                toDate,
-                paged(page, size));
+        List<OrderRecord> orders = orderRepository.findAll(
+                com.example.KendyDigital.repository.specification.OrderSpecifications.searchAdmin(
+                        normalizedQuery, status, userId, fromDate, toDate),
+                paged(page, size)).getContent();
         return orders.stream().map(this::toResponse).toList();
     }
 
@@ -394,21 +391,6 @@ public class AdminOrderManagerServiceImpl implements AdminOrderManagerService {
 
     private String normalizeQuery(String query) {
         return query == null || query.isBlank() ? null : query.trim();
-    }
-
-    private String likePattern(String query) {
-        return query == null ? null : "%" + query.toLowerCase(Locale.ROOT) + "%";
-    }
-
-    private Long parseLongOrNull(String value) {
-        if (value == null) {
-            return null;
-        }
-        try {
-            return Long.parseLong(value);
-        } catch (NumberFormatException ex) {
-            return null;
-        }
     }
 
     private String blankToNull(String value) {

@@ -83,13 +83,10 @@ public class AdminBankTxManagerServiceImpl  implements AdminBankTxManagerService
     public List<AdminBankTransactionResponse> searchBankTransactions(String query, BankTransactionStatus status,
             Instant fromDate, Instant toDate, int page, int size) {
         String normalizedQuery = normalizeQuery(query);
-        Long parsedId = parseLongOrNull(normalizedQuery);
-        List<BankTransaction> transactions = bankTransactionRepository.searchAdmin(
-                likePattern(normalizedQuery),
-                parsedId,
-                parsedId,
-                status,
-                paged(page, size));
+        List<BankTransaction> transactions = bankTransactionRepository.findAll(
+                com.example.KendyDigital.repository.specification.BankTransactionSpecifications.searchAdmin(
+                        normalizedQuery, status),
+                paged(page, size)).getContent();
         return transactions.stream().map(AdminBankTransactionResponse::from).toList();
     }
 
@@ -413,21 +410,6 @@ public class AdminBankTxManagerServiceImpl  implements AdminBankTxManagerService
 
     private String normalizeQuery(String query) {
         return query == null || query.isBlank() ? null : query.trim();
-    }
-
-    private String likePattern(String query) {
-        return query == null ? null : "%" + query.toLowerCase(Locale.ROOT) + "%";
-    }
-
-    private Long parseLongOrNull(String value) {
-        if (value == null) {
-            return null;
-        }
-        try {
-            return Long.parseLong(value);
-        } catch (NumberFormatException ex) {
-            return null;
-        }
     }
 
     private String nullSafe(String value) {
