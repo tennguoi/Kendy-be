@@ -80,6 +80,26 @@ Deploy folder: ${env.APP_DIR}
       }
     }
 
+    stage('Build') {
+      steps {
+        script {
+          if (isUnix()) {
+            sh '''
+              chmod +x mvnw
+
+              ./mvnw package \
+                -DskipTests
+            '''
+          } else {
+            bat '''
+              @echo off
+              call mvnw.cmd package -DskipTests
+            '''
+          }
+        }
+      }
+    }
+
     stage('Build Image') {
       steps {
         script {
