@@ -122,7 +122,7 @@ public class CheckoutServiceImpl  implements CheckoutService{
             }
         }
 
-        ServiceItem service = serviceItemRepository.findById(request.serviceId())
+        ServiceItem service = serviceItemRepository.findByPublicId(request.serviceId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Service not found"));
         validateServiceForCheckout(service);
 
@@ -271,7 +271,7 @@ public class CheckoutServiceImpl  implements CheckoutService{
                 ? "checkout:" + checkout.getCheckoutCode()
                 : checkout.getIdempotencyKey();
         orderService.createForCheckout(checkout.getUser().getId(), new CreateOrderRequest(
-                checkout.getService().getId(),
+                checkout.getService().getPublicId(),
                 checkout.getInputData(),
                 idempotencyKey,
                 checkout.getCouponCode()), checkout.getId());

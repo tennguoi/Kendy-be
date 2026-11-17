@@ -9,6 +9,7 @@ import com.example.KendyDigital.service.user_management.AdminRoleService;
 import jakarta.validation.Valid;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -35,7 +36,7 @@ public class AdminRoleController {
     }
 
     @GetMapping("/api/admin/roles/{id}")
-    public AdminRoleResponse getRole(@PathVariable Long id) {
+    public AdminRoleResponse getRole(@PathVariable UUID id) {
         return adminRoleService.getRole(id);
     }
 
@@ -46,13 +47,13 @@ public class AdminRoleController {
     }
 
     @PutMapping("/api/admin/roles/{id}")
-    public AdminRoleResponse updateRole(Authentication authentication, @PathVariable Long id,
+    public AdminRoleResponse updateRole(Authentication authentication, @PathVariable UUID id,
             @Valid @RequestBody UpdateAdminRoleRequest request) {
         return adminRoleService.updateRole(CurrentUser.require(authentication).userId(), id, request);
     }
 
     @DeleteMapping("/api/admin/roles/{id}")
-    public void deleteRole(Authentication authentication, @PathVariable Long id) {
+    public void deleteRole(Authentication authentication, @PathVariable UUID id) {
         adminRoleService.deleteRole(CurrentUser.require(authentication).userId(), id);
     }
 
@@ -62,13 +63,13 @@ public class AdminRoleController {
     }
 
     @GetMapping("/api/admin/users/{userId}/roles")
-    public Map<String, Object> getUserRoles(@PathVariable Long userId) {
+    public Map<String, Object> getUserRoles(@PathVariable UUID userId) {
         return adminRoleService.getUserRoles(userId);
     }
 
     @PutMapping("/api/admin/users/{userId}/roles")
-    public Map<String, Object> setUserRoles(Authentication authentication, @PathVariable Long userId,
-            @RequestBody List<Long> roleIds) {
+    public Map<String, Object> setUserRoles(Authentication authentication, @PathVariable UUID userId,
+            @RequestBody List<UUID> roleIds) {
         return adminRoleService.setUserRoles(CurrentUser.require(authentication).userId(), userId, roleIds);
     }
 }

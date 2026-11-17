@@ -3,12 +3,15 @@ package com.example.KendyDigital.repository;
 import com.example.KendyDigital.model.catalog.ServiceCategory;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.EntityGraph;
 
 public interface ServiceCategoryRepository extends JpaRepository<ServiceCategory, Long> {
     boolean existsBySlug(String slug);
+
+    Optional<ServiceCategory> findByPublicId(UUID publicId);
 
     @EntityGraph(attributePaths = "parent")
     Optional<ServiceCategory> findBySlug(String slug);

@@ -16,6 +16,7 @@ import com.example.KendyDigital.service.notification.UserNotificationService;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
+import java.util.UUID;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -48,58 +49,59 @@ public class AdminWalletManagerServiceImpl  implements AdminWalletManagerService
     }
 
     @Transactional(readOnly = true)
-    public List<WalletTransactionResponse> listWalletTransactions(Long userId) {
+    public List<WalletTransactionResponse> listWalletTransactions(UUID userId) {
         return listWalletTransactions(userId, null);
     }
 
     @Transactional(readOnly = true)
-    public List<WalletTransactionResponse> listWalletTransactions(Long userId,
+    public List<WalletTransactionResponse> listWalletTransactions(UUID userId,
             Instant fromDate, Instant toDate, int page, int size) {
-        List<WalletTransaction> transactions = userId == null
+        Long internalUserId = resolveUserId(userId);
+        List<WalletTransaction> transactions = internalUserId == null
                 ? walletTransactionRepository.findAllByOrderByCreatedAtDesc(paged(page, size))
-                : walletTransactionRepository.findAllByUser_IdOrderByCreatedAtDesc(userId, paged(page, size));
+                : walletTransactionRepository.findAllByUser_IdOrderByCreatedAtDesc(internalUserId, paged(page, size));
         return transactions.stream().map(WalletTransactionResponse::from).toList();
     }
 
     @Transactional(readOnly = true)
-    public List<WalletTransactionResponse> listWalletTransactions(Long userId, Integer limit) {
+    public List<WalletTransactionResponse> listWalletTransactions(UUID userId, Integer limit) {
         return listWalletTransactions(userId, null, null, 0, limit == null ? 100 : limit);
     }
 
     @Transactional(readOnly = true)
-    public List<WalletTransactionResponse> searchWalletTransactions(String query, Long userId,
+    public List<WalletTransactionResponse> searchWalletTransactions(String query, UUID userId,
             WalletTransactionType type, WalletTransactionDirection direction,
             Instant fromDate, Instant toDate, int page, int size) {
         String normalizedQuery = normalizeQuery(query);
         List<WalletTransaction> transactions = walletTransactionRepository.findAll(
                 com.example.KendyDigital.repository.specification.WalletTransactionSpecifications.searchAdmin(
-                        normalizedQuery, userId, type, direction),
+                        normalizedQuery, resolveUserId(userId), type, direction),
                 paged(page, size)).getContent();
         return transactions.stream().map(WalletTransactionResponse::from).toList();
     }
 
     @Transactional(readOnly = true)
-    public List<WalletTransactionResponse> searchWalletTransactions(String query, Long userId,
+    public List<WalletTransactionResponse> searchWalletTransactions(String query, UUID userId,
             WalletTransactionType type, WalletTransactionDirection direction, Integer limit) {
         return searchWalletTransactions(query, userId, type, direction, null, null, 0, limit == null ? 100 : limit);
     }
 
     @Transactional(readOnly = true)
-    public WalletTransactionResponse getWalletTransaction(Long walletTransactionId) {
-        return walletTransactionRepository.findById(walletTransactionId)
+    public WalletTransactionResponse getWalletTransaction(UUID walletTransactionId) {
+        return walletTransactionRepository.findByPublicId(walletTransactionId)
                 .map(WalletTransactionResponse::from)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Wallet transaction not found"));
     }
 
     @Transactional
-    public WalletTransactionResponse adjustWallet(Long adminUserId, Long targetUserId,
+    public WalletTransactionResponse adjustWallet(Long adminUserId, UUID targetUserId,
             AdminWalletAdjustmentRequest request) {
         UserAccount admin = userAccountRepository.findById(adminUserId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Admin not found"));
         if (admin.getRole() != UserRole.ADMIN && admin.getRole() != UserRole.SUPER_ADMIN) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Admin role required");
         }
-        UserAccount user = userAccountRepository.findByIdForUpdate(targetUserId)
+        UserAccount user = userAccountRepository.findByPublicIdForUpdate(targetUserId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
 
         if (request.amount().compareTo(LARGE_TRANSACTION_THRESHOLD) >= 0) {
@@ -110,7 +112,7 @@ public class AdminWalletManagerServiceImpl  implements AdminWalletManagerService
         }
 
         WalletTransaction transaction;
-        Long userId = targetUserId;
+        Long userId = user.getId();
         if (request.direction() == WalletTransactionDirection.CREDIT) {
             transaction = walletLedgerService.credit(
                     userId,
@@ -147,6 +149,15 @@ public class AdminWalletManagerServiceImpl  implements AdminWalletManagerService
 
     private PageRequest paged(int page, int size) {
         return PageRequest.of(Math.max(0, page), Math.max(1, Math.min(size, 200)));
+    }
+
+    private Long resolveUserId(UUID publicId) {
+        if (publicId == null) {
+            return null;
+        }
+        return userAccountRepository.findByPublicId(publicId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"))
+                .getId();
     }
 
     private String normalizeQuery(String query) {

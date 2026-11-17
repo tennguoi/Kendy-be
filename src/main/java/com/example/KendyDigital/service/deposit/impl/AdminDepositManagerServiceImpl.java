@@ -20,6 +20,7 @@ import com.example.KendyDigital.service.wallet.WalletLedgerService;
 import java.time.Instant;
 import java.util.List;
 import java.util.Locale;
+import java.util.UUID;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -47,37 +48,37 @@ public class AdminDepositManagerServiceImpl  implements AdminDepositManagerServi
     }
 
     @Transactional(readOnly = true)
-    public List<DepositResponse> listDeposits(DepositStatus status, Long userId) {
+    public List<DepositResponse> listDeposits(DepositStatus status, UUID userId) {
         return listDeposits(status, userId, null, null, 0, 100);
     }
 
     @Transactional(readOnly = true)
-    public List<DepositResponse> listDeposits(DepositStatus status, Long userId, Instant fromDate, Instant toDate, int page, int size) {
+    public List<DepositResponse> listDeposits(DepositStatus status, UUID userId, Instant fromDate, Instant toDate, int page, int size) {
         List<DepositRequest> deposits = depositRequestRepository.findAll(
                 com.example.KendyDigital.repository.specification.DepositRequestSpecifications.searchAdmin(
-                        null, status, userId, fromDate, toDate),
+                        null, status, resolveUserId(userId), fromDate, toDate),
                 paged(page, size)).getContent();
         return deposits.stream().map(DepositResponse::from).toList();
     }
 
     @Transactional(readOnly = true)
-    public List<DepositResponse> listDeposits(DepositStatus status, Long userId, Integer limit) {
+    public List<DepositResponse> listDeposits(DepositStatus status, UUID userId, Integer limit) {
         return listDeposits(status, userId, null, null, 0, limit == null ? 100 : limit);
     }
 
     @Transactional(readOnly = true)
-    public List<DepositResponse> searchDeposits(String query, DepositStatus status, Long userId,
+    public List<DepositResponse> searchDeposits(String query, DepositStatus status, UUID userId,
             Instant fromDate, Instant toDate, int page, int size) {
         String normalizedQuery = normalizeQuery(query);
         List<DepositRequest> deposits = depositRequestRepository.findAll(
                 com.example.KendyDigital.repository.specification.DepositRequestSpecifications.searchAdmin(
-                        normalizedQuery, status, userId, fromDate, toDate),
+                        normalizedQuery, status, resolveUserId(userId), fromDate, toDate),
                 paged(page, size)).getContent();
         return deposits.stream().map(DepositResponse::from).toList();
     }
 
     @Transactional(readOnly = true)
-    public List<DepositResponse> searchDeposits(String query, DepositStatus status, Long userId, Integer limit) {
+    public List<DepositResponse> searchDeposits(String query, DepositStatus status, UUID userId, Integer limit) {
         return searchDeposits(query, status, userId, null, null, 0, limit == null ? 100 : limit);
     }
 
@@ -196,6 +197,15 @@ public class AdminDepositManagerServiceImpl  implements AdminDepositManagerServi
 
     private String normalizeQuery(String query) {
         return query == null || query.isBlank() ? null : query.trim();
+    }
+
+    private Long resolveUserId(UUID publicId) {
+        if (publicId == null) {
+            return null;
+        }
+        return userAccountRepository.findByPublicId(publicId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"))
+                .getId();
     }
 }
 

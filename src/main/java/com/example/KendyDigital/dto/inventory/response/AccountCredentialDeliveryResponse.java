@@ -2,9 +2,10 @@ package com.example.KendyDigital.dto.inventory.response;
 
 import com.example.KendyDigital.model.inventory.AccountCredential;
 import java.time.Instant;
+import java.util.UUID;
 
 public record AccountCredentialDeliveryResponse(
-        Long credentialId,
+        UUID credentialId,
         String loginIdentifier,
         String passwordSecret,
         String recoveryInfo,
@@ -18,7 +19,7 @@ public record AccountCredentialDeliveryResponse(
             return null;
         }
         return new AccountCredentialDeliveryResponse(
-                credential.getId(),
+                credential.getPublicId(),
                 credential.getLoginIdentifier(),
                 credential.getPasswordSecret(),
                 credential.getRecoveryInfo(),

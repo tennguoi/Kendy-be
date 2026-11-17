@@ -6,6 +6,7 @@ import com.example.KendyDigital.security.CurrentUser;
 import com.example.KendyDigital.service.product_inventory.EntitlementService;
 import jakarta.validation.Valid;
 import java.util.List;
+import java.util.UUID;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -30,12 +31,12 @@ public class EntitlementController {
     }
 
     @PostMapping("/api/me/entitlements/{id}/renew")
-    public UserEntitlementResponse requestRenewal(Authentication authentication, @PathVariable Long id) {
+    public UserEntitlementResponse requestRenewal(Authentication authentication, @PathVariable UUID id) {
         return entitlementService.requestRenewal(CurrentUser.require(authentication).userId(), id);
     }
 
     @PatchMapping("/api/admin/entitlements/{id}")
-    public UserEntitlementResponse update(Authentication authentication, @PathVariable Long id,
+    public UserEntitlementResponse update(Authentication authentication, @PathVariable UUID id,
             @Valid @RequestBody AdminEntitlementUpdateRequest request) {
         return entitlementService.updateByAdmin(CurrentUser.require(authentication).userId(), id, request);
     }

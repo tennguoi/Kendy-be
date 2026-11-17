@@ -7,6 +7,7 @@ import com.example.KendyDigital.dto.setting.response.SystemSettingHistoryRespons
 import com.example.KendyDigital.dto.setting.response.SystemSettingResponse;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 public interface AdminSystemConfigService {
     List<SystemSettingResponse> searchSettings(String query, Integer limit);
@@ -18,8 +19,8 @@ public interface AdminSystemConfigService {
     List<SystemSettingResponse> getSePayConfig();
     List<SystemSettingResponse> updateSePayConfig(Long adminUserId, WebhookConfigRequest request);
     List<AdminNotificationResponse> notifications(Long adminUserId, Integer limit);
-    AdminNotificationResponse markNotificationRead(Long adminUserId, Long id);
-    List<AdminNotificationResponse> bulkReadNotifications(Long adminUserId, List<Long> ids);
+    AdminNotificationResponse markNotificationRead(Long adminUserId, UUID id);
+    List<AdminNotificationResponse> bulkReadNotifications(Long adminUserId, List<UUID> ids);
     SystemSettingResponse notificationSettings();
     SystemSettingResponse updateNotificationSettings(Long adminUserId, String value, Long version);
     default SystemSettingResponse updateNotificationSettings(Long adminUserId, String value) {

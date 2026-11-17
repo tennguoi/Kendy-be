@@ -13,6 +13,7 @@ import com.example.KendyDigital.dto.order.request.ReprocessOrderRequest;
 import com.example.KendyDigital.dto.order.response.OrderResponse;
 import com.example.KendyDigital.model.order.OrderStatus;
 import java.util.List;
+import java.util.UUID;
 
 public interface OrderService {
     OrderResponse create(Long userId, CreateOrderRequest request);
@@ -20,9 +21,9 @@ public interface OrderService {
     List<OrderResponse> listByUser(Long userId, OrderStatus status);
     List<OrderResponse> listByUser(Long userId, OrderStatus status, int page, int size);
     List<OrderResponse> searchForUser(Long userId, String query, OrderStatus status, int page, int size);
-    List<OrderResponse> listForAdmin(OrderStatus status, Long userId);
-    List<OrderResponse> listForAdmin(OrderStatus status, Long userId, Integer limit);
-    List<OrderResponse> searchForAdmin(String query, OrderStatus status, Long userId, Integer limit);
+    List<OrderResponse> listForAdmin(OrderStatus status, UUID userId);
+    List<OrderResponse> listForAdmin(OrderStatus status, UUID userId, Integer limit);
+    List<OrderResponse> searchForAdmin(String query, OrderStatus status, UUID userId, Integer limit);
     OrderResponse getByCodeForUser(Long userId, String orderCode);
     OrderResponse getByCodeForAdmin(String orderCode);
     OrderResponse cancelForUser(Long userId, String orderCode, CancelOrderRequest request);
@@ -35,6 +36,6 @@ public interface OrderService {
     OrderResponse extend(String orderCode, Long adminUserId, ExtendOrderRequest request);
     OrderResponse reprocess(String orderCode, Long adminUserId, ReprocessOrderRequest request);
     OrderResponse updateManualWorkflow(String orderCode, Long adminUserId, ManualOrderWorkflowRequest request);
-    OrderResponse updateManualTask(String orderCode, Long adminUserId, Long taskId, ManualOrderTaskStatusRequest request);
+    OrderResponse updateManualTask(String orderCode, Long adminUserId, UUID taskId, ManualOrderTaskStatusRequest request);
     List<OrderResponse> bulkRefund(Long adminUserId, BulkRefundOrdersRequest request);
 }

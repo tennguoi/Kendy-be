@@ -7,6 +7,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -27,6 +28,8 @@ public interface DepositRequestRepository extends JpaRepository<DepositRequest, 
     List<DepositRequest> findAll(Specification<DepositRequest> spec);
 
     boolean existsByDepositCode(String depositCode);
+
+    Optional<DepositRequest> findByPublicId(UUID publicId);
 
     Optional<DepositRequest> findByDepositCode(String depositCode);
 

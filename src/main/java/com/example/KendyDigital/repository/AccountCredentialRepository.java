@@ -7,6 +7,7 @@ import jakarta.persistence.QueryHint;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -19,6 +20,7 @@ import org.springframework.data.jpa.repository.QueryHints;
 import org.springframework.data.repository.query.Param;
 
 public interface AccountCredentialRepository extends JpaRepository<AccountCredential, Long>, JpaSpecificationExecutor<AccountCredential> {
+    Optional<AccountCredential> findByPublicId(UUID publicId);
     @Override
     @EntityGraph(attributePaths = {"service", "assignedOrder", "reservedCheckout", "reservedByUser", "deliveredToUser"})
     Page<AccountCredential> findAll(Specification<AccountCredential> spec, Pageable pageable);

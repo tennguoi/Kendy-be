@@ -4,12 +4,14 @@ import com.example.KendyDigital.model.auth.AuthSession;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 public interface AuthSessionRepository extends JpaRepository<AuthSession, Long> {
+    Optional<AuthSession> findByPublicId(UUID publicId);
     Optional<AuthSession> findByTokenHashAndRevokedAtIsNull(String tokenHash);
 
     Optional<AuthSession> findByTokenHash(String tokenHash);

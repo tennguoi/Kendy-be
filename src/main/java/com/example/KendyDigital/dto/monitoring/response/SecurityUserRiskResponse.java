@@ -2,9 +2,10 @@ package com.example.KendyDigital.dto.monitoring.response;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.UUID;
 
 public record SecurityUserRiskResponse(
-        Long userId,
+        UUID userId,
         String name,
         String email,
         String role,

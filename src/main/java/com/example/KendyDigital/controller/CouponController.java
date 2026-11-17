@@ -9,6 +9,7 @@ import com.example.KendyDigital.security.CurrentUser;
 import com.example.KendyDigital.service.product_inventory.CouponService;
 import jakarta.validation.Valid;
 import java.util.List;
+import java.util.UUID;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -44,18 +45,18 @@ public class CouponController {
     }
 
     @PutMapping("/api/admin/coupons/{couponId}")
-    public CouponResponse update(Authentication authentication, @PathVariable Long couponId,
+    public CouponResponse update(Authentication authentication, @PathVariable UUID couponId,
             @Valid @RequestBody UpsertCouponRequest request) {
         return couponService.update(CurrentUser.require(authentication).userId(), couponId, request);
     }
 
     @PostMapping("/api/admin/coupons/{couponId}/enable")
-    public CouponResponse enable(Authentication authentication, @PathVariable Long couponId) {
+    public CouponResponse enable(Authentication authentication, @PathVariable UUID couponId) {
         return couponService.setStatus(CurrentUser.require(authentication).userId(), couponId, CouponStatus.ACTIVE);
     }
 
     @PostMapping("/api/admin/coupons/{couponId}/disable")
-    public CouponResponse disable(Authentication authentication, @PathVariable Long couponId) {
+    public CouponResponse disable(Authentication authentication, @PathVariable UUID couponId) {
         return couponService.setStatus(CurrentUser.require(authentication).userId(), couponId, CouponStatus.DISABLED);
     }
 }

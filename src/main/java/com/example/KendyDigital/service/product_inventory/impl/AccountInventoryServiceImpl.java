@@ -33,6 +33,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.UUID;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -77,24 +78,32 @@ public class AccountInventoryServiceImpl implements AccountInventoryService {
     }
 
     @Transactional(readOnly = true)
-    public List<AccountCredentialAdminResponse> listByService(Long serviceId, AccountCredentialStatus status,
+    public List<AccountCredentialAdminResponse> listByService(UUID serviceId, AccountCredentialStatus status,
             Integer limit) {
+        Long serviceIdValue = resolveServiceIdOrNull(serviceId);
+        if (serviceIdValue == null) {
+            return List.of();
+        }
         int normalizedLimit = normalizedLimit(limit);
         List<AccountCredential> credentials = status == null
-                ? accountCredentialRepository.findAllByService_IdOrderByCreatedAtDesc(serviceId, page(normalizedLimit))
-                : accountCredentialRepository.findAllByService_IdAndStatusOrderByCreatedAtDesc(serviceId, status,
+                ? accountCredentialRepository.findAllByService_IdOrderByCreatedAtDesc(serviceIdValue, page(normalizedLimit))
+                : accountCredentialRepository.findAllByService_IdAndStatusOrderByCreatedAtDesc(serviceIdValue, status,
                         page(normalizedLimit));
         return credentials.stream().map(AccountCredentialAdminResponse::from).toList();
     }
 
     @Transactional(readOnly = true)
-    public List<AccountCredentialAdminResponse> searchByService(Long serviceId, AccountCredentialStatus status,
+    public List<AccountCredentialAdminResponse> searchByService(UUID serviceId, AccountCredentialStatus status,
             String query, Instant createdFrom, Instant createdTo, Instant deliveredFrom, Instant deliveredTo,
             Instant expiresBefore, Integer limit) {
+        Long serviceIdValue = resolveServiceIdOrNull(serviceId);
+        if (serviceIdValue == null) {
+            return List.of();
+        }
         String normalizedQuery = query == null || query.isBlank() ? null : query.trim();
         return accountCredentialRepository.findAll(
                         com.example.KendyDigital.repository.specification.AccountCredentialSpecifications.searchForAdmin(
-                                serviceId,
+                                serviceIdValue,
                                 status,
                                 normalizedQuery,
                                 createdFrom,
@@ -126,17 +135,18 @@ public class AccountInventoryServiceImpl implements AccountInventoryService {
     }
 
     @Transactional
-    public AccountCredentialAdminResponse create(Long adminUserId, Long serviceId, CreateAccountCredentialRequest request) {
-        ServiceItem service = serviceItemRepository.findById(serviceId)
+    public AccountCredentialAdminResponse create(Long adminUserId, UUID serviceId, CreateAccountCredentialRequest request) {
+        ServiceItem service = serviceItemRepository.findByPublicId(serviceId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Service not found"));
-        if (accountCredentialRepository.existsByService_IdAndLoginIdentifierIgnoreCase(serviceId,
+        Long serviceIdValue = service.getId();
+        if (accountCredentialRepository.existsByService_IdAndLoginIdentifierIgnoreCase(serviceIdValue,
                 request.loginIdentifier().trim())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Credential login already exists for this service");
         }
         String passwordSecret = request.passwordSecret().trim();
-        String payloadHash = credentialHasher.computePayloadHash(serviceId, request.loginIdentifier().trim(), passwordSecret,
+        String payloadHash = credentialHasher.computePayloadHash(serviceIdValue, request.loginIdentifier().trim(), passwordSecret,
                 blankToNull(request.recoveryInfo()), blankToNull(request.twoFactorSecret()));
-        if (accountCredentialRepository.existsByService_IdAndPayloadHash(serviceId, payloadHash)) {
+        if (accountCredentialRepository.existsByService_IdAndPayloadHash(serviceIdValue, payloadHash)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Credential payload already exists for this service");
         }
 
@@ -158,15 +168,16 @@ public class AccountInventoryServiceImpl implements AccountInventoryService {
         }
         stockImportBatchRepository.save(new StockImportBatch(service, adminUserId, 1, "Single import login: " + credential.getLoginIdentifier()));
         auditService.recordAdmin(adminUserId, "ACCOUNT_CREDENTIAL_CREATED", "ACCOUNT_CREDENTIAL", credential.getId(),
-                "serviceId=" + serviceId + ",login=" + credential.getLoginIdentifier());
+                "serviceId=" + serviceIdValue + ",login=" + credential.getLoginIdentifier());
         return AccountCredentialAdminResponse.from(credential);
     }
 
     @Transactional
-    public BulkAccountCredentialImportResponse bulkImport(Long adminUserId, Long serviceId,
+    public BulkAccountCredentialImportResponse bulkImport(Long adminUserId, UUID serviceId,
             BulkAccountCredentialImportRequest request) {
-        ServiceItem service = serviceItemRepository.findById(serviceId)
+        ServiceItem service = serviceItemRepository.findByPublicId(serviceId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Service not found"));
+        Long serviceIdValue = service.getId();
         List<CreateAccountCredentialRequest> rows = new ArrayList<>();
         if (request.credentials() != null) {
             rows.addAll(request.credentials());
@@ -189,10 +200,10 @@ public class AccountInventoryServiceImpl implements AccountInventoryService {
                 }
                 String login = row.loginIdentifier().trim();
                 String password = row.passwordSecret().trim();
-                String hash = credentialHasher.computePayloadHash(serviceId, login, password, blankToNull(row.recoveryInfo()),
+                String hash = credentialHasher.computePayloadHash(serviceIdValue, login, password, blankToNull(row.recoveryInfo()),
                         blankToNull(row.twoFactorSecret()));
-                boolean duplicate = accountCredentialRepository.existsByService_IdAndLoginIdentifierIgnoreCase(serviceId, login)
-                        || accountCredentialRepository.existsByService_IdAndPayloadHash(serviceId, hash);
+                boolean duplicate = accountCredentialRepository.existsByService_IdAndLoginIdentifierIgnoreCase(serviceIdValue, login)
+                        || accountCredentialRepository.existsByService_IdAndPayloadHash(serviceIdValue, hash);
                 if (duplicate) {
                     if (skipDuplicates) {
                         skipped++;
@@ -227,15 +238,15 @@ public class AccountInventoryServiceImpl implements AccountInventoryService {
         if (!created.isEmpty()) {
             stockImportBatchRepository.save(new StockImportBatch(service, adminUserId, created.size(), "Bulk import: " + created.size() + " items success, " + skipped + " skipped."));
         }
-        auditService.recordAdmin(adminUserId, "ACCOUNT_CREDENTIAL_BULK_IMPORTED", "SERVICE", serviceId,
+        auditService.recordAdmin(adminUserId, "ACCOUNT_CREDENTIAL_BULK_IMPORTED", "SERVICE", serviceIdValue,
                 "created=" + created.size() + ",skipped=" + skipped);
         return new BulkAccountCredentialImportResponse(created.size(), skipped, errors, created);
     }
 
     @Transactional
-    public AccountCredentialRevealResponse reveal(Long adminUserId, UserRole adminRole, Long credentialId) {
+    public AccountCredentialRevealResponse reveal(Long adminUserId, UserRole adminRole, UUID credentialId) {
         requireCredentialViewPermission(adminUserId, adminRole);
-        AccountCredential credential = accountCredentialRepository.findById(credentialId)
+        AccountCredential credential = accountCredentialRepository.findByPublicId(credentialId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Credential not found"));
         auditService.recordAdmin(adminUserId, "ACCOUNT_CREDENTIAL_REVEALED", "ACCOUNT_CREDENTIAL",
                 credential.getId(), "serviceId=" + credential.getService().getId());
@@ -243,9 +254,9 @@ public class AccountInventoryServiceImpl implements AccountInventoryService {
     }
 
     @Transactional
-    public AccountCredentialAdminResponse update(Long adminUserId, Long credentialId,
+    public AccountCredentialAdminResponse update(Long adminUserId, UUID credentialId,
             UpdateAccountCredentialRequest request) {
-        AccountCredential credential = accountCredentialRepository.findById(credentialId)
+        AccountCredential credential = accountCredentialRepository.findByPublicId(credentialId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Credential not found"));
         if (request.version() != null && !request.version().equals(credential.getVersion())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "CONCURRENT_ADMIN_CONFLICT");
@@ -296,8 +307,8 @@ public class AccountInventoryServiceImpl implements AccountInventoryService {
     }
 
     @Transactional
-    public AccountCredentialAdminResponse disable(Long adminUserId, Long credentialId) {
-        AccountCredential credential = accountCredentialRepository.findById(credentialId)
+    public AccountCredentialAdminResponse disable(Long adminUserId, UUID credentialId) {
+        AccountCredential credential = accountCredentialRepository.findByPublicId(credentialId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Credential not found"));
         if (credential.getStatus() == AccountCredentialStatus.DELIVERED
                 || credential.getStatus() == AccountCredentialStatus.RESERVED) {
@@ -397,7 +408,7 @@ public class AccountInventoryServiceImpl implements AccountInventoryService {
     }
 
     @Transactional
-    public AccountCredential replaceForOrder(Long adminUserId, OrderRecord order, Long replacementCredentialId) {
+    public AccountCredential replaceForOrder(Long adminUserId, OrderRecord order, UUID replacementCredentialId) {
         AccountCredential current = order.getDeliveredCredential();
         if (current != null) {
             current.markReplaced();
@@ -407,7 +418,7 @@ public class AccountInventoryServiceImpl implements AccountInventoryService {
         }
         AccountCredential replacement = replacementCredentialId == null
                 ? takeAvailableForOrder(order.getService().getId())
-                : accountCredentialRepository.findById(replacementCredentialId)
+                : accountCredentialRepository.findByPublicId(replacementCredentialId)
                         .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
                                 "Replacement credential not found"));
         if (!replacement.getService().getId().equals(order.getService().getId())) {
@@ -447,6 +458,12 @@ public class AccountInventoryServiceImpl implements AccountInventoryService {
             service.updatePricingMetadata(nextStatus, service.getCtaType(), service.getPricingBadge(),
                     service.isFeatured(), service.isPublicVisible());
         }
+    }
+
+    private Long resolveServiceIdOrNull(UUID servicePublicId) {
+        return serviceItemRepository.findByPublicId(servicePublicId)
+                .map(ServiceItem::getId)
+                .orElse(null);
     }
 
     private PageRequest page(int limit) {

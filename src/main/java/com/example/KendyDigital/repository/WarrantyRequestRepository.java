@@ -6,6 +6,7 @@ import jakarta.persistence.LockModeType;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.EntityGraph;
@@ -14,6 +15,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 public interface WarrantyRequestRepository extends JpaRepository<WarrantyRequest, Long> {
+    Optional<WarrantyRequest> findByPublicId(UUID publicId);
     @EntityGraph(attributePaths = {
             "order", "order.service", "user", "originalCredential", "replacementCredential", "refundWalletTransaction"
     })
@@ -36,4 +38,8 @@ public interface WarrantyRequestRepository extends JpaRepository<WarrantyRequest
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select w from WarrantyRequest w join fetch w.order o join fetch w.user where w.id = :id")
     Optional<WarrantyRequest> findByIdForUpdate(@Param("id") Long id);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select w from WarrantyRequest w join fetch w.order o join fetch w.user where w.publicId = :publicId")
+    Optional<WarrantyRequest> findByPublicIdForUpdate(@Param("publicId") UUID publicId);
 }

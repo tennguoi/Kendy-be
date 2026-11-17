@@ -28,23 +28,17 @@ import lombok.Setter;
 @Getter
 @Setter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-@Table(
-        name = "users",
-        indexes = {
-                @Index(name = "idx_users_status", columnList = "status"),
-                @Index(name = "idx_users_oauth_provider", columnList = "oauth_provider, oauth_provider_id")
-        },
-        uniqueConstraints = {
-                @UniqueConstraint(name = "uk_users_email", columnNames = "email"),
-                @UniqueConstraint(name = "uk_users_public_id", columnNames = "public_id")
-        })
+@Table(name = "users", indexes = {
+        @Index(name = "idx_users_status", columnList = "status"),
+        @Index(name = "idx_users_oauth_provider", columnList = "oauth_provider, oauth_provider_id")
+}, uniqueConstraints = {
+        @UniqueConstraint(name = "uk_users_email", columnNames = "email"),
+        @UniqueConstraint(name = "uk_users_public_id", columnNames = "public_id")
+})
 public class UserAccount extends VersionedEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-
-    @Column(name = "public_id", nullable = false, updatable = false)
-    private UUID publicId = UUID.randomUUID();
 
     @Column(nullable = false, length = 100)
     private String name;
@@ -224,8 +218,10 @@ public class UserAccount extends VersionedEntity {
 
     /**
      * Returns true if the user has a password they know (set during registration or
-     * explicitly changed later). OAuth-only accounts have a random password the user
-     * never saw, so this returns false for them until they set one via /set-password.
+     * explicitly changed later). OAuth-only accounts have a random password the
+     * user
+     * never saw, so this returns false for them until they set one via
+     * /set-password.
      */
     public boolean hasPassword() {
         return oauthProvider == null || passwordChangedAt != null;

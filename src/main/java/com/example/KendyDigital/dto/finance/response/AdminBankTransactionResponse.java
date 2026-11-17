@@ -4,9 +4,10 @@ import com.example.KendyDigital.model.bank.BankTransaction;
 import com.example.KendyDigital.model.bank.BankTransactionStatus;
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.UUID;
 
 public record AdminBankTransactionResponse(
-        Long id,
+        UUID id,
         Long sepayId,
         String gateway,
         String bankName,
@@ -20,14 +21,14 @@ public record AdminBankTransactionResponse(
         String referenceCode,
         BankTransactionStatus status,
         String reviewReason,
-        Long matchedUserId,
-        Long matchedDepositRequestId,
-        Long walletTransactionId,
+        UUID matchedUserId,
+        UUID matchedDepositRequestId,
+        UUID walletTransactionId,
         Instant receivedAt,
         Instant creditedAt) {
     public static AdminBankTransactionResponse from(BankTransaction transaction) {
         return new AdminBankTransactionResponse(
-                transaction.getId(),
+                transaction.getPublicId(),
                 transaction.getSepayId(),
                 transaction.getGateway(),
                 transaction.getBankName(),
@@ -41,9 +42,9 @@ public record AdminBankTransactionResponse(
                 transaction.getReferenceCode(),
                 transaction.getStatus(),
                 transaction.getReviewReason(),
-                transaction.getMatchedUser() == null ? null : transaction.getMatchedUser().getId(),
-                transaction.getMatchedDepositRequest() == null ? null : transaction.getMatchedDepositRequest().getId(),
-                transaction.getWalletTransaction() == null ? null : transaction.getWalletTransaction().getId(),
+                transaction.getMatchedUser() == null ? null : transaction.getMatchedUser().getPublicId(),
+                transaction.getMatchedDepositRequest() == null ? null : transaction.getMatchedDepositRequest().getPublicId(),
+                transaction.getWalletTransaction() == null ? null : transaction.getWalletTransaction().getPublicId(),
                 transaction.getReceivedAt(),
                 transaction.getCreditedAt());
     }

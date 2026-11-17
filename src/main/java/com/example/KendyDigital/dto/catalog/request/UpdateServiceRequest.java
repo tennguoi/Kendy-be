@@ -10,6 +10,7 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import java.math.BigDecimal;
+import java.util.UUID;
 
 public record UpdateServiceRequest(
         @Size(max = 150) String name,
@@ -35,7 +36,7 @@ public record UpdateServiceRequest(
         @Size(max = 100) String processingTime,
         @Size(max = 5000) String warrantyPolicy,
         @Min(0) Integer sortOrder,
-        Long categoryId,
+        UUID categoryId,
         Boolean clearCategory,
         @Size(max = 200) String metaTitle,
         @Size(max = 1000) String metaDescription,
@@ -49,7 +50,7 @@ public record UpdateServiceRequest(
             ServiceStockStatus stockStatus, ServiceCtaType ctaType, String pricingBadge,
             Boolean featured, Boolean publicVisible, String inputSchema, String requirements,
             String benefits, String usageNotes, String processingTime, String warrantyPolicy,
-            Integer sortOrder, Long categoryId, Boolean clearCategory, String metaTitle,
+            Integer sortOrder, UUID categoryId, Boolean clearCategory, String metaTitle,
             String metaDescription, String iconUrl) {
         this(name, slug, shortDescription, description, price, priceText, costPrice, type,
                 accessStrategy, accessDurationDays, status, stockStatus, ctaType, pricingBadge,

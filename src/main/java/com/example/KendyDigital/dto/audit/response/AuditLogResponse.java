@@ -2,9 +2,10 @@ package com.example.KendyDigital.dto.audit.response;
 
 import com.example.KendyDigital.model.audit.AuditLog;
 import java.time.Instant;
+import java.util.UUID;
 
 public record AuditLogResponse(
-        Long id,
+        UUID id,
         Long actorUserId,
         String actorRole,
         String action,
@@ -15,7 +16,7 @@ public record AuditLogResponse(
         Instant createdAt) {
     public static AuditLogResponse from(AuditLog auditLog) {
         return new AuditLogResponse(
-                auditLog.getId(),
+                auditLog.getPublicId(),
                 auditLog.getActorUserId(),
                 auditLog.getActorRole(),
                 auditLog.getAction(),

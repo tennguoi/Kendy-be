@@ -2,9 +2,10 @@ package com.example.KendyDigital.dto.setting.response;
 
 import com.example.KendyDigital.model.setting.SystemSettingHistory;
 import java.time.Instant;
+import java.util.UUID;
 
 public record SystemSettingHistoryResponse(
-        Long id,
+        UUID id,
         String key,
         String oldValue,
         String newValue,
@@ -12,7 +13,7 @@ public record SystemSettingHistoryResponse(
         Instant createdAt) {
     public static SystemSettingHistoryResponse from(SystemSettingHistory history) {
         return new SystemSettingHistoryResponse(
-                history.getId(),
+                history.getPublicId(),
                 history.getKey(),
                 history.getOldValue(),
                 history.getNewValue(),

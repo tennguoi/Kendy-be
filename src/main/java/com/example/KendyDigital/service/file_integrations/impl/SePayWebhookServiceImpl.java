@@ -47,6 +47,7 @@ public class SePayWebhookServiceImpl  implements SePayWebhookService{
     private final CheckoutService checkoutService;
     private final DepositCodeExtractor depositCodeExtractor;
     private final String expectedAccountNumber;
+    private final com.example.KendyDigital.service.notification.DiscordBotService discordBotService;
 
     public SePayWebhookServiceImpl(BankTransactionInserter bankTransactionInserter,
             BankTransactionRepository bankTransactionRepository,
@@ -57,7 +58,8 @@ public class SePayWebhookServiceImpl  implements SePayWebhookService{
             UserNotificationService userNotificationService,
             CheckoutService checkoutService,
             BankProperties bankProperties,
-            DepositCodeExtractor depositCodeExtractor) {
+            DepositCodeExtractor depositCodeExtractor,
+            com.example.KendyDigital.service.notification.DiscordBotService discordBotService) {
         this.bankTransactionInserter = bankTransactionInserter;
         this.bankTransactionRepository = bankTransactionRepository;
         this.depositRequestRepository = depositRequestRepository;
@@ -68,6 +70,7 @@ public class SePayWebhookServiceImpl  implements SePayWebhookService{
         this.checkoutService = checkoutService;
         this.expectedAccountNumber = normalizeAccountNumber(bankProperties.getAccountNumber());
         this.depositCodeExtractor = depositCodeExtractor;
+        this.discordBotService = discordBotService;
     }
 
     @Transactional
@@ -149,6 +152,15 @@ public class SePayWebhookServiceImpl  implements SePayWebhookService{
                 "Deposit " + deposit.getDepositCode() + " has been credited to your wallet.",
                 "DEPOSIT",
                 "/deposits/" + deposit.getDepositCode());
+
+        if (discordBotService != null) {
+            discordBotService.sendDepositAlert(
+                    deposit.getDepositCode(),
+                    transferAmount,
+                    user.getName(),
+                    payload.accountNumber(),
+                    payload.referenceCode());
+        }
     }
 
     private void validatePayload(SePayWebhookPayload payload) {

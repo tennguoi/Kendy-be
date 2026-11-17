@@ -23,6 +23,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 import java.util.stream.Collectors;
 import org.springframework.http.HttpStatus;
 import org.springframework.data.domain.PageRequest;
@@ -72,7 +73,7 @@ public class AdminRoleServiceImpl  implements AdminRoleService{
     }
 
     @Transactional(readOnly = true)
-    public AdminRoleResponse getRole(Long id) {
+    public AdminRoleResponse getRole(UUID id) {
         return toResponse(requireRole(id));
     }
 
@@ -96,7 +97,7 @@ public class AdminRoleServiceImpl  implements AdminRoleService{
     }
 
     @Transactional
-    public AdminRoleResponse updateRole(Long adminUserId, Long id, UpdateAdminRoleRequest request) {
+    public AdminRoleResponse updateRole(Long adminUserId, UUID id, UpdateAdminRoleRequest request) {
         AdminRole role = requireRole(id);
         if (request.version() != null && !request.version().equals(role.getVersion())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "CONCURRENT_ADMIN_CONFLICT");
@@ -129,7 +130,7 @@ public class AdminRoleServiceImpl  implements AdminRoleService{
     }
 
     @Transactional
-    public void deleteRole(Long adminUserId, Long id) {
+    public void deleteRole(Long adminUserId, UUID id) {
         AdminRole role = requireRole(id);
         if (role.isSystem()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Cannot delete system role");
@@ -139,7 +140,7 @@ public class AdminRoleServiceImpl  implements AdminRoleService{
         }
         rolePermissionRepository.deleteByRole_Id(role.getId());
         adminRoleRepository.delete(role);
-        auditService.recordAdmin(adminUserId, "ADMIN_ROLE_DELETED", "ADMIN_ROLE", id, "name=" + role.getName());
+        auditService.recordAdmin(adminUserId, "ADMIN_ROLE_DELETED", "ADMIN_ROLE", role.getId(), "name=" + role.getName());
     }
 
     @Transactional(readOnly = true)
@@ -150,39 +151,39 @@ public class AdminRoleServiceImpl  implements AdminRoleService{
     }
 
     @Transactional(readOnly = true)
-    public Map<String, Object> getUserRoles(Long userId) {
-        UserAccount user = userAccountRepository.findById(userId)
+    public Map<String, Object> getUserRoles(UUID userId) {
+        UserAccount user = userAccountRepository.findByPublicId(userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
-        List<UserAdminRole> userRoles = userAdminRoleRepository.findAllByUser_Id(userId);
+        List<UserAdminRole> userRoles = userAdminRoleRepository.findAllByUser_Id(user.getId());
         List<Map<String, Object>> roleData = userRoles.stream()
                 .map(ur -> {
                     Map<String, Object> r = new LinkedHashMap<>();
-                    r.put("id", ur.getRole().getId());
+                    r.put("id", ur.getRole().getPublicId());
                     r.put("name", ur.getRole().getName());
                     return r;
                 })
                 .toList();
         Map<String, Object> result = new LinkedHashMap<>();
-        result.put("userId", userId);
+        result.put("userId", user.getPublicId());
         result.put("roles", roleData);
         result.put("legacyPermissions", parseCsvPermissions(user.getAdminPermissions()));
         return result;
     }
 
     @Transactional
-    public Map<String, Object> setUserRoles(Long adminUserId, Long userId, List<Long> roleIds) {
-        UserAccount user = userAccountRepository.findByIdForUpdate(userId)
+    public Map<String, Object> setUserRoles(Long adminUserId, UUID userId, List<UUID> roleIds) {
+        UserAccount user = userAccountRepository.findByPublicIdForUpdate(userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
-        userAdminRoleRepository.deleteByUser_Id(userId);
+        userAdminRoleRepository.deleteByUser_Id(user.getId());
         if (roleIds != null) {
-            for (Long roleId : roleIds) {
+            for (UUID roleId : roleIds) {
                 AdminRole role = requireRole(roleId);
                 userAdminRoleRepository.save(new UserAdminRole(user, role));
             }
         }
-        auditService.recordAdmin(adminUserId, "ADMIN_USER_ROLES_UPDATED", "USER", userId,
+        auditService.recordAdmin(adminUserId, "ADMIN_USER_ROLES_UPDATED", "USER", user.getId(),
                 "roleIds=" + roleIds);
-        return getUserRoles(userId);
+        return getUserRoles(user.getPublicId());
     }
 
     public List<String> getUserEffectivePermissions(Long userId) {
@@ -216,8 +217,8 @@ public class AdminRoleServiceImpl  implements AdminRoleService{
         return AdminRoleResponse.from(role, permissionCodes);
     }
 
-    private AdminRole requireRole(Long id) {
-        return adminRoleRepository.findById(id)
+    private AdminRole requireRole(UUID id) {
+        return adminRoleRepository.findByPublicId(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Role not found"));
     }
 
@@ -226,12 +227,12 @@ public class AdminRoleServiceImpl  implements AdminRoleService{
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Permission not found"));
     }
 
-    private List<AdminPermission> resolvePermissions(List<Long> permissionIds) {
-        List<Long> distinctIds = permissionIds.stream().distinct().toList();
-        List<AdminPermission> permissions = adminPermissionRepository.findAllById(distinctIds);
+    private List<AdminPermission> resolvePermissions(List<UUID> permissionIds) {
+        List<UUID> distinctIds = permissionIds.stream().distinct().toList();
+        List<AdminPermission> permissions = adminPermissionRepository.findAllByPublicIdIn(distinctIds);
         if (permissions.size() != distinctIds.size()) {
-            Set<Long> foundIds = permissions.stream().map(AdminPermission::getId).collect(Collectors.toSet());
-            Long missingId = distinctIds.stream().filter(id -> !foundIds.contains(id)).findFirst().orElse(null);
+            Set<UUID> foundIds = permissions.stream().map(AdminPermission::getPublicId).collect(Collectors.toSet());
+            UUID missingId = distinctIds.stream().filter(id -> !foundIds.contains(id)).findFirst().orElse(null);
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Permission not found: " + missingId);
         }
         return permissions;

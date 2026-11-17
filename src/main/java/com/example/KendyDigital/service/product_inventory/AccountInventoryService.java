@@ -16,21 +16,22 @@ import com.example.KendyDigital.model.user.UserAccount;
 import com.example.KendyDigital.model.user.UserRole;
 import java.time.Instant;
 import java.util.List;
+import java.util.UUID;
 
 public interface AccountInventoryService {
     List<UserAccountCredentialResponse> listForUser(Long userId, Integer limit);
-    List<AccountCredentialAdminResponse> listByService(Long serviceId, AccountCredentialStatus status, Integer limit);
-    List<AccountCredentialAdminResponse> searchByService(Long serviceId, AccountCredentialStatus status, String query,
+    List<AccountCredentialAdminResponse> listByService(UUID serviceId, AccountCredentialStatus status, Integer limit);
+    List<AccountCredentialAdminResponse> searchByService(UUID serviceId, AccountCredentialStatus status, String query,
             Instant createdFrom, Instant createdTo, Instant deliveredFrom, Instant deliveredTo,
             Instant expiresBefore, Integer limit);
     List<AccountCredentialAdminResponse> searchAssigned(AccountCredentialStatus status, String query,
             Instant deliveredFrom, Instant deliveredTo, Instant expiresBefore, Integer limit);
-    AccountCredentialAdminResponse create(Long adminUserId, Long serviceId, CreateAccountCredentialRequest request);
-    BulkAccountCredentialImportResponse bulkImport(Long adminUserId, Long serviceId,
+    AccountCredentialAdminResponse create(Long adminUserId, UUID serviceId, CreateAccountCredentialRequest request);
+    BulkAccountCredentialImportResponse bulkImport(Long adminUserId, UUID serviceId,
             BulkAccountCredentialImportRequest request);
-    AccountCredentialAdminResponse update(Long adminUserId, Long credentialId, UpdateAccountCredentialRequest request);
-    AccountCredentialAdminResponse disable(Long adminUserId, Long credentialId);
-    AccountCredentialRevealResponse reveal(Long adminUserId, UserRole adminRole, Long credentialId);
+    AccountCredentialAdminResponse update(Long adminUserId, UUID credentialId, UpdateAccountCredentialRequest request);
+    AccountCredentialAdminResponse disable(Long adminUserId, UUID credentialId);
+    AccountCredentialRevealResponse reveal(Long adminUserId, UserRole adminRole, UUID credentialId);
     AccountCredential takeAvailableForOrder(Long serviceId);
     AccountCredential reserveForCheckout(Long serviceId, CheckoutSession checkout, UserAccount user,
             Instant reservedUntil);
@@ -39,6 +40,6 @@ public interface AccountInventoryService {
     void releaseReservationForCheckout(Long checkoutId);
     int releaseExpiredReservations(Instant now);
     long availableCount(Long serviceId);
-    AccountCredential replaceForOrder(Long adminUserId, OrderRecord order, Long replacementCredentialId);
+    AccountCredential replaceForOrder(Long adminUserId, OrderRecord order, UUID replacementCredentialId);
     InventoryAlertSummaryResponse alertSummary(Integer lowStockThreshold, Integer expiringDays);
 }

@@ -4,6 +4,7 @@ import com.example.KendyDigital.dto.catalog.response.ServiceResponse;
 import com.example.KendyDigital.security.CurrentUser;
 import com.example.KendyDigital.service.user_management.UserServicePreferenceService;
 import java.util.List;
+import java.util.UUID;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -28,12 +29,12 @@ public class UserServicePreferenceController {
     }
 
     @PostMapping("/api/me/favorite-services/{serviceId}")
-    public ServiceResponse addFavorite(Authentication authentication, @PathVariable Long serviceId) {
+    public ServiceResponse addFavorite(Authentication authentication, @PathVariable UUID serviceId) {
         return userServicePreferenceService.addFavorite(CurrentUser.require(authentication).userId(), serviceId);
     }
 
     @DeleteMapping("/api/me/favorite-services/{serviceId}")
-    public void removeFavorite(Authentication authentication, @PathVariable Long serviceId) {
+    public void removeFavorite(Authentication authentication, @PathVariable UUID serviceId) {
         userServicePreferenceService.removeFavorite(CurrentUser.require(authentication).userId(), serviceId);
     }
 

@@ -13,6 +13,7 @@ import com.example.KendyDigital.service.system_infrastructure.AdminMonitoringSer
 import com.example.KendyDigital.service.system_infrastructure.JobRecordMonitoringService;
 import com.example.KendyDigital.service.system_infrastructure.UserActivityMonitoringService;
 import java.util.List;
+import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -36,37 +37,37 @@ public class AdminMonitoringServiceImpl implements AdminMonitoringService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<OrderResponse> listUserOrders(Long userId, int page, int size) {
+    public List<OrderResponse> listUserOrders(UUID userId, int page, int size) {
         return userActivityMonitoringService.listUserOrders(userId, page, size);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public List<OrderResponse> listUserOrders(Long userId, Integer limit) {
+    public List<OrderResponse> listUserOrders(UUID userId, Integer limit) {
         return userActivityMonitoringService.listUserOrders(userId, limit);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public List<WalletTransactionResponse> listUserWalletTransactions(Long userId, int page, int size) {
+    public List<WalletTransactionResponse> listUserWalletTransactions(UUID userId, int page, int size) {
         return userActivityMonitoringService.listUserWalletTransactions(userId, page, size);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public List<WalletTransactionResponse> listUserWalletTransactions(Long userId, Integer limit) {
+    public List<WalletTransactionResponse> listUserWalletTransactions(UUID userId, Integer limit) {
         return userActivityMonitoringService.listUserWalletTransactions(userId, limit);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public List<TicketResponse> listUserTickets(Long userId, int page, int size) {
+    public List<TicketResponse> listUserTickets(UUID userId, int page, int size) {
         return userActivityMonitoringService.listUserTickets(userId, page, size);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public List<TicketResponse> listUserTickets(Long userId, Integer limit) {
+    public List<TicketResponse> listUserTickets(UUID userId, Integer limit) {
         return userActivityMonitoringService.listUserTickets(userId, limit);
     }
 
@@ -78,19 +79,19 @@ public class AdminMonitoringServiceImpl implements AdminMonitoringService {
 
     @Override
     @Transactional(readOnly = true)
-    public JobRecordResponse job(Long jobId) {
+    public JobRecordResponse job(UUID jobId) {
         return jobRecordMonitoringService.job(jobId);
     }
 
     @Override
     @Transactional
-    public JobRecordResponse retryJob(Long adminUserId, Long jobId) {
+    public JobRecordResponse retryJob(Long adminUserId, UUID jobId) {
         return jobRecordMonitoringService.retryJob(adminUserId, jobId);
     }
 
     @Override
     @Transactional
-    public JobRecordResponse cancelJob(Long adminUserId, Long jobId) {
+    public JobRecordResponse cancelJob(Long adminUserId, UUID jobId) {
         return jobRecordMonitoringService.cancelJob(adminUserId, jobId);
     }
 
@@ -109,20 +110,20 @@ public class AdminMonitoringServiceImpl implements AdminMonitoringService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<AuditLogResponse> searchAudit(String query, String action, Long actorUserId, String targetType,
+    public List<AuditLogResponse> searchAudit(String query, String action, UUID actorUserId, String targetType,
             Long targetId, Integer limit) {
         return adminAuditSearchService.searchAudit(query, action, actorUserId, targetType, targetId, limit);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public AuditLogResponse auditDetail(Long id) {
+    public AuditLogResponse auditDetail(UUID id) {
         return adminAuditSearchService.auditDetail(id);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public List<AuditLogResponse> adminActions(Long adminId, Integer limit) {
+    public List<AuditLogResponse> adminActions(UUID adminId, Integer limit) {
         return adminAuditSearchService.adminActions(adminId, limit);
     }
 }

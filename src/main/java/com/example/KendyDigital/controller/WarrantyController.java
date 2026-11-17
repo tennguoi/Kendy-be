@@ -8,6 +8,7 @@ import com.example.KendyDigital.security.CurrentUser;
 import com.example.KendyDigital.service.customer_service.WarrantyService;
 import jakarta.validation.Valid;
 import java.util.List;
+import java.util.UUID;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -43,7 +44,7 @@ public class WarrantyController {
     }
 
     @PostMapping("/api/admin/warranty-requests/{id}/review")
-    public WarrantyRequestResponse review(Authentication authentication, @PathVariable Long id,
+    public WarrantyRequestResponse review(Authentication authentication, @PathVariable UUID id,
             @Valid @RequestBody AdminWarrantyReviewRequest request) {
         return warrantyService.review(CurrentUser.require(authentication).userId(), id, request);
     }

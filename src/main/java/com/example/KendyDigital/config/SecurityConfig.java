@@ -97,7 +97,7 @@ public class SecurityConfig {
                                                 .permitAll()
                                                 .requestMatchers("/api/admin/**").hasAnyRole("ADMIN", "SUPER_ADMIN")
                                                 .requestMatchers("/api/**").authenticated()
-                                                .requestMatchers("/actuator/health").permitAll()
+                                                .requestMatchers("/actuator/health", "/actuator/prometheus").permitAll()
                                                 .requestMatchers("/error").permitAll()
                                                 .anyRequest().denyAll())
                                 .headers(headers -> headers

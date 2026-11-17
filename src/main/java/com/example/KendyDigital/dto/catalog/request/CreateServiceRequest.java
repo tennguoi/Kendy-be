@@ -12,6 +12,7 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import java.math.BigDecimal;
+import java.util.UUID;
 
 public record CreateServiceRequest(
         @NotBlank @Size(max = 150) String name,
@@ -37,7 +38,7 @@ public record CreateServiceRequest(
         @Size(max = 100) String processingTime,
         @Size(max = 5000) String warrantyPolicy,
         @Min(0) Integer sortOrder,
-        Long categoryId,
+        UUID categoryId,
         @Size(max = 200) String metaTitle,
         @Size(max = 1000) String metaDescription,
         @Size(max = 500) String iconUrl) {

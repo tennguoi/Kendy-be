@@ -5,6 +5,7 @@ import com.example.KendyDigital.model.bank.BankTransactionStatus;
 import jakarta.persistence.LockModeType;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
@@ -13,6 +14,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 public interface BankTransactionRepository extends JpaRepository<BankTransaction, Long>, JpaSpecificationExecutor<BankTransaction> {
+    Optional<BankTransaction> findByPublicId(UUID publicId);
     Optional<BankTransaction> findByReferenceCode(String referenceCode);
 
     Optional<BankTransaction> findBySepayId(Long sepayId);
@@ -26,4 +28,8 @@ public interface BankTransactionRepository extends JpaRepository<BankTransaction
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select b from BankTransaction b where b.id = :id")
     Optional<BankTransaction> findByIdForUpdate(@Param("id") Long id);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select b from BankTransaction b where b.publicId = :publicId")
+    Optional<BankTransaction> findByPublicIdForUpdate(@Param("publicId") UUID publicId);
 }

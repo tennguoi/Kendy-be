@@ -27,6 +27,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.springframework.data.domain.PageRequest;
@@ -97,17 +98,16 @@ public class AdminBankTxManagerServiceImpl  implements AdminBankTxManagerService
     }
 
     @Transactional(readOnly = true)
-    public AdminBankTransactionResponse getBankTransaction(Long bankTransactionId) {
-        return bankTransactionRepository.findById(bankTransactionId)
+    public AdminBankTransactionResponse getBankTransaction(UUID bankTransactionId) {
+        return bankTransactionRepository.findByPublicId(bankTransactionId)
                 .map(AdminBankTransactionResponse::from)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Bank transaction not found"));
     }
 
     @Transactional
-    public AdminBankTransactionResponse ignoreBankTransaction(Long adminUserId, Long bankTransactionId,
+    public AdminBankTransactionResponse ignoreBankTransaction(Long adminUserId, UUID bankTransactionId,
             IgnoreBankTransactionRequest request) {
-        BankTransaction transaction = bankTransactionRepository.findByIdForUpdate(bankTransactionId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Bank transaction not found"));
+        BankTransaction transaction = requireBankTransactionForUpdate(bankTransactionId);
         ensureNotCredited(transaction);
 
         transaction.ignore(request.reason());
@@ -121,10 +121,9 @@ public class AdminBankTxManagerServiceImpl  implements AdminBankTxManagerService
     }
 
     @Transactional
-    public AdminBankTransactionResponse matchBankTransaction(Long adminUserId, Long bankTransactionId,
+    public AdminBankTransactionResponse matchBankTransaction(Long adminUserId, UUID bankTransactionId,
             MatchBankTransactionRequest request) {
-        BankTransaction bankTransaction = bankTransactionRepository.findByIdForUpdate(bankTransactionId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Bank transaction not found"));
+        BankTransaction bankTransaction = requireBankTransactionForUpdate(bankTransactionId);
         ensureNotCredited(bankTransaction);
         ensureNotDuplicate(bankTransaction);
         if (bankTransaction.getStatus() == BankTransactionStatus.IGNORED) {
@@ -157,10 +156,9 @@ public class AdminBankTxManagerServiceImpl  implements AdminBankTxManagerService
     }
 
     @Transactional
-    public AdminBankTransactionResponse reprocessBankTransaction(Long adminUserId, Long bankTransactionId,
+    public AdminBankTransactionResponse reprocessBankTransaction(Long adminUserId, UUID bankTransactionId,
             ReprocessBankTransactionRequest request) {
-        BankTransaction bankTransaction = bankTransactionRepository.findByIdForUpdate(bankTransactionId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Bank transaction not found"));
+        BankTransaction bankTransaction = requireBankTransactionForUpdate(bankTransactionId);
         ensureNotCredited(bankTransaction);
         ensureNotDuplicate(bankTransaction);
 
@@ -264,10 +262,9 @@ public class AdminBankTxManagerServiceImpl  implements AdminBankTxManagerService
     }
 
     @Transactional
-    public AdminBankTransactionResponse manualCreditBankTransaction(Long adminUserId, Long bankTransactionId,
+    public AdminBankTransactionResponse manualCreditBankTransaction(Long adminUserId, UUID bankTransactionId,
             ManualCreditBankTransactionRequest request) {
-        BankTransaction bankTransaction = bankTransactionRepository.findByIdForUpdate(bankTransactionId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Bank transaction not found"));
+        BankTransaction bankTransaction = requireBankTransactionForUpdate(bankTransactionId);
         ensureNotCredited(bankTransaction);
         ensureIncomingTransfer(bankTransaction);
 
@@ -276,7 +273,7 @@ public class AdminBankTxManagerServiceImpl  implements AdminBankTxManagerService
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Bank transaction amount is invalid");
         }
 
-        UserAccount user = userAccountRepository.findByIdForUpdate(request.userId())
+        UserAccount user = userAccountRepository.findByPublicIdForUpdate(request.userId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
         Long userId = user.getId();
         if (user.getStatus() != UserStatus.ACTIVE) {
@@ -363,6 +360,11 @@ public class AdminBankTxManagerServiceImpl  implements AdminBankTxManagerService
                 "reviewReason=" + reviewReason + ",adminReason=" + adminReason
                         + (deposit == null ? "" : ",depositCode=" + deposit.getDepositCode()));
         return AdminBankTransactionResponse.from(bankTransaction);
+    }
+
+    private BankTransaction requireBankTransactionForUpdate(UUID publicId) {
+        return bankTransactionRepository.findByPublicIdForUpdate(publicId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Bank transaction not found"));
     }
 
     private void ensureNotCredited(BankTransaction transaction) {

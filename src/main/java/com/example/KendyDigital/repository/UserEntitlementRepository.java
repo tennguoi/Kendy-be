@@ -6,6 +6,7 @@ import jakarta.persistence.LockModeType;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
@@ -13,6 +14,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 public interface UserEntitlementRepository extends JpaRepository<UserEntitlement, Long> {
+    Optional<UserEntitlement> findByPublicId(UUID publicId);
     boolean existsBySourceOrder_Id(Long orderId);
 
     @Query("""
@@ -55,6 +57,26 @@ public interface UserEntitlementRepository extends JpaRepository<UserEntitlement
             where e.id = :id
             """)
     Optional<UserEntitlement> findByIdForUpdate(@Param("id") Long id);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("""
+            select e from UserEntitlement e
+            join fetch e.service
+            join fetch e.sourceOrder o
+            left join fetch o.deliveredCredential
+            where e.publicId = :publicId and e.user.id = :userId
+            """)
+    Optional<UserEntitlement> findByPublicIdForUserUpdate(@Param("publicId") UUID publicId, @Param("userId") Long userId);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("""
+            select e from UserEntitlement e
+            join fetch e.service
+            join fetch e.sourceOrder o
+            left join fetch o.deliveredCredential
+            where e.publicId = :publicId
+            """)
+    Optional<UserEntitlement> findByPublicIdForUpdate(@Param("publicId") UUID publicId);
 
     Optional<UserEntitlement> findBySourceOrder_Id(Long orderId);
 

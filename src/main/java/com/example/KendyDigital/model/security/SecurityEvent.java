@@ -9,6 +9,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Index;
 import jakarta.persistence.Table;
+import com.example.KendyDigital.common.PublicIdEntity;
 import java.time.Instant;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -29,7 +30,7 @@ import lombok.Setter;
                 @Index(name = "idx_security_events_user_id", columnList = "user_id"),
                 @Index(name = "idx_security_events_fingerprint", columnList = "fingerprint")
         })
-public class SecurityEvent {
+public class SecurityEvent extends PublicIdEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;

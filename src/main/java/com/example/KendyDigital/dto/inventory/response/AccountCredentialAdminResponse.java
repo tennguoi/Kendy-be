@@ -3,10 +3,11 @@ package com.example.KendyDigital.dto.inventory.response;
 import com.example.KendyDigital.model.inventory.AccountCredential;
 import com.example.KendyDigital.model.inventory.AccountCredentialStatus;
 import java.time.Instant;
+import java.util.UUID;
 
 public record AccountCredentialAdminResponse(
-        Long id,
-        Long serviceId,
+        UUID id,
+        UUID serviceId,
         String serviceName,
         String loginIdentifier,
         String passwordSecret,
@@ -15,12 +16,12 @@ public record AccountCredentialAdminResponse(
         String usageNote,
         String internalNote,
         AccountCredentialStatus status,
-        Long assignedOrderId,
+        UUID assignedOrderId,
         String assignedOrderCode,
-        Long reservedCheckoutId,
+        UUID reservedCheckoutId,
         String reservedCheckoutCode,
-        Long reservedByUserId,
-        Long deliveredToUserId,
+        UUID reservedByUserId,
+        UUID deliveredToUserId,
         String deliveredToName,
         String deliveredToEmail,
         String deliveredToPhone,
@@ -33,11 +34,11 @@ public record AccountCredentialAdminResponse(
         Long version) {
 
     public AccountCredentialAdminResponse(
-            Long id, Long serviceId, String serviceName, String loginIdentifier,
+            UUID id, UUID serviceId, String serviceName, String loginIdentifier,
             String passwordSecret, String recoveryInfo, String twoFactorSecret,
             String usageNote, String internalNote, AccountCredentialStatus status,
-            Long assignedOrderId, String assignedOrderCode, Long reservedCheckoutId,
-            String reservedCheckoutCode, Long reservedByUserId, Long deliveredToUserId,
+            UUID assignedOrderId, String assignedOrderCode, UUID reservedCheckoutId,
+            String reservedCheckoutCode, UUID reservedByUserId, UUID deliveredToUserId,
             String deliveredToName, String deliveredToEmail, String deliveredToPhone,
             Instant reservedAt, Instant reservedUntil, Instant deliveredAt,
             Instant expiresAt, Instant warrantyUntil, Instant createdAt) {
@@ -51,8 +52,8 @@ public record AccountCredentialAdminResponse(
 
     public static AccountCredentialAdminResponse from(AccountCredential credential) {
         return new AccountCredentialAdminResponse(
-                credential.getId(),
-                credential.getService().getId(),
+                credential.getPublicId(),
+                credential.getService().getPublicId(),
                 credential.getService().getName(),
                 credential.getLoginIdentifier(),
                 maskSecret(credential.getPasswordSecret()),
@@ -61,12 +62,12 @@ public record AccountCredentialAdminResponse(
                 credential.getUsageNote(),
                 credential.getInternalNote(),
                 credential.getStatus(),
-                credential.getAssignedOrder() == null ? null : credential.getAssignedOrder().getId(),
+                credential.getAssignedOrder() == null ? null : credential.getAssignedOrder().getPublicId(),
                 credential.getAssignedOrder() == null ? null : credential.getAssignedOrder().getOrderCode(),
-                credential.getReservedCheckout() == null ? null : credential.getReservedCheckout().getId(),
+                credential.getReservedCheckout() == null ? null : credential.getReservedCheckout().getPublicId(),
                 credential.getReservedCheckout() == null ? null : credential.getReservedCheckout().getCheckoutCode(),
-                credential.getReservedByUser() == null ? null : credential.getReservedByUser().getId(),
-                credential.getDeliveredToUser() == null ? null : credential.getDeliveredToUser().getId(),
+                credential.getReservedByUser() == null ? null : credential.getReservedByUser().getPublicId(),
+                credential.getDeliveredToUser() == null ? null : credential.getDeliveredToUser().getPublicId(),
                 credential.getDeliveredToUser() == null ? null : credential.getDeliveredToUser().getName(),
                 credential.getDeliveredToUser() == null ? null : credential.getDeliveredToUser().getEmail(),
                 credential.getDeliveredToUser() == null ? null : credential.getDeliveredToUser().getPhone(),

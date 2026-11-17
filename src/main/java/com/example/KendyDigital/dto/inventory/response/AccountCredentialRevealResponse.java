@@ -3,10 +3,11 @@ package com.example.KendyDigital.dto.inventory.response;
 import com.example.KendyDigital.model.inventory.AccountCredential;
 import com.example.KendyDigital.model.inventory.AccountCredentialStatus;
 import java.time.Instant;
+import java.util.UUID;
 
 public record AccountCredentialRevealResponse(
-        Long id,
-        Long serviceId,
+        UUID id,
+        UUID serviceId,
         String serviceName,
         String loginIdentifier,
         String passwordSecret,
@@ -21,8 +22,8 @@ public record AccountCredentialRevealResponse(
         Instant warrantyUntil) {
     public static AccountCredentialRevealResponse from(AccountCredential credential) {
         return new AccountCredentialRevealResponse(
-                credential.getId(),
-                credential.getService().getId(),
+                credential.getPublicId(),
+                credential.getService().getPublicId(),
                 credential.getService().getName(),
                 credential.getLoginIdentifier(),
                 credential.getPasswordSecret(),

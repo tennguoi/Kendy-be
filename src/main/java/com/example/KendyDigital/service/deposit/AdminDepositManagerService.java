@@ -7,13 +7,14 @@ import com.example.KendyDigital.dto.finance.request.ManualCreditDepositRequest;
 import com.example.KendyDigital.model.deposit.DepositStatus;
 import java.time.Instant;
 import java.util.List;
+import java.util.UUID;
 
 public interface AdminDepositManagerService {
-    List<DepositResponse> listDeposits(DepositStatus status, Long userId);
-    List<DepositResponse> listDeposits(DepositStatus status, Long userId, Instant fromDate, Instant toDate, int page, int size);
-    List<DepositResponse> listDeposits(DepositStatus status, Long userId, Integer limit);
-    List<DepositResponse> searchDeposits(String query, DepositStatus status, Long userId, Instant fromDate, Instant toDate, int page, int size);
-    List<DepositResponse> searchDeposits(String query, DepositStatus status, Long userId, Integer limit);
+    List<DepositResponse> listDeposits(DepositStatus status, UUID userId);
+    List<DepositResponse> listDeposits(DepositStatus status, UUID userId, Instant fromDate, Instant toDate, int page, int size);
+    List<DepositResponse> listDeposits(DepositStatus status, UUID userId, Integer limit);
+    List<DepositResponse> searchDeposits(String query, DepositStatus status, UUID userId, Instant fromDate, Instant toDate, int page, int size);
+    List<DepositResponse> searchDeposits(String query, DepositStatus status, UUID userId, Integer limit);
     DepositResponse getDepositForAdmin(String depositCode);
     DepositResponse cancelDeposit(Long adminUserId, String depositCode, AdminDepositCancelRequest request);
     DepositResponse extendDeposit(Long adminUserId, String depositCode, AdminDepositExtendRequest request);

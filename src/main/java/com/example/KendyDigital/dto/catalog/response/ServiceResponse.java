@@ -7,9 +7,10 @@ import com.example.KendyDigital.model.catalog.ServiceStatus;
 import com.example.KendyDigital.model.catalog.ServiceStockStatus;
 import com.example.KendyDigital.model.catalog.ServiceType;
 import java.math.BigDecimal;
+import java.util.UUID;
 
 public record ServiceResponse(
-        Long id,
+        UUID id,
         String name,
         String slug,
         String shortDescription,
@@ -33,7 +34,7 @@ public record ServiceResponse(
         String processingTime,
         String warrantyPolicy,
         int sortOrder,
-        Long categoryId,
+        UUID categoryId,
         String categoryName,
         String metaTitle,
         String metaDescription,
@@ -41,13 +42,13 @@ public record ServiceResponse(
         Long version) {
 
     public ServiceResponse(
-            Long id, String name, String slug, String shortDescription, String description,
+            UUID id, String name, String slug, String shortDescription, String description,
             BigDecimal price, String priceText, BigDecimal costPrice, ServiceType type,
             AccessStrategy accessStrategy, Integer accessDurationDays, ServiceStatus status,
             ServiceStockStatus stockStatus, ServiceCtaType ctaType, String pricingBadge,
             boolean featured, boolean publicVisible, String inputSchema, String requirements,
             String benefits, String usageNotes, String processingTime, String warrantyPolicy,
-            int sortOrder, Long categoryId, String categoryName, String metaTitle,
+            int sortOrder, UUID categoryId, String categoryName, String metaTitle,
             String metaDescription, String iconUrl) {
         this(id, name, slug, shortDescription, description, price, priceText, costPrice, type,
                 accessStrategy, accessDurationDays, status, stockStatus, ctaType, pricingBadge,
@@ -58,7 +59,7 @@ public record ServiceResponse(
 
     public static ServiceResponse from(ServiceItem service) {
         return new ServiceResponse(
-                service.getId(),
+                service.getPublicId(),
                 service.getName(),
                 service.getSlug(),
                 service.getShortDescription(),
@@ -82,7 +83,7 @@ public record ServiceResponse(
                 service.getProcessingTime(),
                 service.getWarrantyPolicy(),
                 service.getSortOrder(),
-                service.getCategory() == null ? null : service.getCategory().getId(),
+                service.getCategory() == null ? null : service.getCategory().getPublicId(),
                 service.getCategory() == null ? null : service.getCategory().getName(),
                 service.getMetaTitle(),
                 service.getMetaDescription(),

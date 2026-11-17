@@ -9,6 +9,7 @@ import com.example.KendyDigital.dto.finance.response.AdminBankTransactionRespons
 import com.example.KendyDigital.model.bank.BankTransactionStatus;
 import java.time.Instant;
 import java.util.List;
+import java.util.UUID;
 
 public interface AdminBankTxManagerService {
     List<AdminBankTransactionResponse> listBankTransactions(BankTransactionStatus status);
@@ -16,10 +17,10 @@ public interface AdminBankTxManagerService {
     List<AdminBankTransactionResponse> listBankTransactions(BankTransactionStatus status, Integer limit);
     List<AdminBankTransactionResponse> searchBankTransactions(String query, BankTransactionStatus status, Instant fromDate, Instant toDate, int page, int size);
     List<AdminBankTransactionResponse> searchBankTransactions(String query, BankTransactionStatus status, Integer limit);
-    AdminBankTransactionResponse getBankTransaction(Long bankTransactionId);
-    AdminBankTransactionResponse ignoreBankTransaction(Long adminUserId, Long bankTransactionId, IgnoreBankTransactionRequest request);
-    AdminBankTransactionResponse matchBankTransaction(Long adminUserId, Long bankTransactionId, MatchBankTransactionRequest request);
-    AdminBankTransactionResponse reprocessBankTransaction(Long adminUserId, Long bankTransactionId, ReprocessBankTransactionRequest request);
-    AdminBankTransactionResponse manualCreditBankTransaction(Long adminUserId, Long bankTransactionId, ManualCreditBankTransactionRequest request);
+    AdminBankTransactionResponse getBankTransaction(UUID bankTransactionId);
+    AdminBankTransactionResponse ignoreBankTransaction(Long adminUserId, UUID bankTransactionId, IgnoreBankTransactionRequest request);
+    AdminBankTransactionResponse matchBankTransaction(Long adminUserId, UUID bankTransactionId, MatchBankTransactionRequest request);
+    AdminBankTransactionResponse reprocessBankTransaction(Long adminUserId, UUID bankTransactionId, ReprocessBankTransactionRequest request);
+    AdminBankTransactionResponse manualCreditBankTransaction(Long adminUserId, UUID bankTransactionId, ManualCreditBankTransactionRequest request);
     List<AdminBankTransactionResponse> bulkManualCreditBankTransactions(Long adminUserId, BulkManualCreditBankTransactionsRequest request);
 }

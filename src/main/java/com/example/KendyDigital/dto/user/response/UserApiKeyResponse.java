@@ -3,9 +3,10 @@ package com.example.KendyDigital.dto.user.response;
 import com.example.KendyDigital.model.user.UserApiKey;
 import java.time.Instant;
 import java.util.List;
+import java.util.UUID;
 
 public record UserApiKeyResponse(
-        Long id,
+        UUID id,
         String name,
         String keyPrefix,
         List<String> scopes,
@@ -14,7 +15,7 @@ public record UserApiKeyResponse(
         Instant createdAt) {
     public static UserApiKeyResponse from(UserApiKey key) {
         return new UserApiKeyResponse(
-                key.getId(),
+                key.getPublicId(),
                 key.getName(),
                 key.getKeyPrefix(),
                 splitScopes(key.getScopes()),

@@ -4,6 +4,7 @@ import com.example.KendyDigital.model.catalog.ServiceItem;
 import com.example.KendyDigital.model.catalog.ServiceStatus;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -23,6 +24,11 @@ public interface ServiceItemRepository extends JpaRepository<ServiceItem, Long>,
         List<ServiceItem> findAll(Specification<ServiceItem> spec);
 
         boolean existsBySlug(String slug);
+
+        @EntityGraph(attributePaths = "category")
+        Optional<ServiceItem> findByPublicId(UUID publicId);
+
+        List<ServiceItem> findAllByPublicIdIn(java.util.Collection<UUID> publicIds);
 
         @EntityGraph(attributePaths = "category")
         Optional<ServiceItem> findBySlug(String slug);

@@ -24,6 +24,7 @@ import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.stream.Collectors;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
@@ -59,34 +60,37 @@ public class AdminSecurityManagerServiceImpl  implements AdminSecurityManagerSer
     }
 
     @Transactional(readOnly = true)
-    public List<AuthSessionResponse> listSessions(Long userId, int page, int size) {
-        return authSessionRepository.findAllByUser_IdOrderByCreatedAtDesc(userId, paged(page, size))
+    public List<AuthSessionResponse> listSessions(UUID userId, int page, int size) {
+        UserAccount user = requireUser(userId);
+        return authSessionRepository.findAllByUser_IdOrderByCreatedAtDesc(user.getId(), paged(page, size))
                 .stream()
                 .map(AuthSessionResponse::from)
                 .toList();
     }
 
     @Transactional(readOnly = true)
-    public List<AuthSessionResponse> listSessions(Long userId, Integer limit) {
+    public List<AuthSessionResponse> listSessions(UUID userId, Integer limit) {
         return listSessions(userId, 0, limit == null ? 100 : limit);
     }
 
     @Transactional
-    public void revokeSession(Long adminUserId, Long userId, Long sessionId) {
-        AuthSession session = authSessionRepository.findByIdAndUser_Id(sessionId, userId)
+    public void revokeSession(Long adminUserId, UUID userId, UUID sessionId) {
+        UserAccount user = requireUser(userId);
+        AuthSession session = authSessionRepository.findByPublicId(sessionId)
+                .filter(s -> s.getUser() != null && user.getId().equals(s.getUser().getId()))
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Session not found"));
         session.revoke();
         auditService.recordAdmin(adminUserId, "AUTH_SESSION_REVOKED", "AUTH_SESSION", session.getId(),
-                "userId=" + userId);
+                "userId=" + user.getId());
     }
 
     @Transactional
-    public List<AdminUserResponse> bulkUserStatus(Long adminUserId, List<Long> ids, UserStatus status, String reason) {
-        List<Long> sortedIds = ids == null ? List.of() : ids.stream().distinct().sorted().toList();
-        List<UserAccount> users = userAccountRepository.findAllByIdForUpdate(sortedIds);
+    public List<AdminUserResponse> bulkUserStatus(Long adminUserId, List<UUID> ids, UserStatus status, String reason) {
+        List<UUID> sortedIds = ids == null ? List.of() : ids.stream().distinct().sorted().toList();
+        List<UserAccount> users = userAccountRepository.findAllByPublicIdIn(sortedIds);
         if (users.size() != sortedIds.size()) {
-            List<Long> found = users.stream().map(UserAccount::getId).toList();
-            Long missing = sortedIds.stream().filter(id -> !found.contains(id)).findFirst().orElse(null);
+            List<UUID> found = users.stream().map(UserAccount::getPublicId).toList();
+            UUID missing = sortedIds.stream().filter(id -> !found.contains(id)).findFirst().orElse(null);
             throw new ResponseStatusException(HttpStatus.NOT_FOUND,
                     "User not found: " + missing);
         }
@@ -110,7 +114,7 @@ public class AdminSecurityManagerServiceImpl  implements AdminSecurityManagerSer
     }
 
     @Transactional
-    public TotpSetupResponse setupTwoFactor(Long adminUserId, Long targetAdminId) {
+    public TotpSetupResponse setupTwoFactor(Long adminUserId, UUID targetAdminId) {
         UserAccount admin = requireAdminForUpdate(targetAdminId);
         if (admin.isTwoFactorEnabled()) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "2FA is already enabled");
@@ -125,7 +129,7 @@ public class AdminSecurityManagerServiceImpl  implements AdminSecurityManagerSer
     }
 
     @Transactional
-    public AdminUserResponse verifyAndEnableTwoFactor(Long adminUserId, Long targetAdminId,
+    public AdminUserResponse verifyAndEnableTwoFactor(Long adminUserId, UUID targetAdminId,
             TwoFactorVerifyRequest request) {
         UserAccount admin = requireAdminForUpdate(targetAdminId);
         if (admin.isTwoFactorEnabled()) {
@@ -150,7 +154,7 @@ public class AdminSecurityManagerServiceImpl  implements AdminSecurityManagerSer
     }
 
     @Transactional
-    public AdminUserResponse disableTwoFactor(Long adminUserId, Long targetAdminId, TwoFactorDisableRequest request) {
+    public AdminUserResponse disableTwoFactor(Long adminUserId, UUID targetAdminId, TwoFactorDisableRequest request) {
         UserAccount admin = requireAdminForUpdate(targetAdminId);
         // Verify password of the admin performing the action
         if (!passwordEncoder.matches(request.password(), admin.getPasswordHash())) {
@@ -168,7 +172,7 @@ public class AdminSecurityManagerServiceImpl  implements AdminSecurityManagerSer
     }
 
     @Transactional
-    public TotpSetupResponse resetTwoFactor(Long adminUserId, Long targetAdminId) {
+    public TotpSetupResponse resetTwoFactor(Long adminUserId, UUID targetAdminId) {
         UserAccount admin = requireAdminForUpdate(targetAdminId);
         admin.resetTwoFactor();
         auditService.recordAdmin(adminUserId, "ADMIN_2FA_RESET", "USER", admin.getId(), null);
@@ -176,16 +180,13 @@ public class AdminSecurityManagerServiceImpl  implements AdminSecurityManagerSer
     }
 
     @Transactional(readOnly = true)
-    public Map<String, Object> getPermissions(Long adminId) {
+    public Map<String, Object> getPermissions(UUID adminId) {
         UserAccount admin = requireAdmin(adminId);
-        Map<String, Object> response = new LinkedHashMap<>();
-        response.put("adminId", admin.getId());
-        response.put("permissions", parsePermissions(admin.getAdminPermissions()));
-        return response;
+        return permissionsResponse(admin);
     }
 
     @Transactional
-    public Map<String, Object> updatePermissions(Long adminUserId, Long targetAdminId,
+    public Map<String, Object> updatePermissions(Long adminUserId, UUID targetAdminId,
             AdminPermissionsRequest request) {
         UserAccount admin = requireAdminForUpdate(targetAdminId);
         String permissions = request.permissions() == null ? "" : request.permissions().stream()
@@ -196,20 +197,20 @@ public class AdminSecurityManagerServiceImpl  implements AdminSecurityManagerSer
         admin.setAdminPermissions(permissions);
         auditService.recordAdmin(adminUserId, "ADMIN_PERMISSIONS_UPDATED", "USER", admin.getId(),
                 "permissions=" + permissions + ",reason=" + blankToNull(request.reason()));
-        return getPermissions(admin.getId());
+        return permissionsResponse(admin);
     }
 
     @Transactional(readOnly = true)
-    public Map<String, Object> getRoles(Long adminId) {
+    public Map<String, Object> getRoles(UUID adminId) {
         UserAccount admin = requireAdmin(adminId);
         Map<String, Object> response = new LinkedHashMap<>();
-        response.put("adminId", admin.getId());
+        response.put("adminId", admin.getPublicId());
         response.put("role", admin.getRole());
         return response;
     }
 
     @Transactional
-    public Map<String, Object> updateRoles(Long adminUserId, Long targetAdminId, AdminRolesRequest request) {
+    public Map<String, Object> updateRoles(Long adminUserId, UUID targetAdminId, AdminRolesRequest request) {
         UserAccount admin = requireAdminForUpdate(targetAdminId);
         if (request.role() == UserRole.USER) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Admin role cannot be USER");
@@ -217,30 +218,38 @@ public class AdminSecurityManagerServiceImpl  implements AdminSecurityManagerSer
         admin.setRole(request.role());
         auditService.recordAdmin(adminUserId, "ADMIN_ROLE_UPDATED", "USER", admin.getId(),
                 "role=" + request.role() + ",reason=" + blankToNull(request.reason()));
-        return getRoles(admin.getId());
+        return getRoles(admin.getPublicId());
     }
 
     @Transactional(readOnly = true)
-    public List<UserApiKeyResponse> listUserApiKeys(Long userId, int page, int size) {
-        return userApiKeyRepository.findAllByUser_IdOrderByCreatedAtDesc(userId, paged(page, size))
+    public List<UserApiKeyResponse> listUserApiKeys(UUID userId, int page, int size) {
+        UserAccount user = requireUser(userId);
+        return userApiKeyRepository.findAllByUser_IdOrderByCreatedAtDesc(user.getId(), paged(page, size))
                 .stream()
                 .map(UserApiKeyResponse::from)
                 .toList();
     }
 
     @Transactional
-    public void revokeUserApiKey(Long adminUserId, Long userId, Long keyId) {
-        UserApiKey key = userApiKeyRepository.findByIdAndUser_Id(keyId, userId)
+    public void revokeUserApiKey(Long adminUserId, UUID userId, UUID keyId) {
+        UserAccount user = requireUser(userId);
+        UserApiKey key = userApiKeyRepository.findByPublicId(keyId)
+                .filter(k -> k.getUser() != null && user.getId().equals(k.getUser().getId()))
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "API key not found"));
         key.revoke();
         auditService.recordAdmin(adminUserId, "USER_API_KEY_REVOKED", "USER_API_KEY", key.getId(),
-                "userId=" + userId + ",keyName=" + key.getName() + ",keyPrefix=" + key.getKeyPrefix());
-        userNotificationService.create(userId, "API key revoked by admin",
+                "userId=" + user.getId() + ",keyName=" + key.getName() + ",keyPrefix=" + key.getKeyPrefix());
+        userNotificationService.create(user.getId(), "API key revoked by admin",
                 "API key '" + key.getName() + "' was revoked by an administrator.", "SECURITY", "/account/security");
     }
 
-    private UserAccount requireAdmin(Long adminId) {
-        UserAccount admin = userAccountRepository.findById(adminId)
+    private UserAccount requireUser(UUID publicId) {
+        return userAccountRepository.findByPublicId(publicId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+    }
+
+    private UserAccount requireAdmin(UUID adminId) {
+        UserAccount admin = userAccountRepository.findByPublicId(adminId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Admin not found"));
         if (admin.getRole() == UserRole.USER) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "User is not an admin");
@@ -248,13 +257,20 @@ public class AdminSecurityManagerServiceImpl  implements AdminSecurityManagerSer
         return admin;
     }
 
-    private UserAccount requireAdminForUpdate(Long adminId) {
-        UserAccount admin = userAccountRepository.findByIdForUpdate(adminId)
+    private UserAccount requireAdminForUpdate(UUID adminId) {
+        UserAccount admin = userAccountRepository.findByPublicIdForUpdate(adminId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Admin not found"));
         if (admin.getRole() == UserRole.USER) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "User is not an admin");
         }
         return admin;
+    }
+
+    private Map<String, Object> permissionsResponse(UserAccount admin) {
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("adminId", admin.getPublicId());
+        response.put("permissions", parsePermissions(admin.getAdminPermissions()));
+        return response;
     }
 
     private List<String> parsePermissions(String permissions) {

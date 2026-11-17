@@ -3,9 +3,10 @@ package com.example.KendyDigital.dto.content.response;
 import com.example.KendyDigital.model.content.ContentItem;
 import com.example.KendyDigital.model.content.ContentType;
 import java.time.Instant;
+import java.util.UUID;
 
 public record ContentItemResponse(
-        Long id,
+        UUID id,
         ContentType type,
         String slug,
         String title,
@@ -22,7 +23,7 @@ public record ContentItemResponse(
         Instant updatedAt,
         Long version) {
 
-    public ContentItemResponse(Long id, ContentType type, String slug, String title,
+    public ContentItemResponse(UUID id, ContentType type, String slug, String title,
             String summary, String content, String imageUrl, String ctaUrl,
             String seoTitle, String seoDescription, boolean published, int sortOrder,
             Long updatedBy, Instant createdAt, Instant updatedAt) {
@@ -32,7 +33,7 @@ public record ContentItemResponse(
 
     public static ContentItemResponse from(ContentItem item) {
         return new ContentItemResponse(
-                item.getId(),
+                item.getPublicId(),
                 item.getType(),
                 item.getSlug(),
                 item.getTitle(),

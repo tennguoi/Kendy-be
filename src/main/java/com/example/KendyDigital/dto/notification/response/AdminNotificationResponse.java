@@ -2,9 +2,10 @@ package com.example.KendyDigital.dto.notification.response;
 
 import com.example.KendyDigital.model.admin.AdminNotification;
 import java.time.Instant;
+import java.util.UUID;
 
 public record AdminNotificationResponse(
-        Long id,
+        UUID id,
         Long adminUserId,
         String title,
         String message,
@@ -12,7 +13,7 @@ public record AdminNotificationResponse(
         Instant createdAt) {
     public static AdminNotificationResponse from(AdminNotification notification) {
         return new AdminNotificationResponse(
-                notification.getId(),
+                notification.getPublicId(),
                 notification.getAdminUserId(),
                 notification.getTitle(),
                 notification.getMessage(),

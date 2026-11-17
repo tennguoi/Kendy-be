@@ -13,6 +13,7 @@ import com.example.KendyDigital.service.audit.AuditService;
 import com.example.KendyDigital.service.order.ManualOrderTaskService;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -78,7 +79,7 @@ public class ManualOrderTaskServiceImpl implements ManualOrderTaskService {
             }
             ManualOrderTask task = null;
             if (taskRequest.id() != null) {
-                task = manualOrderTaskRepository.findById(taskRequest.id()).orElse(null);
+                task = manualOrderTaskRepository.findByPublicId(taskRequest.id()).orElse(null);
                 if (task != null && !task.getOrder().getId().equals(order.getId())) {
                     throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Manual task belongs to another order");
                 }
@@ -106,11 +107,11 @@ public class ManualOrderTaskServiceImpl implements ManualOrderTaskService {
 
     @Override
     @Transactional
-    public void updateTaskStatus(OrderRecord order, Long adminUserId, Long taskId, ManualOrderTaskStatusRequest request) {
+    public void updateTaskStatus(OrderRecord order, Long adminUserId, UUID taskId, ManualOrderTaskStatusRequest request) {
         if (order.getService() == null || order.getService().getType() != ServiceType.MANUAL) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Only manual service orders have tasks");
         }
-        ManualOrderTask task = manualOrderTaskRepository.findById(taskId)
+        ManualOrderTask task = manualOrderTaskRepository.findByPublicId(taskId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Manual task not found"));
         if (!task.getOrder().getId().equals(order.getId())) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Manual task not found");

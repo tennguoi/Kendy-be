@@ -8,6 +8,7 @@ import jakarta.persistence.criteria.JoinType;
 import jakarta.persistence.criteria.Predicate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 import org.springframework.data.jpa.domain.Specification;
 
 public final class ServiceItemSpecifications {
@@ -17,7 +18,7 @@ public final class ServiceItemSpecifications {
 
     public static Specification<ServiceItem> searchPublic(
             String query,
-            Long categoryId,
+            UUID categoryId,
             String categorySlug,
             Boolean featured) {
         return (root, cq, cb) -> {
@@ -27,7 +28,7 @@ public final class ServiceItemSpecifications {
             predicates.add(cb.isTrue(root.get("publicVisible")));
 
             if (categoryId != null) {
-                predicates.add(cb.equal(root.get("category").get("id"), categoryId));
+                predicates.add(cb.equal(root.get("category").get("publicId"), categoryId));
             }
             if (categorySlug != null && !categorySlug.isBlank()) {
                 predicates.add(cb.equal(root.get("category").get("slug"), categorySlug.trim()));
@@ -57,7 +58,7 @@ public final class ServiceItemSpecifications {
     public static Specification<ServiceItem> searchAdmin(
             String query,
             ServiceStatus status,
-            Long categoryId,
+            UUID categoryId,
             String categorySlug,
             Boolean featured) {
         return (root, cq, cb) -> {
@@ -67,7 +68,7 @@ public final class ServiceItemSpecifications {
                 predicates.add(cb.equal(root.get("status"), status));
             }
             if (categoryId != null) {
-                predicates.add(cb.equal(root.get("category").get("id"), categoryId));
+                predicates.add(cb.equal(root.get("category").get("publicId"), categoryId));
             }
             if (categorySlug != null && !categorySlug.isBlank()) {
                 predicates.add(cb.equal(root.get("category").get("slug"), categorySlug.trim()));

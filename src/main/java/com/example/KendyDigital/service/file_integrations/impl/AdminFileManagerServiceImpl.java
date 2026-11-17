@@ -7,6 +7,7 @@ import com.example.KendyDigital.model.file.StoredFile;
 import com.example.KendyDigital.repository.StoredFileRepository;
 import com.example.KendyDigital.service.audit.AuditService;
 import java.nio.charset.StandardCharsets;
+import java.util.UUID;
 import org.apache.commons.text.StringEscapeUtils;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -38,16 +39,16 @@ public class AdminFileManagerServiceImpl  implements AdminFileManagerService{
     }
 
     @Transactional(readOnly = true)
-    public StoredFile getFile(Long fileId) {
-        return storedFileRepository.findById(fileId)
+    public StoredFile getFile(UUID fileId) {
+        return storedFileRepository.findByPublicId(fileId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "File not found"));
     }
 
     @Transactional
-    public void deleteFile(Long adminUserId, Long fileId) {
+    public void deleteFile(Long adminUserId, UUID fileId) {
         StoredFile file = getFile(fileId);
         storedFileRepository.delete(file);
-        auditService.recordAdmin(adminUserId, "FILE_DELETED", "FILE", fileId, "fileName=" + file.getFileName());
+        auditService.recordAdmin(adminUserId, "FILE_DELETED", "FILE", file.getId(), "fileName=" + file.getFileName());
     }
 
     public byte[] previewBytes(StoredFile file) {

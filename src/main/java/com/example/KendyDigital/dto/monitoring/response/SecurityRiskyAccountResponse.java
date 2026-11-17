@@ -2,9 +2,10 @@ package com.example.KendyDigital.dto.monitoring.response;
 
 import com.example.KendyDigital.model.user.UserAccount;
 import java.time.Instant;
+import java.util.UUID;
 
 public record SecurityRiskyAccountResponse(
-        Long userId,
+        UUID userId,
         String name,
         String email,
         String role,
@@ -16,7 +17,7 @@ public record SecurityRiskyAccountResponse(
         boolean walletFrozen) {
     public static SecurityRiskyAccountResponse from(UserAccount user) {
         return new SecurityRiskyAccountResponse(
-                user.getId(),
+                user.getPublicId(),
                 user.getName(),
                 user.getEmail(),
                 user.getRole() == null ? null : user.getRole().name(),

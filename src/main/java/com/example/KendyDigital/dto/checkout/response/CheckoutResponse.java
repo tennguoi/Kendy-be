@@ -6,11 +6,12 @@ import com.example.KendyDigital.model.checkout.CheckoutSession;
 import com.example.KendyDigital.model.checkout.CheckoutStatus;
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.UUID;
 
 public record CheckoutResponse(
         String checkoutCode,
         CheckoutStatus status,
-        Long serviceId,
+        UUID serviceId,
         String serviceName,
         BigDecimal amount,
         BigDecimal originalAmount,
@@ -25,7 +26,7 @@ public record CheckoutResponse(
         return new CheckoutResponse(
                 checkout.getCheckoutCode(),
                 checkout.getStatus(),
-                checkout.getService().getId(),
+                checkout.getService().getPublicId(),
                 checkout.getService().getName(),
                 deposit == null ? checkout.getOriginalAmount() : deposit.getAmount(),
                 checkout.getOriginalAmount(),

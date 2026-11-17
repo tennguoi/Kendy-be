@@ -6,11 +6,12 @@ import java.math.BigDecimal;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import java.util.UUID;
 
 public record DepositResponse(
-        Long id,
+        UUID id,
         String depositCode,
-        Long userId,
+        UUID userId,
         BigDecimal amount,
         String bankName,
         String bankAccount,
@@ -24,9 +25,9 @@ public record DepositResponse(
     public static DepositResponse from(DepositRequest deposit) {
         String qrPayload = vietQrPayload(deposit);
         return new DepositResponse(
-                deposit.getId(),
+                deposit.getPublicId(),
                 deposit.getDepositCode(),
-                deposit.getUser().getId(),
+                deposit.getUser().getPublicId(),
                 deposit.getAmount(),
                 deposit.getBankName(),
                 deposit.getBankAccount(),

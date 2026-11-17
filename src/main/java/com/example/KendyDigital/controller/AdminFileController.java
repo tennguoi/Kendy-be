@@ -4,6 +4,7 @@ import com.example.KendyDigital.dto.file.response.StoredFileResponse;
 import com.example.KendyDigital.model.file.StoredFile;
 import com.example.KendyDigital.security.CurrentUser;
 import com.example.KendyDigital.service.file_integrations.AdminFileManagerService;
+import java.util.UUID;
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -33,18 +34,18 @@ public class AdminFileController {
     }
 
     @GetMapping("/api/admin/files/{fileId}/download")
-    public ResponseEntity<byte[]> downloadFile(@PathVariable Long fileId) {
+    public ResponseEntity<byte[]> downloadFile(@PathVariable UUID fileId) {
         StoredFile file = fileManagerService.getFile(fileId);
         return fileResponse(file, file.getContent());
     }
 
     @DeleteMapping("/api/admin/files/{fileId}/delete")
-    public void deleteFile(Authentication authentication, @PathVariable Long fileId) {
+    public void deleteFile(Authentication authentication, @PathVariable UUID fileId) {
         fileManagerService.deleteFile(CurrentUser.require(authentication).userId(), fileId);
     }
 
     @GetMapping("/api/admin/files/{fileId}/preview")
-    public ResponseEntity<byte[]> previewFile(@PathVariable Long fileId) {
+    public ResponseEntity<byte[]> previewFile(@PathVariable UUID fileId) {
         StoredFile file = fileManagerService.getFile(fileId);
         return fileResponse(file, fileManagerService.previewBytes(file));
     }

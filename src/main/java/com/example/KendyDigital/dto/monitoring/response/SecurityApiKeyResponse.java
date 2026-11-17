@@ -2,10 +2,11 @@ package com.example.KendyDigital.dto.monitoring.response;
 
 import com.example.KendyDigital.model.user.UserApiKey;
 import java.time.Instant;
+import java.util.UUID;
 
 public record SecurityApiKeyResponse(
-        Long id,
-        Long userId,
+        UUID id,
+        UUID userId,
         String userName,
         String userEmail,
         String name,
@@ -15,8 +16,8 @@ public record SecurityApiKeyResponse(
         Instant lastUsedAt) {
     public static SecurityApiKeyResponse from(UserApiKey key) {
         return new SecurityApiKeyResponse(
-                key.getId(),
-                key.getUser().getId(),
+                key.getPublicId(),
+                key.getUser().getPublicId(),
                 key.getUser().getName(),
                 key.getUser().getEmail(),
                 key.getName(),

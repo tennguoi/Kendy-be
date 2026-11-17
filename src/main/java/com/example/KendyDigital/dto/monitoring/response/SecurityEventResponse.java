@@ -2,9 +2,10 @@ package com.example.KendyDigital.dto.monitoring.response;
 
 import com.example.KendyDigital.model.security.SecurityEvent;
 import java.time.Instant;
+import java.util.UUID;
 
 public record SecurityEventResponse(
-        Long id,
+        UUID id,
         Instant occurredAt,
         String type,
         String severity,
@@ -20,7 +21,7 @@ public record SecurityEventResponse(
         String metadata) {
     public static SecurityEventResponse from(SecurityEvent event) {
         return new SecurityEventResponse(
-                event.getId(),
+                event.getPublicId(),
                 event.getOccurredAt(),
                 event.getType() == null ? null : event.getType().name(),
                 event.getSeverity() == null ? null : event.getSeverity().name(),

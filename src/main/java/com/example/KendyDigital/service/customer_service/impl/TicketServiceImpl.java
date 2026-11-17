@@ -30,6 +30,7 @@ import com.example.KendyDigital.service.customer_service.helper.TicketNotificati
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.stream.Collectors;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
@@ -186,20 +187,20 @@ public class TicketServiceImpl implements TicketService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<TicketResponse> listForAdmin(TicketStatus status, Long userId) {
+    public List<TicketResponse> listForAdmin(TicketStatus status, UUID userId) {
         return adminTicketManagerService.listForAdmin(status, userId, null);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public List<TicketResponse> listForAdmin(TicketStatus status, Long userId, Integer limit) {
+    public List<TicketResponse> listForAdmin(TicketStatus status, UUID userId, Integer limit) {
         return adminTicketManagerService.listForAdmin(status, userId, limit);
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<TicketResponse> searchForAdmin(String query, TicketStatus status, TicketCategory category,
-            TicketPriority priority, Long userId, Integer limit) {
+            TicketPriority priority, UUID userId, Integer limit) {
         return adminTicketManagerService.searchForAdmin(query, status, category, priority, userId, limit);
     }
 
@@ -267,25 +268,25 @@ public class TicketServiceImpl implements TicketService {
 
     @Override
     @Transactional(readOnly = true)
-    public StoredFile getAttachmentFileForUser(Long userId, String ticketCode, Long attachmentId) {
+    public StoredFile getAttachmentFileForUser(Long userId, String ticketCode, UUID attachmentId) {
         return ticketAttachmentService.getAttachmentFileForUser(userId, ticketCode, attachmentId);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public StoredFile getAttachmentFileForAdmin(String ticketCode, Long attachmentId) {
+    public StoredFile getAttachmentFileForAdmin(String ticketCode, UUID attachmentId) {
         return ticketAttachmentService.getAttachmentFileForAdmin(ticketCode, attachmentId);
     }
 
     @Override
     @Transactional
-    public void deleteAttachmentForUser(Long userId, String ticketCode, Long attachmentId) {
+    public void deleteAttachmentForUser(Long userId, String ticketCode, UUID attachmentId) {
         ticketAttachmentService.deleteAttachmentForUser(userId, ticketCode, attachmentId);
     }
 
     @Override
     @Transactional
-    public void deleteAttachment(Long adminUserId, String ticketCode, Long attachmentId) {
+    public void deleteAttachment(Long adminUserId, String ticketCode, UUID attachmentId) {
         ticketAttachmentService.deleteAttachment(adminUserId, ticketCode, attachmentId);
     }
 

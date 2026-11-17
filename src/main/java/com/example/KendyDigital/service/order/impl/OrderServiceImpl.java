@@ -58,6 +58,7 @@ import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -150,7 +151,7 @@ public class OrderServiceImpl implements OrderService {
             }
         }
 
-        ServiceItem service = serviceItemRepository.findById(request.serviceId())
+        ServiceItem service = serviceItemRepository.findByPublicId(request.serviceId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Service not found"));
         if (service.getStatus() != ServiceStatus.ACTIVE) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Service is not active");
@@ -295,17 +296,17 @@ public class OrderServiceImpl implements OrderService {
     }
 
     @Transactional(readOnly = true)
-    public List<OrderResponse> listForAdmin(OrderStatus status, Long userId) {
+    public List<OrderResponse> listForAdmin(OrderStatus status, UUID userId) {
         return adminOrderManagerService.listForAdmin(status, userId);
     }
 
     @Transactional(readOnly = true)
-    public List<OrderResponse> listForAdmin(OrderStatus status, Long userId, Integer limit) {
+    public List<OrderResponse> listForAdmin(OrderStatus status, UUID userId, Integer limit) {
         return adminOrderManagerService.listForAdmin(status, userId, limit);
     }
 
     @Transactional(readOnly = true)
-    public List<OrderResponse> searchForAdmin(String query, OrderStatus status, Long userId, Integer limit) {
+    public List<OrderResponse> searchForAdmin(String query, OrderStatus status, UUID userId, Integer limit) {
         return adminOrderManagerService.searchForAdmin(query, status, userId, limit);
     }
 
@@ -404,7 +405,7 @@ public class OrderServiceImpl implements OrderService {
     }
 
     @Transactional
-    public OrderResponse updateManualTask(String orderCode, Long adminUserId, Long taskId,
+    public OrderResponse updateManualTask(String orderCode, Long adminUserId, UUID taskId,
             ManualOrderTaskStatusRequest request) {
         return adminOrderManagerService.updateManualTask(orderCode, adminUserId, taskId, request);
     }

@@ -1,6 +1,5 @@
 package com.example.KendyDigital.common;
 
-import com.example.KendyDigital.common.error.ApiError;
 import com.example.KendyDigital.common.error.ErrorCode;
 import java.util.Map;
 import java.util.Locale;

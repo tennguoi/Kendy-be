@@ -21,6 +21,7 @@ import com.example.KendyDigital.service.user_management.UserProfileService;
 import jakarta.validation.Valid;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -117,7 +118,7 @@ public class MeController {
     }
 
     @DeleteMapping("/api/me/sessions/{sessionId}")
-    public void revokeSession(Authentication authentication, @PathVariable Long sessionId) {
+    public void revokeSession(Authentication authentication, @PathVariable UUID sessionId) {
         userSecurityService.revokeSession(CurrentUser.require(authentication).userId(), sessionId);
     }
 
@@ -180,7 +181,7 @@ public class MeController {
     }
 
     @DeleteMapping("/api/me/api-keys/{keyId}")
-    public void revokeApiKey(Authentication authentication, @PathVariable Long keyId) {
+    public void revokeApiKey(Authentication authentication, @PathVariable UUID keyId) {
         userSecurityService.revokeApiKey(CurrentUser.require(authentication).userId(), keyId);
     }
 }

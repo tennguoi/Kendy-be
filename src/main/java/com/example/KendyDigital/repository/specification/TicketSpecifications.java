@@ -12,6 +12,7 @@ import jakarta.persistence.criteria.JoinType;
 import jakarta.persistence.criteria.Predicate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 import org.springframework.data.jpa.domain.Specification;
 
 public final class TicketSpecifications {
@@ -66,7 +67,7 @@ public final class TicketSpecifications {
             TicketStatus status,
             TicketCategory category,
             TicketPriority priority,
-            Long userId) {
+            UUID userId) {
         return (root, cq, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
 
@@ -80,7 +81,7 @@ public final class TicketSpecifications {
                 predicates.add(cb.equal(root.get("priority"), priority));
             }
             if (userId != null) {
-                predicates.add(cb.equal(root.get("user").get("id"), userId));
+                predicates.add(cb.equal(root.get("user").get("publicId"), userId));
             }
 
             String pattern = SearchSpecificationUtils.likePattern(query);

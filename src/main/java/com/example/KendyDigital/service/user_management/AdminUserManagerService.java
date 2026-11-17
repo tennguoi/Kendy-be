@@ -6,6 +6,7 @@ import com.example.KendyDigital.dto.user.response.AdminUserDetailResponse;
 import com.example.KendyDigital.dto.user.response.AdminUserResponse;
 import com.example.KendyDigital.model.user.UserStatus;
 import java.util.List;
+import java.util.UUID;
 
 public interface AdminUserManagerService {
     List<AdminUserResponse> listUsers(UserStatus status);
@@ -13,7 +14,7 @@ public interface AdminUserManagerService {
     List<AdminUserResponse> listUsers(UserStatus status, Integer limit);
     List<AdminUserResponse> searchUsers(String query, UserStatus status, int page, int size);
     List<AdminUserResponse> searchUsers(String query, UserStatus status, Integer limit);
-    AdminUserDetailResponse getUserDetail(Long userId);
-    AdminUserResponse updateUserStatus(Long adminUserId, Long targetUserId, AdminUserStatusUpdateRequest request);
-    AdminUserResponse updateUserRole(Long adminUserId, Long targetUserId, AdminUserRoleUpdateRequest request);
+    AdminUserDetailResponse getUserDetail(UUID userId);
+    AdminUserResponse updateUserStatus(Long adminUserId, UUID targetUserId, AdminUserStatusUpdateRequest request);
+    AdminUserResponse updateUserRole(Long adminUserId, UUID targetUserId, AdminUserRoleUpdateRequest request);
 }

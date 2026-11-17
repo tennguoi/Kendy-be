@@ -2,10 +2,11 @@ package com.example.KendyDigital.dto.monitoring.response;
 
 import com.example.KendyDigital.model.auth.AuthSession;
 import java.time.Instant;
+import java.util.UUID;
 
 public record SecuritySessionResponse(
-        Long id,
-        Long userId,
+        UUID id,
+        UUID userId,
         String userName,
         String userEmail,
         String userRole,
@@ -18,8 +19,8 @@ public record SecuritySessionResponse(
         String userAgent) {
     public static SecuritySessionResponse from(AuthSession session) {
         return new SecuritySessionResponse(
-                session.getId(),
-                session.getUser().getId(),
+                session.getPublicId(),
+                session.getUser().getPublicId(),
                 session.getUser().getName(),
                 session.getUser().getEmail(),
                 session.getUser().getRole() == null ? null : session.getUser().getRole().name(),

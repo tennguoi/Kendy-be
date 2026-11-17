@@ -30,6 +30,7 @@ import com.example.KendyDigital.service.security.monitor.SecuritySignalService;
 import java.time.Instant;
 import java.util.List;
 import java.util.Locale;
+import java.util.UUID;
 import org.springframework.context.MessageSource;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
@@ -153,9 +154,9 @@ public class WarrantyServiceImpl implements WarrantyService {
     }
 
     @Transactional
-    public WarrantyRequestResponse review(Long adminUserId, Long warrantyRequestId,
+    public WarrantyRequestResponse review(Long adminUserId, UUID warrantyRequestId,
             AdminWarrantyReviewRequest request) {
-        WarrantyRequest warrantyRequest = warrantyRequestRepository.findByIdForUpdate(warrantyRequestId)
+        WarrantyRequest warrantyRequest = warrantyRequestRepository.findByPublicIdForUpdate(warrantyRequestId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Warranty request not found"));
         if (isTerminal(warrantyRequest.getStatus())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Warranty request is already resolved");
@@ -182,7 +183,7 @@ public class WarrantyServiceImpl implements WarrantyService {
         return WarrantyRequestResponse.from(warrantyRequest);
     }
 
-    private void approveReplace(Long adminUserId, WarrantyRequest warrantyRequest, Long replacementCredentialId,
+    private void approveReplace(Long adminUserId, WarrantyRequest warrantyRequest, UUID replacementCredentialId,
             String adminNote) {
         if (warrantyRequest.getOrder().getDeliveredCredential() == null) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "This order has no delivered credential to replace");

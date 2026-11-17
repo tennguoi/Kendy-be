@@ -11,6 +11,7 @@ import com.example.KendyDigital.model.ticket.TicketPriority;
 import com.example.KendyDigital.model.ticket.TicketStatus;
 import com.example.KendyDigital.repository.*;
 import java.util.List;
+import java.util.UUID;
 import org.springframework.web.multipart.MultipartFile;
 
 public interface TicketService {
@@ -31,12 +32,12 @@ public interface TicketService {
 
     TicketResponse reopenForUser(Long userId, String ticketCode);
 
-    List<TicketResponse> listForAdmin(TicketStatus status, Long userId);
+    List<TicketResponse> listForAdmin(TicketStatus status, UUID userId);
 
-    List<TicketResponse> listForAdmin(TicketStatus status, Long userId, Integer limit);
+    List<TicketResponse> listForAdmin(TicketStatus status, UUID userId, Integer limit);
 
     List<TicketResponse> searchForAdmin(String query, TicketStatus status, TicketCategory category,
-            TicketPriority priority, Long userId, Integer limit);
+            TicketPriority priority, UUID userId, Integer limit);
 
     TicketResponse getForAdmin(String ticketCode);
 
@@ -48,13 +49,13 @@ public interface TicketService {
 
     List<TicketAttachmentResponse> listAttachmentsForUser(Long userId, String ticketCode);
 
-    StoredFile getAttachmentFileForUser(Long userId, String ticketCode, Long attachmentId);
+    StoredFile getAttachmentFileForUser(Long userId, String ticketCode, UUID attachmentId);
 
-    StoredFile getAttachmentFileForAdmin(String ticketCode, Long attachmentId);
+    StoredFile getAttachmentFileForAdmin(String ticketCode, UUID attachmentId);
 
-    void deleteAttachmentForUser(Long userId, String ticketCode, Long attachmentId);
+    void deleteAttachmentForUser(Long userId, String ticketCode, UUID attachmentId);
 
-    void deleteAttachment(Long adminUserId, String ticketCode, Long attachmentId);
+    void deleteAttachment(Long adminUserId, String ticketCode, UUID attachmentId);
 
     TicketResponse updatePriority(Long adminUserId, String ticketCode, TicketPriority priority);
 

@@ -8,11 +8,12 @@ import com.example.KendyDigital.model.ticket.TicketPriority;
 import com.example.KendyDigital.model.ticket.TicketStatus;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 public interface AdminTicketManagerService {
-    List<TicketResponse> listForAdmin(TicketStatus status, Long userId, Integer limit);
+    List<TicketResponse> listForAdmin(TicketStatus status, UUID userId, Integer limit);
     List<TicketResponse> searchForAdmin(String query, TicketStatus status, TicketCategory category,
-            TicketPriority priority, Long userId, Integer limit);
+            TicketPriority priority, UUID userId, Integer limit);
     TicketResponse getForAdmin(String ticketCode);
     TicketResponse addAdminMessage(Long adminUserId, String ticketCode, CreateTicketMessageRequest request);
     TicketResponse updateForAdmin(Long adminUserId, String ticketCode, AdminTicketUpdateRequest request);

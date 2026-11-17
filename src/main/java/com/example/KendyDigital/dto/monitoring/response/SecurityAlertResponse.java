@@ -2,9 +2,10 @@ package com.example.KendyDigital.dto.monitoring.response;
 
 import com.example.KendyDigital.model.security.SecurityAlert;
 import java.time.Instant;
+import java.util.UUID;
 
 public record SecurityAlertResponse(
-        Long id,
+        UUID id,
         String ruleCode,
         String severity,
         String title,
@@ -19,7 +20,7 @@ public record SecurityAlertResponse(
         String metadata) {
     public static SecurityAlertResponse from(SecurityAlert alert) {
         return new SecurityAlertResponse(
-                alert.getId(),
+                alert.getPublicId(),
                 alert.getRuleCode(),
                 alert.getSeverity() == null ? null : alert.getSeverity().name(),
                 alert.getTitle(),

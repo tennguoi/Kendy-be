@@ -9,6 +9,7 @@ import com.example.KendyDigital.service.notification.UserNotificationService;
 import jakarta.validation.Valid;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -39,7 +40,7 @@ public class UserNotificationController {
     }
 
     @PostMapping("/api/notifications/{id}/read")
-    public UserNotificationResponse markRead(Authentication authentication, @PathVariable Long id) {
+    public UserNotificationResponse markRead(Authentication authentication, @PathVariable UUID id) {
         return userNotificationService.markRead(CurrentUser.require(authentication).userId(), id);
     }
 

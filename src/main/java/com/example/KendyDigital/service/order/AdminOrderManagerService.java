@@ -13,14 +13,15 @@ import com.example.KendyDigital.dto.order.response.OrderResponse;
 import com.example.KendyDigital.model.order.OrderStatus;
 import java.time.Instant;
 import java.util.List;
+import java.util.UUID;
 
 public interface AdminOrderManagerService {
-    List<OrderResponse> listOrders(OrderStatus status, Long userId, Instant fromDate, Instant toDate, int page, int size);
-    List<OrderResponse> searchOrders(String query, OrderStatus status, Long userId, Instant fromDate, Instant toDate, int page, int size);
+    List<OrderResponse> listOrders(OrderStatus status, UUID userId, Instant fromDate, Instant toDate, int page, int size);
+    List<OrderResponse> searchOrders(String query, OrderStatus status, UUID userId, Instant fromDate, Instant toDate, int page, int size);
 
-    List<OrderResponse> listForAdmin(OrderStatus status, Long userId);
-    List<OrderResponse> listForAdmin(OrderStatus status, Long userId, Integer limit);
-    List<OrderResponse> searchForAdmin(String query, OrderStatus status, Long userId, Integer limit);
+    List<OrderResponse> listForAdmin(OrderStatus status, UUID userId);
+    List<OrderResponse> listForAdmin(OrderStatus status, UUID userId, Integer limit);
+    List<OrderResponse> searchForAdmin(String query, OrderStatus status, UUID userId, Integer limit);
     OrderResponse getByCodeForAdmin(String orderCode);
 
     OrderResponse complete(String orderCode, Long adminUserId, AdminOrderUpdateRequest request);
@@ -32,6 +33,6 @@ public interface AdminOrderManagerService {
     OrderResponse extend(String orderCode, Long adminUserId, ExtendOrderRequest request);
     OrderResponse reprocess(String orderCode, Long adminUserId, ReprocessOrderRequest request);
     OrderResponse updateManualWorkflow(String orderCode, Long adminUserId, ManualOrderWorkflowRequest request);
-    OrderResponse updateManualTask(String orderCode, Long adminUserId, Long taskId, ManualOrderTaskStatusRequest request);
+    OrderResponse updateManualTask(String orderCode, Long adminUserId, UUID taskId, ManualOrderTaskStatusRequest request);
     List<OrderResponse> bulkRefund(Long adminUserId, BulkRefundOrdersRequest request);
 }

@@ -3,6 +3,8 @@ package com.example.KendyDigital.repository;
 import com.example.KendyDigital.model.audit.AuditLog;
 import java.time.Instant;
 import java.util.Collection;
+import java.util.Optional;
+import java.util.UUID;
 import java.util.List;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -11,6 +13,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 public interface AuditLogRepository extends JpaRepository<AuditLog, Long>, JpaSpecificationExecutor<AuditLog> {
+    Optional<AuditLog> findByPublicId(UUID publicId);
     java.util.Optional<AuditLog> findTopByOrderByIdDesc();
 
     List<AuditLog> findAllByOrderByIdAsc(Pageable pageable);

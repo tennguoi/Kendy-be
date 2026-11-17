@@ -19,6 +19,7 @@ import com.example.KendyDigital.repository.WalletTransactionRepository;
 import com.example.KendyDigital.service.audit.AuditService;
 import com.example.KendyDigital.service.notification.UserNotificationService;
 import java.util.List;
+import java.util.UUID;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -84,24 +85,25 @@ public class AdminUserManagerServiceImpl implements AdminUserManagerService {
     }
 
     @Transactional(readOnly = true)
-    public AdminUserDetailResponse getUserDetail(Long userId) {
-        UserAccount user = userAccountRepository.findById(userId)
+    public AdminUserDetailResponse getUserDetail(UUID userId) {
+        UserAccount user = userAccountRepository.findByPublicId(userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+        Long id = user.getId();
         return new AdminUserDetailResponse(
                 AdminUserResponse.from(user),
-                orderRepository.countByUser_Id(userId),
-                depositRequestRepository.countByUser_Id(userId),
-                walletTransactionRepository.countByUser_Id(userId),
-                ticketRepository.countByUser_Id(userId),
-                depositRequestRepository.sumAmountByUserIdAndStatus(userId, DepositStatus.COMPLETED),
-                walletTransactionRepository.sumAmountByUserIdAndType(userId, WalletTransactionType.PURCHASE),
-                walletTransactionRepository.sumAmountByUserIdAndType(userId, WalletTransactionType.REFUND));
+                orderRepository.countByUser_Id(id),
+                depositRequestRepository.countByUser_Id(id),
+                walletTransactionRepository.countByUser_Id(id),
+                ticketRepository.countByUser_Id(id),
+                depositRequestRepository.sumAmountByUserIdAndStatus(id, DepositStatus.COMPLETED),
+                walletTransactionRepository.sumAmountByUserIdAndType(id, WalletTransactionType.PURCHASE),
+                walletTransactionRepository.sumAmountByUserIdAndType(id, WalletTransactionType.REFUND));
     }
 
     @Transactional
-    public AdminUserResponse updateUserStatus(Long adminUserId, Long targetUserId,
+    public AdminUserResponse updateUserStatus(Long adminUserId, UUID targetUserId,
             AdminUserStatusUpdateRequest request) {
-        UserAccount user = userAccountRepository.findByIdForUpdate(targetUserId)
+        UserAccount user = userAccountRepository.findByPublicIdForUpdate(targetUserId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
         if (request.version() != null && !request.version().equals(user.getVersion())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "CONCURRENT_ADMIN_CONFLICT");
@@ -121,8 +123,10 @@ public class AdminUserManagerServiceImpl implements AdminUserManagerService {
     }
 
     @Transactional
-    public AdminUserResponse updateUserRole(Long adminUserId, Long targetUserId, AdminUserRoleUpdateRequest request) {
-        if (adminUserId.equals(targetUserId)) {
+    public AdminUserResponse updateUserRole(Long adminUserId, UUID targetUserId, AdminUserRoleUpdateRequest request) {
+        UserAccount user = userAccountRepository.findByPublicIdForUpdate(targetUserId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+        if (adminUserId.equals(user.getId())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Admin cannot change own role");
         }
         UserAccount adminUser = userAccountRepository.findByIdForUpdate(adminUserId)
@@ -131,8 +135,6 @@ public class AdminUserManagerServiceImpl implements AdminUserManagerService {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN,
                     "Only SUPER_ADMIN can change user roles");
         }
-        UserAccount user = userAccountRepository.findByIdForUpdate(targetUserId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
         if (request.version() != null && !request.version().equals(user.getVersion())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "CONCURRENT_ADMIN_CONFLICT");
         }

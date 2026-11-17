@@ -6,8 +6,10 @@ import com.example.KendyDigital.model.user.UserStatus;
 import jakarta.persistence.LockModeType;
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
@@ -17,6 +19,8 @@ import org.springframework.data.repository.query.Param;
 
 public interface UserAccountRepository extends JpaRepository<UserAccount, Long>, JpaSpecificationExecutor<UserAccount> {
     Optional<UserAccount> findByEmailIgnoreCase(String email);
+
+    Optional<UserAccount> findByPublicId(UUID publicId);
 
     Optional<UserAccount> findByOauthProviderAndOauthProviderId(String oauthProvider, String oauthProviderId);
 
@@ -58,6 +62,14 @@ public interface UserAccountRepository extends JpaRepository<UserAccount, Long>,
     Optional<UserAccount> findByIdForUpdate(@Param("id") Long id);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select u from UserAccount u where u.publicId = :publicId")
+    Optional<UserAccount> findByPublicIdForUpdate(@Param("publicId") UUID publicId);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select u from UserAccount u where u.id in :ids")
     List<UserAccount> findAllByIdForUpdate(@Param("ids") List<Long> ids);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select u from UserAccount u where u.publicId in :publicIds")
+    List<UserAccount> findAllByPublicIdIn(@Param("publicIds") Collection<UUID> publicIds);
 }

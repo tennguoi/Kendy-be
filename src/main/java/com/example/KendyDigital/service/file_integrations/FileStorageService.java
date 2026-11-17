@@ -2,6 +2,7 @@ package com.example.KendyDigital.service.file_integrations;
 
 import com.example.KendyDigital.dto.file.response.StoredFileResponse;
 import com.example.KendyDigital.model.file.StoredFile;
+import java.util.UUID;
 import org.springframework.web.multipart.MultipartFile;
 
 public interface FileStorageService {
@@ -20,7 +21,7 @@ public interface FileStorageService {
     StoredFileResponse from(StoredFile file);
 
     record StoredFileResponse(
-            Long id,
+            UUID id,
             String fileName,
             String contentType,
             long sizeBytes,
@@ -28,7 +29,7 @@ public interface FileStorageService {
             java.time.Instant createdAt) {
         public static StoredFileResponse from(StoredFile file) {
             return new StoredFileResponse(
-                    file.getId(),
+                    file.getPublicId(),
                     file.getFileName(),
                     file.getContentType(),
                     file.getSizeBytes(),

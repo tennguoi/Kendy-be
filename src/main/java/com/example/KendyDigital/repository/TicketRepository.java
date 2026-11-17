@@ -7,6 +7,7 @@ import com.example.KendyDigital.model.ticket.TicketStatus;
 import jakarta.persistence.LockModeType;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -28,11 +29,17 @@ public interface TicketRepository extends JpaRepository<Ticket, Long>, JpaSpecif
 
     boolean existsByTicketCode(String ticketCode);
 
+    @Query("select t from Ticket t join fetch t.user u left join fetch t.order o left join fetch t.depositRequest d where t.publicId = :publicId")
+    Optional<Ticket> findByPublicId(@Param("publicId") UUID publicId);
+
     @Query("select t from Ticket t join fetch t.user u left join fetch t.order o left join fetch t.depositRequest d where t.ticketCode = :ticketCode")
     Optional<Ticket> findByTicketCode(@Param("ticketCode") String ticketCode);
 
     @Query("select t from Ticket t join fetch t.user u left join fetch t.order o left join fetch t.depositRequest d where u.id = :userId order by t.createdAt desc")
     List<Ticket> findAllByUser_IdOrderByCreatedAtDesc(@Param("userId") Long userId, Pageable pageable);
+
+    @Query("select t from Ticket t join fetch t.user u left join fetch t.order o left join fetch t.depositRequest d where u.publicId = :publicId order by t.createdAt desc")
+    List<Ticket> findAllByUser_PublicIdOrderByCreatedAtDesc(@Param("publicId") UUID publicId, Pageable pageable);
 
     @Query("select t from Ticket t join fetch t.user u left join fetch t.order o left join fetch t.depositRequest d where u.id = :userId and t.status = :status order by t.createdAt desc")
     List<Ticket> findAllByUser_IdAndStatusOrderByCreatedAtDesc(@Param("userId") Long userId, @Param("status") TicketStatus status, Pageable pageable);

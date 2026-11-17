@@ -30,6 +30,7 @@ import com.example.KendyDigital.service.product_inventory.EntitlementService;
 import com.example.KendyDigital.service.wallet.WalletLedgerService;
 import java.time.Instant;
 import java.util.List;
+import java.util.UUID;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -68,14 +69,15 @@ public class AdminOrderManagerServiceImpl implements AdminOrderManagerService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<OrderResponse> listOrders(OrderStatus status, Long userId, Instant fromDate, Instant toDate, int page, int size) {
+    public List<OrderResponse> listOrders(OrderStatus status, UUID userId, Instant fromDate, Instant toDate, int page, int size) {
+        Long internalUserId = resolveUserId(userId);
         if (fromDate == null && toDate == null) {
-            if (userId != null && status != null) {
-                return orderRepository.findAllByUser_IdAndStatusOrderByCreatedAtDesc(userId, status, paged(page, size))
+            if (internalUserId != null && status != null) {
+                return orderRepository.findAllByUser_IdAndStatusOrderByCreatedAtDesc(internalUserId, status, paged(page, size))
                         .stream().map(this::toResponse).toList();
             }
-            if (userId != null) {
-                return orderRepository.findAllByUser_IdOrderByCreatedAtDesc(userId, paged(page, size))
+            if (internalUserId != null) {
+                return orderRepository.findAllByUser_IdOrderByCreatedAtDesc(internalUserId, paged(page, size))
                         .stream().map(this::toResponse).toList();
             }
             if (status != null) {
@@ -87,38 +89,39 @@ public class AdminOrderManagerServiceImpl implements AdminOrderManagerService {
         }
         List<OrderRecord> orders = orderRepository.findAll(
                 com.example.KendyDigital.repository.specification.OrderSpecifications.searchAdmin(
-                        null, status, userId, fromDate, toDate),
+                        null, status, internalUserId, fromDate, toDate),
                 paged(page, size)).getContent();
         return orders.stream().map(this::toResponse).toList();
     }
 
     @Override
     @Transactional(readOnly = true)
-    public List<OrderResponse> searchOrders(String query, OrderStatus status, Long userId,
+    public List<OrderResponse> searchOrders(String query, OrderStatus status, UUID userId,
             Instant fromDate, Instant toDate, int page, int size) {
         String normalizedQuery = normalizeQuery(query);
+        Long internalUserId = resolveUserId(userId);
         List<OrderRecord> orders = orderRepository.findAll(
                 com.example.KendyDigital.repository.specification.OrderSpecifications.searchAdmin(
-                        normalizedQuery, status, userId, fromDate, toDate),
+                        normalizedQuery, status, internalUserId, fromDate, toDate),
                 paged(page, size)).getContent();
         return orders.stream().map(this::toResponse).toList();
     }
 
     @Override
     @Transactional(readOnly = true)
-    public List<OrderResponse> listForAdmin(OrderStatus status, Long userId) {
+    public List<OrderResponse> listForAdmin(OrderStatus status, UUID userId) {
         return listOrders(status, userId, null, null, 0, 50);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public List<OrderResponse> listForAdmin(OrderStatus status, Long userId, Integer limit) {
+    public List<OrderResponse> listForAdmin(OrderStatus status, UUID userId, Integer limit) {
         return listOrders(status, userId, null, null, 0, limit == null ? 50 : limit);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public List<OrderResponse> searchForAdmin(String query, OrderStatus status, Long userId, Integer limit) {
+    public List<OrderResponse> searchForAdmin(String query, OrderStatus status, UUID userId, Integer limit) {
         return searchOrders(query, status, userId, null, null, 0, limit == null ? 50 : limit);
     }
 
@@ -311,7 +314,7 @@ public class AdminOrderManagerServiceImpl implements AdminOrderManagerService {
         }
         UserAccount assignedAdmin = null;
         if (request.assignedAdminId() != null) {
-            assignedAdmin = userAccountRepository.findById(request.assignedAdminId())
+            assignedAdmin = userAccountRepository.findByPublicId(request.assignedAdminId())
                     .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Assigned admin not found"));
             if (assignedAdmin.getRole() == UserRole.USER) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Assigned user is not an admin");
@@ -332,7 +335,7 @@ public class AdminOrderManagerServiceImpl implements AdminOrderManagerService {
 
     @Override
     @Transactional
-    public OrderResponse updateManualTask(String orderCode, Long adminUserId, Long taskId,
+    public OrderResponse updateManualTask(String orderCode, Long adminUserId, UUID taskId,
             ManualOrderTaskStatusRequest request) {
         OrderRecord order = orderRepository.findByOrderCodeForUpdate(orderCode)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found"));
@@ -391,6 +394,15 @@ public class AdminOrderManagerServiceImpl implements AdminOrderManagerService {
 
     private String normalizeQuery(String query) {
         return query == null || query.isBlank() ? null : query.trim();
+    }
+
+    private Long resolveUserId(UUID publicId) {
+        if (publicId == null) {
+            return null;
+        }
+        return userAccountRepository.findByPublicId(publicId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"))
+                .getId();
     }
 
     private String blankToNull(String value) {

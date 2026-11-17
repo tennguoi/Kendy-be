@@ -17,6 +17,7 @@ import com.example.KendyDigital.service.order.AdminOrderManagerService;
 import com.example.KendyDigital.service.order.OrderService;
 import jakarta.validation.Valid;
 import java.util.List;
+import java.util.UUID;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -129,7 +130,7 @@ public class OrderController {
 
     @PostMapping("/api/admin/orders/{orderCode}/manual-tasks/{taskId}")
     public OrderResponse updateManualTask(Authentication authentication, @PathVariable String orderCode,
-            @PathVariable Long taskId, @Valid @RequestBody ManualOrderTaskStatusRequest request) {
+            @PathVariable UUID taskId, @Valid @RequestBody ManualOrderTaskStatusRequest request) {
         return adminOrderManagerService.updateManualTask(orderCode, CurrentUser.require(authentication).userId(), taskId, request);
     }
 

@@ -6,9 +6,10 @@ import com.example.KendyDigital.model.catalog.ServiceStatus;
 import com.example.KendyDigital.model.catalog.ServiceStockStatus;
 import com.example.KendyDigital.model.catalog.ServiceType;
 import java.math.BigDecimal;
+import java.util.UUID;
 
 public record ServicePricingResponse(
-        Long id,
+        UUID id,
         String name,
         String slug,
         String shortDescription,
@@ -26,12 +27,12 @@ public record ServicePricingResponse(
         String requirements,
         String usageNotes,
         int sortOrder,
-        Long categoryId,
+        UUID categoryId,
         String categoryName,
         String categorySlug) {
     public static ServicePricingResponse from(ServiceItem service) {
         return new ServicePricingResponse(
-                service.getId(),
+                service.getPublicId(),
                 service.getName(),
                 service.getSlug(),
                 service.getShortDescription(),
@@ -49,7 +50,7 @@ public record ServicePricingResponse(
                 service.getRequirements(),
                 service.getUsageNotes(),
                 service.getSortOrder(),
-                service.getCategory() == null ? null : service.getCategory().getId(),
+                service.getCategory() == null ? null : service.getCategory().getPublicId(),
                 service.getCategory() == null ? null : service.getCategory().getName(),
                 service.getCategory() == null ? null : service.getCategory().getSlug());
     }

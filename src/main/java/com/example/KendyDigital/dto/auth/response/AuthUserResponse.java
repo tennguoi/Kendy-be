@@ -8,8 +8,7 @@ import java.time.Instant;
 import java.util.UUID;
 
 public record AuthUserResponse(
-        Long id,
-        UUID publicId,
+        UUID id,
         String name,
         String email,
         String phone,
@@ -24,7 +23,6 @@ public record AuthUserResponse(
         boolean hasPassword) {
     public static AuthUserResponse from(UserAccount user) {
         return new AuthUserResponse(
-                user.getId(),
                 user.getPublicId(),
                 user.getName(),
                 user.getEmail(),

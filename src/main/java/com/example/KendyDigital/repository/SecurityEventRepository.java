@@ -4,6 +4,8 @@ import com.example.KendyDigital.model.security.SecurityEvent;
 import com.example.KendyDigital.model.security.SecurityEventType;
 import com.example.KendyDigital.model.security.SecuritySeverity;
 import java.time.Instant;
+import java.util.Optional;
+import java.util.UUID;
 import java.util.List;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -13,6 +15,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 public interface SecurityEventRepository extends JpaRepository<SecurityEvent, Long>, JpaSpecificationExecutor<SecurityEvent> {
+    Optional<SecurityEvent> findByPublicId(UUID publicId);
 
     long countByOccurredAtGreaterThanEqual(Instant from);
 

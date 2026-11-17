@@ -10,6 +10,7 @@ import com.example.KendyDigital.repository.TicketRepository;
 import com.example.KendyDigital.service.audit.AuditService;
 import com.example.KendyDigital.service.file_integrations.FileStorageService;
 import java.util.List;
+import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -57,7 +58,7 @@ public class TicketAttachmentServiceImpl implements TicketAttachmentService {
 
     @Override
     @Transactional(readOnly = true)
-    public StoredFile getAttachmentFileForUser(Long userId, String ticketCode, Long attachmentId) {
+    public StoredFile getAttachmentFileForUser(Long userId, String ticketCode, UUID attachmentId) {
         Ticket ticket = ensureTicketExists(ticketCode);
         ensureOwner(ticket, userId);
         TicketAttachment attachment = requireAttachment(ticket, attachmentId);
@@ -69,9 +70,10 @@ public class TicketAttachmentServiceImpl implements TicketAttachmentService {
 
     @Override
     @Transactional(readOnly = true)
-    public StoredFile getAttachmentFileForAdmin(String ticketCode, Long attachmentId) {
+    public StoredFile getAttachmentFileForAdmin(String ticketCode, UUID attachmentId) {
         Ticket ticket = ensureTicketExists(ticketCode);
-        TicketAttachment attachment = ticketAttachmentRepository.findById(attachmentId)
+        TicketAttachment attachment = ticketAttachmentRepository
+                .findByTicket_TicketCodeAndPublicId(ticketCode, attachmentId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Attachment not found"));
         if (!attachment.getTicket().getId().equals(ticket.getId())) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Attachment not found");
@@ -113,7 +115,7 @@ public class TicketAttachmentServiceImpl implements TicketAttachmentService {
 
     @Override
     @Transactional
-    public void deleteAttachmentForUser(Long userId, String ticketCode, Long attachmentId) {
+    public void deleteAttachmentForUser(Long userId, String ticketCode, UUID attachmentId) {
         Ticket ticket = ensureTicketExists(ticketCode);
         ensureOwner(ticket, userId);
         TicketAttachment attachment = requireAttachment(ticket, attachmentId);
@@ -128,9 +130,10 @@ public class TicketAttachmentServiceImpl implements TicketAttachmentService {
 
     @Override
     @Transactional
-    public void deleteAttachment(Long adminUserId, String ticketCode, Long attachmentId) {
+    public void deleteAttachment(Long adminUserId, String ticketCode, UUID attachmentId) {
         Ticket ticket = ensureTicketExists(ticketCode);
-        TicketAttachment attachment = ticketAttachmentRepository.findById(attachmentId)
+        TicketAttachment attachment = ticketAttachmentRepository
+                .findByTicket_TicketCodeAndPublicId(ticketCode, attachmentId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Attachment not found"));
         if (!attachment.getTicket().getId().equals(ticket.getId())) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Attachment not found");
@@ -165,8 +168,9 @@ public class TicketAttachmentServiceImpl implements TicketAttachmentService {
         }
     }
 
-    private TicketAttachment requireAttachment(Ticket ticket, Long attachmentId) {
-        TicketAttachment attachment = ticketAttachmentRepository.findById(attachmentId)
+    private TicketAttachment requireAttachment(Ticket ticket, UUID attachmentId) {
+        TicketAttachment attachment = ticketAttachmentRepository
+                .findByTicket_TicketCodeAndPublicId(ticket.getTicketCode(), attachmentId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Attachment not found"));
         if (!attachment.getTicket().getId().equals(ticket.getId())) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Attachment not found");

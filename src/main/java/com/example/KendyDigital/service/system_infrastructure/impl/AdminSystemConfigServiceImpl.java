@@ -21,6 +21,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.UUID;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -134,8 +135,8 @@ public class AdminSystemConfigServiceImpl  implements AdminSystemConfigService{
     }
 
     @Transactional
-    public AdminNotificationResponse markNotificationRead(Long adminUserId, Long id) {
-        AdminNotification notification = adminNotificationRepository.findById(id)
+    public AdminNotificationResponse markNotificationRead(Long adminUserId, UUID id) {
+        AdminNotification notification = adminNotificationRepository.findByPublicId(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Notification not found"));
         if (notification.getAdminUserId() != null && !notification.getAdminUserId().equals(adminUserId)) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Notification not found");
@@ -145,7 +146,7 @@ public class AdminSystemConfigServiceImpl  implements AdminSystemConfigService{
     }
 
     @Transactional
-    public List<AdminNotificationResponse> bulkReadNotifications(Long adminUserId, List<Long> ids) {
+    public List<AdminNotificationResponse> bulkReadNotifications(Long adminUserId, List<UUID> ids) {
         return ids.stream()
                 .map(id -> markNotificationRead(adminUserId, id))
                 .toList();

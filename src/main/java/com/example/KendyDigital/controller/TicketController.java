@@ -15,6 +15,7 @@ import com.example.KendyDigital.service.customer_service.TicketService;
 import jakarta.validation.Valid;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -87,7 +88,7 @@ public class TicketController {
 
     @GetMapping("/api/admin/tickets")
     public List<TicketResponse> listAdmin(@RequestParam(required = false) TicketStatus status,
-            @RequestParam(required = false) Long userId,
+            @RequestParam(required = false) UUID userId,
             @RequestParam(required = false) Integer limit) {
         return ticketService.listForAdmin(status, userId, limit);
     }
@@ -97,7 +98,7 @@ public class TicketController {
             @RequestParam(required = false) TicketStatus status,
             @RequestParam(required = false) TicketCategory category,
             @RequestParam(required = false) TicketPriority priority,
-            @RequestParam(required = false) Long userId,
+            @RequestParam(required = false) UUID userId,
             @RequestParam(required = false) Integer limit) {
         return ticketService.searchForAdmin(query, status, category, priority, userId, limit);
     }
@@ -121,7 +122,7 @@ public class TicketController {
 
     @GetMapping("/api/tickets/{ticketCode}/attachments/{attachmentId}/download")
     public ResponseEntity<byte[]> downloadUserAttachment(Authentication authentication, @PathVariable String ticketCode,
-            @PathVariable Long attachmentId) {
+            @PathVariable UUID attachmentId) {
         StoredFile file = ticketService.getAttachmentFileForUser(CurrentUser.require(authentication).userId(),
                 ticketCode, attachmentId);
         return fileResponse(file, file.getContent());
@@ -129,7 +130,7 @@ public class TicketController {
 
     @GetMapping("/api/tickets/{ticketCode}/attachments/{attachmentId}/preview")
     public ResponseEntity<byte[]> previewUserAttachment(Authentication authentication, @PathVariable String ticketCode,
-            @PathVariable Long attachmentId) {
+            @PathVariable UUID attachmentId) {
         StoredFile file = ticketService.getAttachmentFileForUser(CurrentUser.require(authentication).userId(),
                 ticketCode, attachmentId);
         return fileResponse(file, ticketService.previewBytes(file));
@@ -137,8 +138,9 @@ public class TicketController {
 
     @DeleteMapping("/api/tickets/{ticketCode}/attachments/{attachmentId}")
     public void deleteUserAttachment(Authentication authentication, @PathVariable String ticketCode,
-            @PathVariable Long attachmentId) {
-        ticketService.deleteAttachmentForUser(CurrentUser.require(authentication).userId(), ticketCode, attachmentId);
+            @PathVariable UUID attachmentId) {
+        ticketService.deleteAttachmentForUser(CurrentUser.require(authentication).userId(), ticketCode,
+                attachmentId);
     }
 
     @GetMapping("/api/admin/tickets/{ticketCode}/attachments")
@@ -148,14 +150,14 @@ public class TicketController {
 
     @GetMapping("/api/admin/tickets/{ticketCode}/attachments/{attachmentId}/download")
     public ResponseEntity<byte[]> downloadAttachment(Authentication authentication,
-            @PathVariable String ticketCode, @PathVariable Long attachmentId) {
+            @PathVariable String ticketCode, @PathVariable UUID attachmentId) {
         StoredFile file = ticketService.getAttachmentFileForAdmin(ticketCode, attachmentId);
         return fileResponse(file, file.getContent());
     }
 
     @GetMapping("/api/admin/tickets/{ticketCode}/attachments/{attachmentId}/preview")
     public ResponseEntity<byte[]> previewAttachment(Authentication authentication,
-            @PathVariable String ticketCode, @PathVariable Long attachmentId) {
+            @PathVariable String ticketCode, @PathVariable UUID attachmentId) {
         StoredFile file = ticketService.getAttachmentFileForAdmin(ticketCode, attachmentId);
         return fileResponse(file, ticketService.previewBytes(file));
     }
@@ -168,7 +170,7 @@ public class TicketController {
 
     @DeleteMapping("/api/admin/tickets/{ticketCode}/attachments/{attachmentId}")
     public void deleteAttachment(Authentication authentication, @PathVariable String ticketCode,
-            @PathVariable Long attachmentId) {
+            @PathVariable UUID attachmentId) {
         ticketService.deleteAttachment(CurrentUser.require(authentication).userId(), ticketCode, attachmentId);
     }
 

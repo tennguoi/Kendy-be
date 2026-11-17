@@ -21,6 +21,7 @@ import java.util.HexFormat;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 import java.util.stream.Collectors;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
@@ -83,8 +84,9 @@ public class UserApiKeyServiceImpl implements UserApiKeyService {
 
     @Override
     @Transactional
-    public void revokeApiKey(Long userId, Long keyId) {
-        UserApiKey key = userApiKeyRepository.findByIdAndUser_Id(keyId, userId)
+    public void revokeApiKey(Long userId, UUID keyId) {
+        UserApiKey key = userApiKeyRepository.findByPublicId(keyId)
+                .filter(k -> k.getUser().getId().equals(userId))
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "API key not found"));
         key.revoke();
         auditService.recordSystem("USER_API_KEY_REVOKED", "USER_API_KEY", key.getId(), "userId=" + userId);

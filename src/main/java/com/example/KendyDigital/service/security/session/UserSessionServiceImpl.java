@@ -8,6 +8,7 @@ import com.example.KendyDigital.repository.UserAccountRepository;
 import com.example.KendyDigital.service.audit.AuditService;
 import com.example.KendyDigital.service.notification.EmailNotificationService;
 import java.util.List;
+import java.util.UUID;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -43,8 +44,9 @@ public class UserSessionServiceImpl implements UserSessionService {
 
     @Override
     @Transactional
-    public void revokeSession(Long userId, Long sessionId) {
-        AuthSession session = authSessionRepository.findByIdAndUser_Id(sessionId, userId)
+    public void revokeSession(Long userId, UUID sessionId) {
+        AuthSession session = authSessionRepository.findByPublicId(sessionId)
+                .filter(s -> s.getUser().getId().equals(userId))
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Session not found"));
         session.revoke();
         auditService.recordSystem("USER_SESSION_REVOKED", "AUTH_SESSION", session.getId(), "userId=" + userId);

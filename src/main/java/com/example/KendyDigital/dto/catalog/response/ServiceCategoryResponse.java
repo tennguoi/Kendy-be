@@ -2,14 +2,15 @@ package com.example.KendyDigital.dto.catalog.response;
 
 import com.example.KendyDigital.model.catalog.ServiceCategory;
 import java.time.Instant;
+import java.util.UUID;
 
 public record ServiceCategoryResponse(
-        Long id,
+        UUID id,
         String name,
         String slug,
         String description,
         int sortOrder,
-        Long parentId,
+        UUID parentId,
         Instant createdAt,
         Instant updatedAt,
         String microcopy,
@@ -21,8 +22,8 @@ public record ServiceCategoryResponse(
         Long version) {
 
     public ServiceCategoryResponse(
-            Long id, String name, String slug, String description, int sortOrder,
-            Long parentId, Instant createdAt, Instant updatedAt, String microcopy,
+            UUID id, String name, String slug, String description, int sortOrder,
+            UUID parentId, Instant createdAt, Instant updatedAt, String microcopy,
             String priceFrom, String processingTime, String warranty,
             String requirements, String cta) {
         this(id, name, slug, description, sortOrder, parentId, createdAt, updatedAt,
@@ -31,12 +32,12 @@ public record ServiceCategoryResponse(
 
     public static ServiceCategoryResponse from(ServiceCategory category) {
         return new ServiceCategoryResponse(
-                category.getId(),
+                category.getPublicId(),
                 category.getName(),
                 category.getSlug(),
                 category.getDescription(),
                 category.getSortOrder(),
-                category.getParent() == null ? null : category.getParent().getId(),
+                category.getParent() == null ? null : category.getParent().getPublicId(),
                 category.getCreatedAt(),
                 category.getUpdatedAt(),
                 category.getMicrocopy(),

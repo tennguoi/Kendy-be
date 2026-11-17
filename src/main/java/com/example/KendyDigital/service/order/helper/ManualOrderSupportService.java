@@ -35,6 +35,7 @@ public class ManualOrderSupportService {
     private final MessageSource messageSource;
     private final CodeGenerator codeGenerator;
     private final AuditService auditService;
+    private final com.example.KendyDigital.service.notification.DiscordBotService discordBotService;
 
     public ManualOrderSupportService(
             TicketRepository ticketRepository,
@@ -45,7 +46,8 @@ public class ManualOrderSupportService {
             UserAccountRepository userAccountRepository,
             MessageSource messageSource,
             CodeGenerator codeGenerator,
-            AuditService auditService) {
+            AuditService auditService,
+            com.example.KendyDigital.service.notification.DiscordBotService discordBotService) {
         this.ticketRepository = ticketRepository;
         this.ticketMessageRepository = ticketMessageRepository;
         this.adminNotificationRepository = adminNotificationRepository;
@@ -55,6 +57,7 @@ public class ManualOrderSupportService {
         this.messageSource = messageSource;
         this.codeGenerator = codeGenerator;
         this.auditService = auditService;
+        this.discordBotService = discordBotService;
     }
 
     public Ticket createManualOrderTicket(OrderRecord order, UserAccount user) {
@@ -87,6 +90,19 @@ public class ManualOrderSupportService {
                         PageRequest.of(0, 50))
                 .forEach(admin -> emailNotificationService.sendUserNotification(admin, title, message,
                         "/admin/orders"));
+
+        if (discordBotService != null) {
+            String priceStr = order.getService() != null && order.getService().getPrice() != null
+                    ? String.format("%,.0f VNĐ", order.getService().getPrice())
+                    : "N/A";
+            discordBotService.sendNewOrderAlert(
+                    order.getOrderCode(),
+                    order.getService() != null ? order.getService().getName() : "Dịch vụ",
+                    order.getUser() != null ? order.getUser().getId() : 0L,
+                    priceStr,
+                    true
+            );
+        }
     }
 
     private String nextTicketCode() {

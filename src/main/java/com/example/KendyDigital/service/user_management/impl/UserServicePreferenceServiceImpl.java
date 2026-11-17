@@ -11,6 +11,7 @@ import com.example.KendyDigital.repository.ServiceItemRepository;
 import com.example.KendyDigital.repository.UserAccountRepository;
 import com.example.KendyDigital.repository.UserFavoriteServiceRepository;
 import java.util.List;
+import java.util.UUID;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -42,15 +43,15 @@ public class UserServicePreferenceServiceImpl  implements UserServicePreferenceS
     }
 
     @Transactional
-    public ServiceResponse addFavorite(Long userId, Long serviceId) {
+    public ServiceResponse addFavorite(Long userId, UUID serviceId) {
         UserAccount user = userAccountRepository.findByIdForUpdate(userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
-        ServiceItem service = serviceItemRepository.findById(serviceId)
+        ServiceItem service = serviceItemRepository.findByPublicId(serviceId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Service not found"));
         if (service.getStatus() != ServiceStatus.ACTIVE) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Service not found");
         }
-        return favoriteRepository.findByUser_IdAndService_Id(userId, serviceId)
+        return favoriteRepository.findByUser_IdAndService_Id(userId, service.getId())
                 .map(UserFavoriteService::getService)
                 .map(ServiceResponse::from)
                 .orElseGet(() -> ServiceResponse.from(
@@ -58,9 +59,10 @@ public class UserServicePreferenceServiceImpl  implements UserServicePreferenceS
     }
 
     @Transactional
-    public void removeFavorite(Long userId, Long serviceId) {
-        favoriteRepository.findByUser_IdAndService_Id(userId, serviceId)
-                .ifPresent(favoriteRepository::delete);
+    public void removeFavorite(Long userId, UUID serviceId) {
+        serviceItemRepository.findByPublicId(serviceId)
+                .ifPresent(service -> favoriteRepository.findByUser_IdAndService_Id(userId, service.getId())
+                        .ifPresent(favoriteRepository::delete));
     }
 
     @Transactional(readOnly = true)

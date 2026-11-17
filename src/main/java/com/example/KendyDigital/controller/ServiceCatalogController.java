@@ -13,6 +13,7 @@ import com.example.KendyDigital.security.CurrentUser;
 import com.example.KendyDigital.service.catalog.ServiceCatalogService;
 import jakarta.validation.Valid;
 import java.util.List;
+import java.util.UUID;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -34,7 +35,7 @@ public class ServiceCatalogController {
 
     @GetMapping("/api/services")
     public List<ServiceResponse> listActive(@RequestParam(required = false) String query,
-            @RequestParam(required = false) Long categoryId,
+            @RequestParam(required = false) UUID categoryId,
             @RequestParam(required = false) String categorySlug,
             @RequestParam(required = false) String sort,
             @RequestParam(required = false) Integer limit) {
@@ -43,7 +44,7 @@ public class ServiceCatalogController {
 
     @GetMapping("/api/pricing")
     public List<ServicePricingResponse> listPricing(@RequestParam(required = false) String query,
-            @RequestParam(required = false) Long categoryId,
+            @RequestParam(required = false) UUID categoryId,
             @RequestParam(required = false) String categorySlug,
             @RequestParam(required = false) Boolean featured,
             @RequestParam(required = false) String sort,
@@ -64,7 +65,7 @@ public class ServiceCatalogController {
     @GetMapping("/api/admin/services/search")
     public List<ServiceResponse> searchForAdmin(@RequestParam(required = false) String query,
             @RequestParam(required = false) ServiceStatus status,
-            @RequestParam(required = false) Long categoryId,
+            @RequestParam(required = false) UUID categoryId,
             @RequestParam(required = false) String categorySlug,
             @RequestParam(required = false) Boolean featured,
             @RequestParam(required = false) String sort,
@@ -75,7 +76,7 @@ public class ServiceCatalogController {
     @GetMapping("/api/admin/pricing")
     public List<ServicePricingResponse> pricingForAdmin(@RequestParam(required = false) String query,
             @RequestParam(required = false) ServiceStatus status,
-            @RequestParam(required = false) Long categoryId,
+            @RequestParam(required = false) UUID categoryId,
             @RequestParam(required = false) String categorySlug,
             @RequestParam(required = false) Boolean featured,
             @RequestParam(required = false) String sort,
@@ -85,12 +86,12 @@ public class ServiceCatalogController {
     }
 
     @GetMapping("/api/admin/services/{id}/categories")
-    public List<ServiceCategoryResponse> getCategories(@PathVariable Long id) {
+    public List<ServiceCategoryResponse> getCategories(@PathVariable UUID id) {
         return serviceCatalogService.getCategories(id);
     }
 
     @GetMapping("/api/admin/services/{id}/orders")
-    public List<OrderResponse> listOrders(@PathVariable Long id,
+    public List<OrderResponse> listOrders(@PathVariable UUID id,
             @RequestParam(required = false) Integer limit) {
         return serviceCatalogService.listOrders(id, limit);
     }
@@ -101,19 +102,19 @@ public class ServiceCatalogController {
     }
 
     @PutMapping("/api/admin/services/{id}")
-    public ServiceResponse update(Authentication authentication, @PathVariable Long id,
+    public ServiceResponse update(Authentication authentication, @PathVariable UUID id,
             @Valid @RequestBody UpdateServiceRequest request) {
         return serviceCatalogService.update(id, CurrentUser.require(authentication).userId(), request);
     }
 
     @PatchMapping("/api/admin/services/{id}/status")
-    public ServiceResponse updateStatus(Authentication authentication, @PathVariable Long id,
+    public ServiceResponse updateStatus(Authentication authentication, @PathVariable UUID id,
             @Valid @RequestBody ServiceStatusUpdateRequest request) {
         return serviceCatalogService.updateStatus(id, CurrentUser.require(authentication).userId(), request);
     }
 
     @DeleteMapping("/api/admin/services/{id}")
-    public ServiceResponse delete(Authentication authentication, @PathVariable Long id) {
+    public ServiceResponse delete(Authentication authentication, @PathVariable UUID id) {
         return serviceCatalogService.delete(id, CurrentUser.require(authentication).userId());
     }
 

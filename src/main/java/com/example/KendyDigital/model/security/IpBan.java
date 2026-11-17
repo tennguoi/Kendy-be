@@ -9,6 +9,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Index;
 import jakarta.persistence.Table;
+import com.example.KendyDigital.common.PublicIdEntity;
 import java.time.Instant;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -25,7 +26,7 @@ import lombok.Setter;
                 @Index(name = "idx_ip_bans_ip", columnList = "ip_or_cidr"),
                 @Index(name = "idx_ip_bans_expires_at", columnList = "expires_at")
         })
-public class IpBan {
+public class IpBan extends PublicIdEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;

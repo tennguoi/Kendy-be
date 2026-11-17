@@ -7,6 +7,7 @@ import jakarta.persistence.LockModeType;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -26,6 +27,8 @@ public interface OrderRepository extends JpaRepository<OrderRecord, Long>, JpaSp
     @EntityGraph(attributePaths = {"user", "service", "deliveredCredential", "assignedAdmin", "supportTicket"})
     List<OrderRecord> findAll(Specification<OrderRecord> spec);
     boolean existsByOrderCode(String orderCode);
+
+    Optional<OrderRecord> findByPublicId(UUID publicId);
 
     @Query("""
             select o from OrderRecord o

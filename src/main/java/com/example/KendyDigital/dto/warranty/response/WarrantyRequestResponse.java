@@ -3,16 +3,17 @@ package com.example.KendyDigital.dto.warranty.response;
 import com.example.KendyDigital.model.warranty.WarrantyRequest;
 import com.example.KendyDigital.model.warranty.WarrantyRequestStatus;
 import java.time.Instant;
+import java.util.UUID;
 
 public record WarrantyRequestResponse(
-        Long id,
+        UUID id,
         String orderCode,
-        Long userId,
-        Long serviceId,
+        UUID userId,
+        UUID serviceId,
         String serviceName,
-        Long originalCredentialId,
-        Long replacementCredentialId,
-        Long refundWalletTransactionId,
+        UUID originalCredentialId,
+        UUID replacementCredentialId,
+        UUID refundWalletTransactionId,
         String reason,
         String evidenceText,
         WarrantyRequestStatus status,
@@ -22,14 +23,14 @@ public record WarrantyRequestResponse(
         Instant updatedAt) {
     public static WarrantyRequestResponse from(WarrantyRequest request) {
         return new WarrantyRequestResponse(
-                request.getId(),
+                request.getPublicId(),
                 request.getOrder().getOrderCode(),
-                request.getUser().getId(),
-                request.getOrder().getService().getId(),
+                request.getUser().getPublicId(),
+                request.getOrder().getService().getPublicId(),
                 request.getOrder().getService().getName(),
-                request.getOriginalCredential() == null ? null : request.getOriginalCredential().getId(),
-                request.getReplacementCredential() == null ? null : request.getReplacementCredential().getId(),
-                request.getRefundWalletTransaction() == null ? null : request.getRefundWalletTransaction().getId(),
+                request.getOriginalCredential() == null ? null : request.getOriginalCredential().getPublicId(),
+                request.getReplacementCredential() == null ? null : request.getReplacementCredential().getPublicId(),
+                request.getRefundWalletTransaction() == null ? null : request.getRefundWalletTransaction().getPublicId(),
                 request.getReason(),
                 request.getEvidenceText(),
                 request.getStatus(),

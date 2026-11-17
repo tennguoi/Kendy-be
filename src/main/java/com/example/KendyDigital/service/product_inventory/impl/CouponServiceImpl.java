@@ -27,6 +27,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Instant;
 import java.util.List;
+import java.util.UUID;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -100,8 +101,8 @@ public class CouponServiceImpl implements CouponService {
     }
 
     @Transactional
-    public CouponResponse update(Long adminUserId, Long couponId, UpsertCouponRequest request) {
-        Coupon coupon = couponRepository.findById(couponId)
+    public CouponResponse update(Long adminUserId, UUID couponPublicId, UpsertCouponRequest request) {
+        Coupon coupon = couponRepository.findByPublicId(couponPublicId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Coupon not found"));
         if (request.version() != null && !request.version().equals(coupon.getVersion())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "CONCURRENT_ADMIN_CONFLICT");
@@ -111,7 +112,7 @@ public class CouponServiceImpl implements CouponService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Coupon code is required");
         }
         couponRepository.findByCodeIgnoreCase(code)
-                .filter(existing -> !existing.getId().equals(couponId))
+                .filter(existing -> !existing.getId().equals(coupon.getId()))
                 .ifPresent(existing -> {
                     throw new ResponseStatusException(HttpStatus.CONFLICT, "Coupon code already exists");
                 });
@@ -140,8 +141,8 @@ public class CouponServiceImpl implements CouponService {
     }
 
     @Transactional
-    public CouponResponse setStatus(Long adminUserId, Long couponId, CouponStatus status) {
-        Coupon coupon = couponRepository.findById(couponId)
+    public CouponResponse setStatus(Long adminUserId, UUID couponPublicId, CouponStatus status) {
+        Coupon coupon = couponRepository.findByPublicId(couponPublicId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Coupon not found"));
         if (status == CouponStatus.ACTIVE) {
             coupon.enable();
@@ -157,7 +158,7 @@ public class CouponServiceImpl implements CouponService {
 
     @Transactional(readOnly = true)
     public CouponValidationResponse validate(Long userId, CouponValidationRequest request) {
-        ServiceItem service = serviceItemRepository.findById(request.serviceId())
+        ServiceItem service = serviceItemRepository.findByPublicId(request.serviceId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Service not found"));
         BigDecimal originalAmount = money(service.getPrice());
         String normalizedCode = Coupon.normalizeCode(request.couponCode());
@@ -327,11 +328,11 @@ public class CouponServiceImpl implements CouponService {
         }
     }
 
-    private ServiceItem resolveService(Long serviceId) {
+    private ServiceItem resolveService(UUID serviceId) {
         if (serviceId == null) {
             return null;
         }
-        return serviceItemRepository.findById(serviceId)
+        return serviceItemRepository.findByPublicId(serviceId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Service not found"));
     }
 

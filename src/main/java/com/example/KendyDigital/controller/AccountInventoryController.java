@@ -14,6 +14,7 @@ import com.example.KendyDigital.service.product_inventory.AccountInventoryServic
 import jakarta.validation.Valid;
 import java.time.Instant;
 import java.util.List;
+import java.util.UUID;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -39,7 +40,7 @@ public class AccountInventoryController {
     }
 
     @GetMapping("/api/admin/services/{serviceId}/credentials")
-    public List<AccountCredentialAdminResponse> listByService(@PathVariable Long serviceId,
+    public List<AccountCredentialAdminResponse> listByService(@PathVariable UUID serviceId,
             @RequestParam(required = false) AccountCredentialStatus status,
             @RequestParam(required = false) String query,
             @RequestParam(required = false) Instant createdFrom,
@@ -68,30 +69,30 @@ public class AccountInventoryController {
     }
 
     @PostMapping("/api/admin/services/{serviceId}/credentials")
-    public AccountCredentialAdminResponse create(Authentication authentication, @PathVariable Long serviceId,
+    public AccountCredentialAdminResponse create(Authentication authentication, @PathVariable UUID serviceId,
             @Valid @RequestBody CreateAccountCredentialRequest request) {
         return accountInventoryService.create(CurrentUser.require(authentication).userId(), serviceId, request);
     }
 
     @PostMapping("/api/admin/services/{serviceId}/credentials/bulk-import")
-    public BulkAccountCredentialImportResponse bulkImport(Authentication authentication, @PathVariable Long serviceId,
+    public BulkAccountCredentialImportResponse bulkImport(Authentication authentication, @PathVariable UUID serviceId,
             @Valid @RequestBody BulkAccountCredentialImportRequest request) {
         return accountInventoryService.bulkImport(CurrentUser.require(authentication).userId(), serviceId, request);
     }
 
     @PutMapping("/api/admin/credentials/{credentialId}")
-    public AccountCredentialAdminResponse update(Authentication authentication, @PathVariable Long credentialId,
+    public AccountCredentialAdminResponse update(Authentication authentication, @PathVariable UUID credentialId,
             @Valid @RequestBody UpdateAccountCredentialRequest request) {
         return accountInventoryService.update(CurrentUser.require(authentication).userId(), credentialId, request);
     }
 
     @DeleteMapping("/api/admin/credentials/{credentialId}")
-    public AccountCredentialAdminResponse disable(Authentication authentication, @PathVariable Long credentialId) {
+    public AccountCredentialAdminResponse disable(Authentication authentication, @PathVariable UUID credentialId) {
         return accountInventoryService.disable(CurrentUser.require(authentication).userId(), credentialId);
     }
 
     @PostMapping("/api/admin/credentials/{credentialId}/reveal")
-    public AccountCredentialRevealResponse reveal(Authentication authentication, @PathVariable Long credentialId) {
+    public AccountCredentialRevealResponse reveal(Authentication authentication, @PathVariable UUID credentialId) {
         var admin = CurrentUser.require(authentication);
         return accountInventoryService.reveal(admin.userId(), admin.role(), credentialId);
     }

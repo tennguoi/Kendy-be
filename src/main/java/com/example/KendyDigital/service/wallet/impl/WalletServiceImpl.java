@@ -11,6 +11,7 @@ import com.example.KendyDigital.model.wallet.WalletTransactionType;
 import com.example.KendyDigital.repository.UserAccountRepository;
 import com.example.KendyDigital.repository.WalletTransactionRepository;
 import java.util.List;
+import java.util.UUID;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -33,7 +34,7 @@ public class WalletServiceImpl  implements WalletService{
         UserAccount user = userAccountRepository.findById(userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
         return new WalletSummaryResponse(
-                user.getId(),
+                user.getPublicId(),
                 user.getBalance(),
                 listTransactions(userId, null, null));
     }
@@ -78,10 +79,13 @@ public class WalletServiceImpl  implements WalletService{
     }
 
     @Transactional(readOnly = true)
-    public WalletTransactionResponse getTransaction(Long userId, Long id) {
-        return walletTransactionRepository.findByIdAndUser_Id(id, userId)
-                .map(WalletTransactionResponse::from)
+    public WalletTransactionResponse getTransaction(Long userId, UUID id) {
+        WalletTransaction transaction = walletTransactionRepository.findByPublicId(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Wallet transaction not found"));
+        if (!transaction.getUser().getId().equals(userId)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Wallet transaction not found");
+        }
+        return WalletTransactionResponse.from(transaction);
     }
 
     private PageRequest paged(int page, int size) {

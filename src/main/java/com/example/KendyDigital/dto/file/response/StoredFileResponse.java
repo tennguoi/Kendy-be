@@ -2,9 +2,10 @@ package com.example.KendyDigital.dto.file.response;
 
 import com.example.KendyDigital.model.file.StoredFile;
 import java.time.Instant;
+import java.util.UUID;
 
 public record StoredFileResponse(
-        Long id,
+        UUID id,
         String fileName,
         String contentType,
         long sizeBytes,
@@ -12,7 +13,7 @@ public record StoredFileResponse(
         Instant createdAt) {
     public static StoredFileResponse from(StoredFile file) {
         return new StoredFileResponse(
-                file.getId(),
+                file.getPublicId(),
                 file.getFileName(),
                 file.getContentType(),
                 file.getSizeBytes(),

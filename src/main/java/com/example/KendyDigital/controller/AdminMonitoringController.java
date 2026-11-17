@@ -10,6 +10,7 @@ import com.example.KendyDigital.security.CurrentUser;
 import com.example.KendyDigital.service.system_infrastructure.AdminMonitoringService;
 import jakarta.validation.Valid;
 import java.util.List;
+import java.util.UUID;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -29,21 +30,21 @@ public class AdminMonitoringController {
     }
 
     @GetMapping("/api/admin/users/{id}/orders")
-    public List<OrderResponse> userOrders(@PathVariable Long id,
+    public List<OrderResponse> userOrders(@PathVariable UUID id,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
         return monitoringService.listUserOrders(id, page, size);
     }
 
     @GetMapping("/api/admin/users/{id}/wallet-transactions")
-    public List<WalletTransactionResponse> userWalletTransactions(@PathVariable Long id,
+    public List<WalletTransactionResponse> userWalletTransactions(@PathVariable UUID id,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
         return monitoringService.listUserWalletTransactions(id, page, size);
     }
 
     @GetMapping("/api/admin/users/{id}/tickets")
-    public List<TicketResponse> userTickets(@PathVariable Long id,
+    public List<TicketResponse> userTickets(@PathVariable UUID id,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
         return monitoringService.listUserTickets(id, page, size);
@@ -53,7 +54,7 @@ public class AdminMonitoringController {
     public List<AuditLogResponse> searchAudit(
             @RequestParam(required = false) String query,
             @RequestParam(required = false) String action,
-            @RequestParam(required = false) Long actorUserId,
+            @RequestParam(required = false) UUID actorUserId,
             @RequestParam(required = false) String targetType,
             @RequestParam(required = false) Long targetId,
             @RequestParam(required = false) Integer limit) {
@@ -61,12 +62,12 @@ public class AdminMonitoringController {
     }
 
     @GetMapping("/api/admin/audit-logs/{id}/details")
-    public AuditLogResponse auditDetail(@PathVariable Long id) {
+    public AuditLogResponse auditDetail(@PathVariable UUID id) {
         return monitoringService.auditDetail(id);
     }
 
     @GetMapping("/api/admin/audit-logs/admin-actions")
-    public List<AuditLogResponse> adminActions(@RequestParam Long adminId,
+    public List<AuditLogResponse> adminActions(@RequestParam UUID adminId,
             @RequestParam(required = false) Integer limit) {
         return monitoringService.adminActions(adminId, limit);
     }
@@ -87,17 +88,17 @@ public class AdminMonitoringController {
     }
 
     @GetMapping("/api/admin/jobs/{jobId}/status")
-    public JobRecordResponse job(@PathVariable Long jobId) {
+    public JobRecordResponse job(@PathVariable UUID jobId) {
         return monitoringService.job(jobId);
     }
 
     @PostMapping("/api/admin/jobs/{jobId}/retry")
-    public JobRecordResponse retryJob(Authentication authentication, @PathVariable Long jobId) {
+    public JobRecordResponse retryJob(Authentication authentication, @PathVariable UUID jobId) {
         return monitoringService.retryJob(CurrentUser.require(authentication).userId(), jobId);
     }
 
     @PostMapping("/api/admin/jobs/{jobId}/cancel")
-    public JobRecordResponse cancelJob(Authentication authentication, @PathVariable Long jobId) {
+    public JobRecordResponse cancelJob(Authentication authentication, @PathVariable UUID jobId) {
         return monitoringService.cancelJob(CurrentUser.require(authentication).userId(), jobId);
     }
 

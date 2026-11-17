@@ -3,9 +3,10 @@ package com.example.KendyDigital.dto.monitoring.response;
 import com.example.KendyDigital.model.job.JobRecord;
 import com.example.KendyDigital.model.job.JobStatus;
 import java.time.Instant;
+import java.util.UUID;
 
 public record JobRecordResponse(
-        Long id,
+        UUID id,
         String name,
         JobStatus status,
         String logs,
@@ -13,7 +14,7 @@ public record JobRecordResponse(
         Instant updatedAt) {
     public static JobRecordResponse from(JobRecord job) {
         return new JobRecordResponse(
-                job.getId(),
+                job.getPublicId(),
                 job.getName(),
                 job.getStatus(),
                 job.getLogs(),

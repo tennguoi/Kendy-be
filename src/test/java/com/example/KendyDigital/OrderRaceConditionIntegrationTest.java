@@ -28,6 +28,7 @@ import com.example.KendyDigital.model.user.UserStatus;
 import com.example.KendyDigital.repository.AccountCredentialRepository;
 import com.example.KendyDigital.repository.BankTransactionRepository;
 import com.example.KendyDigital.repository.OrderRepository;
+import com.example.KendyDigital.repository.ServiceCategoryRepository;
 import com.example.KendyDigital.repository.ServiceItemRepository;
 import com.example.KendyDigital.repository.UserAccountRepository;
 import com.example.KendyDigital.service.auth.AuthService;
@@ -54,6 +55,7 @@ import java.lang.reflect.Field;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -73,6 +75,7 @@ class OrderRaceConditionIntegrationTest {
     @Autowired private AuthService authService;
     @Autowired private UserAccountRepository userAccountRepository;
     @Autowired private ServiceItemRepository serviceItemRepository;
+    @Autowired private ServiceCategoryRepository serviceCategoryRepository;
     @Autowired private OrderRepository orderRepository;
     @Autowired private AccountCredentialRepository credentialRepository;
     @Autowired private BankTransactionRepository bankTransactionRepository;
@@ -83,6 +86,7 @@ class OrderRaceConditionIntegrationTest {
     private UserAccount buyer3;
     private UserAccount adminUser;
     private Long stockServiceId;
+    private UUID stockServicePublicId;
     private static final AtomicInteger counter = new AtomicInteger(0);
 
     @BeforeEach
@@ -105,11 +109,16 @@ class OrderRaceConditionIntegrationTest {
                     ServiceType.ACCOUNT_STOCK, null, null, ServiceStatus.ACTIVE, ServiceStockStatus.AVAILABLE,
                     ServiceCtaType.BUY_NOW, null, false, true, null,
                     "Req", "Benefits", "Notes", "24h", "7 days",
-                    0, cat.id(), null, null, null);
-            stockServiceId = catalogService.create(adminUser.getId(), svcReq).id();
+                    0, cat.id(), null, null,
+                    null);
+            var createdService = serviceItemRepository
+                    .findByPublicId(catalogService.create(adminUser.getId(), svcReq).id())
+                    .orElseThrow();
+            stockServiceId = createdService.getId();
+            stockServicePublicId = createdService.getPublicId();
 
             for (int i = 0; i < 2; i++) {
-                inventoryService.create(adminUser.getId(), stockServiceId,
+                inventoryService.create(adminUser.getId(), stockServicePublicId,
                         new CreateAccountCredentialRequest(
                                 "login_" + counter + "_" + i, "pass_" + i,
                                 null, null, null, null, null, null));
@@ -126,7 +135,7 @@ class OrderRaceConditionIntegrationTest {
     private UserAccount createUser(String username, String email) {
         var resp = authService.register(
                 new AuthRegisterRequest(username, email, null, "password123"), null);
-        var user = userAccountRepository.findById(resp.id()).orElseThrow();
+        var user = userAccountRepository.findByPublicId(resp.id()).orElseThrow();
         user.setStatus(UserStatus.ACTIVE);
         return userAccountRepository.save(user);
     }
@@ -158,7 +167,7 @@ class OrderRaceConditionIntegrationTest {
                 try {
                     barrier.await(10, TimeUnit.SECONDS);
                     orderService.create(buyer.getId(),
-                            new CreateOrderRequest(stockServiceId, null, null, null));
+                            new CreateOrderRequest(stockServicePublicId, null, null, null));
                     successCount.incrementAndGet();
                 } catch (Exception e) {
                     failCount.incrementAndGet();
@@ -183,7 +192,7 @@ class OrderRaceConditionIntegrationTest {
     void concurrentRefund_sameOrder_onlyFirstSucceeds() throws Exception {
         TransactionTemplate tx = new TransactionTemplate(transactionManager);
         OrderResponse order = tx.execute(s -> orderService.create(buyer1.getId(),
-                new CreateOrderRequest(stockServiceId, null, null, null)));
+                new CreateOrderRequest(stockServicePublicId, null, null, null)));
         assertNotNull(order);
 
         int threadCount = 3;
@@ -220,7 +229,7 @@ class OrderRaceConditionIntegrationTest {
     void concurrentReprocess_onlyFirstSucceeds() throws Exception {
         TransactionTemplate tx = new TransactionTemplate(transactionManager);
         OrderResponse order = tx.execute(s -> orderService.create(buyer1.getId(),
-                new CreateOrderRequest(stockServiceId, null, null, null)));
+                new CreateOrderRequest(stockServicePublicId, null, null, null)));
         assertNotNull(order);
 
         tx.executeWithoutResult(s -> {
@@ -260,7 +269,7 @@ class OrderRaceConditionIntegrationTest {
         TransactionTemplate tx = new TransactionTemplate(transactionManager);
         // Order is auto-completed with credential delivery during create() for ACCOUNT_STOCK
         OrderResponse order = tx.execute(s -> orderService.create(buyer1.getId(),
-                new CreateOrderRequest(stockServiceId, null, null, null)));
+                new CreateOrderRequest(stockServicePublicId, null, null, null)));
         assertNotNull(order);
         assertEquals(OrderStatus.COMPLETED.name(), order.status().name());
 
@@ -311,11 +320,11 @@ class OrderRaceConditionIntegrationTest {
                 null,
                 null,
                 null,
-                stockServiceId,
+                stockServicePublicId,
                 "Test coupon")));
 
         OrderResponse order = tx.execute(s -> orderService.create(buyer1.getId(),
-                new CreateOrderRequest(stockServiceId, null, null, couponCode)));
+                new CreateOrderRequest(stockServicePublicId, null, null, couponCode)));
 
         assertNotNull(order);
         assertEquals(new BigDecimal("100000.00"), order.originalAmount());
@@ -324,7 +333,7 @@ class OrderRaceConditionIntegrationTest {
         assertEquals(couponCode, order.couponCode());
 
         assertThrows(Exception.class, () -> tx.execute(s -> orderService.create(buyer1.getId(),
-                new CreateOrderRequest(stockServiceId, null, null, couponCode))));
+                new CreateOrderRequest(stockServicePublicId, null, null, couponCode))));
     }
 
     @Test
@@ -333,7 +342,7 @@ class OrderRaceConditionIntegrationTest {
         TransactionTemplate tx = new TransactionTemplate(transactionManager);
         String couponCode = "FLASH-" + counter.incrementAndGet();
 
-        Long manualServiceId = tx.execute(s -> {
+        UUID manualServiceId = tx.execute(s -> {
             var catReq = new CreateServiceCategoryRequest("CatCoupon " + counter.get(), "cat-coupon-" + counter.get(), null, 0, null, null, null, null, null, null, null);
             var cat = categoryService.create(adminUser.getId(), catReq);
             var svcReq = new CreateServiceRequest(
@@ -343,8 +352,11 @@ class OrderRaceConditionIntegrationTest {
                     ServiceType.MANUAL, null, null, ServiceStatus.ACTIVE, ServiceStockStatus.AVAILABLE,
                     ServiceCtaType.BUY_NOW, null, false, true, null,
                     "Req", "Benefits", "Notes", "24h", "7 days",
-                    0, cat.id(), null, null, null);
-            Long sId = catalogService.create(adminUser.getId(), svcReq).id();
+                    0, cat.id(), null, null,
+                    null);
+            UUID sId = serviceItemRepository
+                    .findByPublicId(catalogService.create(adminUser.getId(), svcReq).id())
+                    .orElseThrow().getPublicId();
 
             couponService.create(adminUser.getId(), new UpsertCouponRequest(
                     couponCode,
@@ -399,12 +411,12 @@ class OrderRaceConditionIntegrationTest {
     void bankCheckout_reservedCredential_reprocessCreatesOrder() {
         TransactionTemplate tx = new TransactionTemplate(transactionManager);
         var checkout = tx.execute(s -> checkoutService.createServiceCheckout(buyer1.getId(),
-                new CreateServiceCheckoutRequest(stockServiceId, null, "checkout-bank-" + counter.get(), null)));
+                new CreateServiceCheckoutRequest(stockServicePublicId, null, "checkout-bank-" + counter.get(), null)));
         assertNotNull(checkout);
         assertEquals(CheckoutStatus.PENDING_PAYMENT, checkout.status());
         assertEquals(1L, tx.execute(s -> inventoryService.availableCount(stockServiceId)).longValue());
 
-        Long bankTransactionId = insertBankTransaction(
+        UUID bankTransactionId = insertBankTransaction(
                 checkout.deposit().depositCode(),
                 checkout.amount(),
                 "bank-checkout-" + counter.get());
@@ -435,8 +447,8 @@ class OrderRaceConditionIntegrationTest {
     void concurrentBankReprocess_sameTransaction_onlyFirstCredits() throws Exception {
         TransactionTemplate tx = new TransactionTemplate(transactionManager);
         var checkout = tx.execute(s -> checkoutService.createServiceCheckout(buyer2.getId(),
-                new CreateServiceCheckoutRequest(stockServiceId, null, "checkout-race-" + counter.get(), null)));
-        Long bankTransactionId = insertBankTransaction(
+                new CreateServiceCheckoutRequest(stockServicePublicId, null, "checkout-race-" + counter.get(), null)));
+        UUID bankTransactionId = insertBankTransaction(
                 checkout.deposit().depositCode(),
                 checkout.amount(),
                 "bank-race-" + counter.get());
@@ -468,12 +480,12 @@ class OrderRaceConditionIntegrationTest {
         executor.shutdown();
 
         assertEquals(1, successCount.get(), "Only one bank reprocess should credit the wallet");
-        var bankTransaction = tx.execute(s -> bankTransactionRepository.findById(bankTransactionId).orElseThrow());
+        var bankTransaction = tx.execute(s -> bankTransactionRepository.findByPublicId(bankTransactionId).orElseThrow());
         assertEquals(BankTransactionStatus.CREDITED, bankTransaction.getStatus());
         assertNotNull(bankTransaction.getWalletTransaction());
     }
 
-    private Long insertBankTransaction(String depositCode, BigDecimal amount, String referenceCode) {
+    private UUID insertBankTransaction(String depositCode, BigDecimal amount, String referenceCode) {
         try {
             Constructor<BankTransaction> constructor = BankTransaction.class.getDeclaredConstructor();
             constructor.setAccessible(true);
@@ -520,7 +532,7 @@ class OrderRaceConditionIntegrationTest {
             var receivedAtField = BankTransaction.class.getDeclaredField("receivedAt");
             receivedAtField.setAccessible(true);
             receivedAtField.set(transaction, Instant.now());
-            return bankTransactionRepository.saveAndFlush(transaction).getId();
+            return bankTransactionRepository.saveAndFlush(transaction).getPublicId();
         } catch (Exception exception) {
             throw new IllegalStateException("Cannot create test bank transaction", exception);
         }
@@ -536,7 +548,7 @@ class OrderRaceConditionIntegrationTest {
                 userAccountRepository.findById(buyer1.getId()).orElseThrow().getBalance());
 
         OrderResponse firstOrder = tx.execute(s -> orderService.create(buyer1.getId(),
-                new CreateOrderRequest(stockServiceId, null, idempotencyKey, null)));
+                new CreateOrderRequest(stockServicePublicId, null, idempotencyKey, null)));
         assertNotNull(firstOrder);
 
         BigDecimal balanceAfterFirst = tx.execute(s ->
@@ -544,7 +556,7 @@ class OrderRaceConditionIntegrationTest {
         assertEquals(new BigDecimal("100000.00"), initialBalance.subtract(balanceAfterFirst));
 
         OrderResponse secondOrder = tx.execute(s -> orderService.create(buyer1.getId(),
-                new CreateOrderRequest(stockServiceId, null, idempotencyKey, null)));
+                new CreateOrderRequest(stockServicePublicId, null, idempotencyKey, null)));
         assertNotNull(secondOrder);
 
         assertEquals(firstOrder.orderCode(), secondOrder.orderCode());
@@ -576,7 +588,7 @@ class OrderRaceConditionIntegrationTest {
                 try {
                     barrier.await(10, TimeUnit.SECONDS);
                     OrderResponse resp = orderService.create(buyer1.getId(),
-                            new CreateOrderRequest(stockServiceId, null, idempotencyKey, null));
+                            new CreateOrderRequest(stockServicePublicId, null, idempotencyKey, null));
                     orders.add(resp);
                 } catch (Exception e) {
                     failCount.incrementAndGet();
@@ -608,11 +620,11 @@ class OrderRaceConditionIntegrationTest {
         String idempotencyKey = "checkout-idemp-" + counter.incrementAndGet();
 
         var firstCheckout = tx.execute(s -> checkoutService.createServiceCheckout(buyer2.getId(),
-                new CreateServiceCheckoutRequest(stockServiceId, null, idempotencyKey, null)));
+                new CreateServiceCheckoutRequest(stockServicePublicId, null, idempotencyKey, null)));
         assertNotNull(firstCheckout);
 
         var secondCheckout = tx.execute(s -> checkoutService.createServiceCheckout(buyer2.getId(),
-                new CreateServiceCheckoutRequest(stockServiceId, null, idempotencyKey, null)));
+                new CreateServiceCheckoutRequest(stockServicePublicId, null, idempotencyKey, null)));
         assertNotNull(secondCheckout);
 
         assertEquals(firstCheckout.checkoutCode(), secondCheckout.checkoutCode());

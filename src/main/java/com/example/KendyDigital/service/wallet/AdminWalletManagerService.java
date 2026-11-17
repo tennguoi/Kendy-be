@@ -6,13 +6,14 @@ import com.example.KendyDigital.model.wallet.WalletTransactionDirection;
 import com.example.KendyDigital.model.wallet.WalletTransactionType;
 import java.time.Instant;
 import java.util.List;
+import java.util.UUID;
 
 public interface AdminWalletManagerService {
-    List<WalletTransactionResponse> listWalletTransactions(Long userId);
-    List<WalletTransactionResponse> listWalletTransactions(Long userId, Instant fromDate, Instant toDate, int page, int size);
-    List<WalletTransactionResponse> listWalletTransactions(Long userId, Integer limit);
-    List<WalletTransactionResponse> searchWalletTransactions(String query, Long userId, WalletTransactionType type, WalletTransactionDirection direction, Instant fromDate, Instant toDate, int page, int size);
-    List<WalletTransactionResponse> searchWalletTransactions(String query, Long userId, WalletTransactionType type, WalletTransactionDirection direction, Integer limit);
-    WalletTransactionResponse getWalletTransaction(Long walletTransactionId);
-    WalletTransactionResponse adjustWallet(Long adminUserId, Long targetUserId, AdminWalletAdjustmentRequest request);
+    List<WalletTransactionResponse> listWalletTransactions(UUID userId);
+    List<WalletTransactionResponse> listWalletTransactions(UUID userId, Instant fromDate, Instant toDate, int page, int size);
+    List<WalletTransactionResponse> listWalletTransactions(UUID userId, Integer limit);
+    List<WalletTransactionResponse> searchWalletTransactions(String query, UUID userId, WalletTransactionType type, WalletTransactionDirection direction, Instant fromDate, Instant toDate, int page, int size);
+    List<WalletTransactionResponse> searchWalletTransactions(String query, UUID userId, WalletTransactionType type, WalletTransactionDirection direction, Integer limit);
+    WalletTransactionResponse getWalletTransaction(UUID walletTransactionId);
+    WalletTransactionResponse adjustWallet(Long adminUserId, UUID targetUserId, AdminWalletAdjustmentRequest request);
 }

@@ -8,8 +8,7 @@ import java.time.Instant;
 import java.util.UUID;
 
 public record AdminUserResponse(
-        Long id,
-        UUID publicId,
+        UUID id,
         String name,
         String email,
         String phone,
@@ -23,8 +22,7 @@ public record AdminUserResponse(
         Long version
         ) {
     public AdminUserResponse(
-            Long id,
-            UUID publicId,
+            UUID id,
             String name,
             String email,
             String phone,
@@ -36,12 +34,11 @@ public record AdminUserResponse(
             Instant updatedAt,
             String avatarUrl
     ) {
-        this(id, publicId, name, email, phone, role, status, balance, twoFactorEnabled, createdAt, updatedAt, avatarUrl, 0L);
+        this(id, name, email, phone, role, status, balance, twoFactorEnabled, createdAt, updatedAt, avatarUrl, 0L);
     }
 
     public static AdminUserResponse from(UserAccount user) {
         return new AdminUserResponse(
-                user.getId(),
                 user.getPublicId(),
                 user.getName(),
                 user.getEmail(),

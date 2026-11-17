@@ -6,6 +6,7 @@ import com.example.KendyDigital.repository.JobRecordRepository;
 import com.example.KendyDigital.service.audit.AuditService;
 import com.example.KendyDigital.service.system_infrastructure.JobRecordMonitoringService;
 import java.util.List;
+import java.util.UUID;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -33,13 +34,13 @@ public class JobRecordMonitoringServiceImpl implements JobRecordMonitoringServic
 
     @Override
     @Transactional(readOnly = true)
-    public JobRecordResponse job(Long jobId) {
+    public JobRecordResponse job(UUID jobId) {
         return JobRecordResponse.from(requireJob(jobId));
     }
 
     @Override
     @Transactional
-    public JobRecordResponse retryJob(Long adminUserId, Long jobId) {
+    public JobRecordResponse retryJob(Long adminUserId, UUID jobId) {
         JobRecord job = requireJob(jobId);
         job.retry();
         auditService.recordAdmin(adminUserId, "JOB_RETRY_REQUESTED", "JOB", job.getId(), "name=" + job.getName());
@@ -48,15 +49,15 @@ public class JobRecordMonitoringServiceImpl implements JobRecordMonitoringServic
 
     @Override
     @Transactional
-    public JobRecordResponse cancelJob(Long adminUserId, Long jobId) {
+    public JobRecordResponse cancelJob(Long adminUserId, UUID jobId) {
         JobRecord job = requireJob(jobId);
         job.cancel();
         auditService.recordAdmin(adminUserId, "JOB_CANCELLED", "JOB", job.getId(), "name=" + job.getName());
         return JobRecordResponse.from(job);
     }
 
-    private JobRecord requireJob(Long jobId) {
-        return jobRecordRepository.findById(jobId)
+    private JobRecord requireJob(UUID jobId) {
+        return jobRecordRepository.findByPublicId(jobId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Job not found"));
     }
 

@@ -10,6 +10,7 @@ import com.example.KendyDigital.service.audit.AuditService;
 import jakarta.validation.Valid;
 import java.util.List;
 import java.util.Locale;
+import java.util.UUID;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
@@ -90,17 +91,17 @@ public class ContentController {
     @PutMapping("/api/admin/content/{id}")
     @Transactional
     @CacheEvict(cacheNames = "publicContent", allEntries = true)
-    public ContentItemResponse update(Authentication authentication, @PathVariable Long id,
+    public ContentItemResponse update(Authentication authentication, @PathVariable UUID id,
             @Valid @RequestBody ContentItemRequest request) {
         Long adminUserId = CurrentUser.require(authentication).userId();
-        ContentItem item = contentItemRepository.findById(id)
+        ContentItem item = contentItemRepository.findByPublicId(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Content not found"));
         if (request.version() != null && !request.version().equals(item.getVersion())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "CONCURRENT_ADMIN_CONFLICT");
         }
         String slug = normalizeSlug(request.slug());
         contentItemRepository.findByTypeAndSlug(request.type(), slug)
-                .filter(existing -> !existing.getId().equals(id))
+                .filter(existing -> !existing.getPublicId().equals(id))
                 .ifPresent(existing -> {
                     throw new ResponseStatusException(HttpStatus.CONFLICT, "Slug already exists for this content type");
                 });
@@ -114,12 +115,12 @@ public class ContentController {
     @DeleteMapping("/api/admin/content/{id}")
     @Transactional
     @CacheEvict(cacheNames = "publicContent", allEntries = true)
-    public void delete(Authentication authentication, @PathVariable Long id) {
+    public void delete(Authentication authentication, @PathVariable UUID id) {
         Long adminUserId = CurrentUser.require(authentication).userId();
-        ContentItem item = contentItemRepository.findById(id)
+        ContentItem item = contentItemRepository.findByPublicId(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Content not found"));
         contentItemRepository.delete(item);
-        auditService.recordAdmin(adminUserId, "CONTENT_DELETED", "CONTENT_ITEM", id, null);
+        auditService.recordAdmin(adminUserId, "CONTENT_DELETED", "CONTENT_ITEM", item.getId(), null);
     }
 
     private void apply(ContentItem item, ContentItemRequest request, Long adminUserId) {

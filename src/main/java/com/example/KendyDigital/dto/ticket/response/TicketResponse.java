@@ -6,27 +6,28 @@ import com.example.KendyDigital.model.ticket.TicketPriority;
 import com.example.KendyDigital.model.ticket.TicketStatus;
 import java.time.Instant;
 import java.util.List;
+import java.util.UUID;
 
 public record TicketResponse(
-        Long id,
+        UUID id,
         String ticketCode,
-        Long userId,
-        Long orderId,
-        Long depositRequestId,
+        UUID userId,
+        UUID orderId,
+        UUID depositRequestId,
         TicketCategory category,
         String subject,
         TicketStatus status,
         TicketPriority priority,
-        Long assignedAdminId,
+        UUID assignedAdminId,
         Instant closedAt,
         Instant createdAt,
         Instant updatedAt,
         List<TicketMessageResponse> messages,
         Long version) {
 
-    public TicketResponse(Long id, String ticketCode, Long userId, Long orderId,
-            Long depositRequestId, TicketCategory category, String subject,
-            TicketStatus status, TicketPriority priority, Long assignedAdminId,
+    public TicketResponse(UUID id, String ticketCode, UUID userId, UUID orderId,
+            UUID depositRequestId, TicketCategory category, String subject,
+            TicketStatus status, TicketPriority priority, UUID assignedAdminId,
             Instant closedAt, Instant createdAt, Instant updatedAt,
             List<TicketMessageResponse> messages) {
         this(id, ticketCode, userId, orderId, depositRequestId, category, subject,
@@ -36,16 +37,16 @@ public record TicketResponse(
 
     public static TicketResponse from(Ticket ticket, List<TicketMessageResponse> messages) {
         return new TicketResponse(
-                ticket.getId(),
+                ticket.getPublicId(),
                 ticket.getTicketCode(),
-                ticket.getUser().getId(),
-                ticket.getOrder() == null ? null : ticket.getOrder().getId(),
-                ticket.getDepositRequest() == null ? null : ticket.getDepositRequest().getId(),
+                ticket.getUser().getPublicId(),
+                ticket.getOrder() == null ? null : ticket.getOrder().getPublicId(),
+                ticket.getDepositRequest() == null ? null : ticket.getDepositRequest().getPublicId(),
                 ticket.getCategory(),
                 ticket.getSubject(),
                 ticket.getStatus(),
                 ticket.getPriority(),
-                ticket.getAssignedAdmin() == null ? null : ticket.getAssignedAdmin().getId(),
+                ticket.getAssignedAdmin() == null ? null : ticket.getAssignedAdmin().getPublicId(),
                 ticket.getClosedAt(),
                 ticket.getCreatedAt(),
                 ticket.getUpdatedAt(),

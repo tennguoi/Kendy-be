@@ -1,9 +1,10 @@
 package com.example.KendyDigital.dto.user.response;
 
 import java.time.Instant;
+import java.util.UUID;
 
 public record UserSecurityOverviewResponse(
-        Long userId,
+        UUID userId,
         boolean emailVerified,
         Instant emailVerifiedAt,
         boolean twoFactorEnabled,

@@ -6,6 +6,7 @@ import com.example.KendyDigital.model.wallet.WalletTransactionType;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -16,6 +17,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 public interface WalletTransactionRepository extends JpaRepository<WalletTransaction, Long>, JpaSpecificationExecutor<WalletTransaction> {
+    Optional<WalletTransaction> findByPublicId(UUID publicId);
     @Override
     @EntityGraph(attributePaths = "user")
     Page<WalletTransaction> findAll(Specification<WalletTransaction> spec, Pageable pageable);

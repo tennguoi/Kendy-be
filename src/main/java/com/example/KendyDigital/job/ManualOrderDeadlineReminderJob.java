@@ -8,6 +8,7 @@ import com.example.KendyDigital.model.user.UserRole;
 import com.example.KendyDigital.repository.AdminNotificationRepository;
 import com.example.KendyDigital.repository.OrderRepository;
 import com.example.KendyDigital.repository.UserAccountRepository;
+import com.example.KendyDigital.service.notification.DiscordBotService;
 import com.example.KendyDigital.service.notification.EmailNotificationService;
 import com.example.KendyDigital.service.notification.NotificationRealtimeService;
 import java.time.Duration;
@@ -27,6 +28,7 @@ public class ManualOrderDeadlineReminderJob {
     private final UserAccountRepository userAccountRepository;
     private final EmailNotificationService emailNotificationService;
     private final NotificationRealtimeService notificationRealtimeService;
+    private final DiscordBotService discordBotService;
     private final MessageSource messageSource;
 
     public ManualOrderDeadlineReminderJob(OrderRepository orderRepository,
@@ -34,12 +36,14 @@ public class ManualOrderDeadlineReminderJob {
             UserAccountRepository userAccountRepository,
             EmailNotificationService emailNotificationService,
             NotificationRealtimeService notificationRealtimeService,
+            DiscordBotService discordBotService,
             MessageSource messageSource) {
         this.orderRepository = orderRepository;
         this.adminNotificationRepository = adminNotificationRepository;
         this.userAccountRepository = userAccountRepository;
         this.emailNotificationService = emailNotificationService;
         this.notificationRealtimeService = notificationRealtimeService;
+        this.discordBotService = discordBotService;
         this.messageSource = messageSource;
     }
 
@@ -82,5 +86,13 @@ public class ManualOrderDeadlineReminderJob {
                         PageRequest.of(0, 50));
         admins.forEach(admin -> emailNotificationService.sendUserNotification(admin, title, message,
                 "/admin/orders"));
+
+        discordBotService.sendOrderDeadlineAlert(
+                order.getOrderCode(),
+                order.getService() != null ? order.getService().getName() : null,
+                order.getUser() != null ? order.getUser().getId() : null,
+                order.getProcessingDeadlineAt() != null ? order.getProcessingDeadlineAt().toString() : null,
+                overdue
+        );
     }
 }

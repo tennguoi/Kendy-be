@@ -7,12 +7,13 @@ import com.example.KendyDigital.model.order.OrderStatus;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
+import java.util.UUID;
 
 public record OrderResponse(
-        Long id,
+        UUID id,
         String orderCode,
-        Long userId,
-        Long serviceId,
+        UUID userId,
+        UUID serviceId,
         String serviceName,
         String serviceType,
         BigDecimal amount,
@@ -28,7 +29,7 @@ public record OrderResponse(
         AccountCredentialDeliveryResponse delivery,
         Instant processingAt,
         Instant processingDeadlineAt,
-        Long assignedAdminId,
+        UUID assignedAdminId,
         String assignedAdminName,
         String assignedAdminEmail,
         ManualWorkflowStatus manualWorkflowStatus,
@@ -36,7 +37,7 @@ public record OrderResponse(
         List<ManualOrderTaskResponse> manualTasks,
         Instant deadlineReminderSentAt,
         Instant deadlineOverdueNotifiedAt,
-        Long supportTicketId,
+        UUID supportTicketId,
         Instant completedAt,
         Instant cancelledAt,
         Instant createdAt) {
@@ -46,10 +47,10 @@ public record OrderResponse(
 
     public static OrderResponse from(OrderRecord order, List<ManualOrderTaskResponse> manualTasks) {
         return new OrderResponse(
-                order.getId(),
+                order.getPublicId(),
                 order.getOrderCode(),
-                order.getUser().getId(),
-                order.getService().getId(),
+                order.getUser().getPublicId(),
+                order.getService().getPublicId(),
                 order.getService().getName(),
                 order.getService().getType().name(),
                 order.getAmount(),
@@ -65,7 +66,7 @@ public record OrderResponse(
                 AccountCredentialDeliveryResponse.from(order.getDeliveredCredential()),
                 order.getProcessingAt(),
                 order.getProcessingDeadlineAt(),
-                order.getAssignedAdmin() == null ? null : order.getAssignedAdmin().getId(),
+                order.getAssignedAdmin() == null ? null : order.getAssignedAdmin().getPublicId(),
                 order.getAssignedAdmin() == null ? null : order.getAssignedAdmin().getName(),
                 order.getAssignedAdmin() == null ? null : order.getAssignedAdmin().getEmail(),
                 order.getManualWorkflowStatus(),
@@ -73,7 +74,7 @@ public record OrderResponse(
                 manualTasks == null ? List.of() : manualTasks,
                 order.getDeadlineReminderSentAt(),
                 order.getDeadlineOverdueNotifiedAt(),
-                order.getSupportTicket() == null ? null : order.getSupportTicket().getId(),
+                order.getSupportTicket() == null ? null : order.getSupportTicket().getPublicId(),
                 order.getCompletedAt(),
                 order.getCancelledAt(),
                 order.getCreatedAt());

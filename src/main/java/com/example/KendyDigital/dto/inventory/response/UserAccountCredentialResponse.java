@@ -3,10 +3,11 @@ package com.example.KendyDigital.dto.inventory.response;
 import com.example.KendyDigital.model.inventory.AccountCredential;
 import com.example.KendyDigital.model.inventory.AccountCredentialStatus;
 import java.time.Instant;
+import java.util.UUID;
 
 public record UserAccountCredentialResponse(
-        Long id,
-        Long serviceId,
+        UUID id,
+        UUID serviceId,
         String serviceName,
         String orderCode,
         String loginIdentifier,
@@ -21,8 +22,8 @@ public record UserAccountCredentialResponse(
 
     public static UserAccountCredentialResponse from(AccountCredential credential) {
         return new UserAccountCredentialResponse(
-                credential.getId(),
-                credential.getService().getId(),
+                credential.getPublicId(),
+                credential.getService().getPublicId(),
                 credential.getService().getName(),
                 credential.getAssignedOrder() == null ? null : credential.getAssignedOrder().getOrderCode(),
                 credential.getLoginIdentifier(),

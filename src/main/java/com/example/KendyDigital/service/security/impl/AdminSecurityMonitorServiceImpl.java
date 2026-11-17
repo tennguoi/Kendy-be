@@ -29,6 +29,7 @@ import com.example.KendyDigital.model.user.UserApiKey;
 import com.example.KendyDigital.model.user.UserRole;
 import com.example.KendyDigital.repository.AuditLogRepository;
 import com.example.KendyDigital.repository.AuthSessionRepository;
+import com.example.KendyDigital.repository.IpBanRepository;
 import com.example.KendyDigital.repository.SecurityAlertRepository;
 import com.example.KendyDigital.repository.SecurityEventRepository;
 import com.example.KendyDigital.repository.UserAccountRepository;
@@ -48,6 +49,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import com.example.KendyDigital.repository.specification.SecurityEventSpecifications;
@@ -108,6 +110,7 @@ public class AdminSecurityMonitorServiceImpl implements AdminSecurityMonitorServ
     private final UserNotificationService userNotificationService;
     private final SecurityEventRepository securityEventRepository;
     private final SecurityAlertRepository securityAlertRepository;
+    private final IpBanRepository ipBanRepository;
     private final AlertService alertService;
     private final IpBanService ipBanService;
     private final RiskScoringService riskScoringService;
@@ -122,6 +125,7 @@ public class AdminSecurityMonitorServiceImpl implements AdminSecurityMonitorServ
             UserNotificationService userNotificationService,
             SecurityEventRepository securityEventRepository,
             SecurityAlertRepository securityAlertRepository,
+            IpBanRepository ipBanRepository,
             AlertService alertService,
             IpBanService ipBanService,
             RiskScoringService riskScoringService,
@@ -135,6 +139,7 @@ public class AdminSecurityMonitorServiceImpl implements AdminSecurityMonitorServ
         this.userNotificationService = userNotificationService;
         this.securityEventRepository = securityEventRepository;
         this.securityAlertRepository = securityAlertRepository;
+        this.ipBanRepository = ipBanRepository;
         this.alertService = alertService;
         this.ipBanService = ipBanService;
         this.riskScoringService = riskScoringService;
@@ -216,9 +221,8 @@ public class AdminSecurityMonitorServiceImpl implements AdminSecurityMonitorServ
 
     @Override
     @Transactional
-    public SecurityRiskyAccountResponse unlockAccount(Long adminUserId, Long userId) {
-        UserAccount user = userAccountRepository.findByIdForUpdate(userId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+    public SecurityRiskyAccountResponse unlockAccount(Long adminUserId, UUID userId) {
+        UserAccount user = requireUserForUpdate(userId);
         user.resetFailedLoginAttempts();
         auditService.recordAdmin(adminUserId, "USER_LOGIN_UNLOCKED", "USER", user.getId(), null);
         return SecurityRiskyAccountResponse.from(user);
@@ -236,8 +240,8 @@ public class AdminSecurityMonitorServiceImpl implements AdminSecurityMonitorServ
 
     @Override
     @Transactional
-    public void revokeSession(Long adminUserId, Long sessionId) {
-        AuthSession session = authSessionRepository.findById(sessionId)
+    public void revokeSession(Long adminUserId, UUID sessionId) {
+        AuthSession session = authSessionRepository.findByPublicId(sessionId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Session not found"));
         session.revoke();
         auditService.recordAdmin(adminUserId, "SECURITY_SESSION_REVOKED", "AUTH_SESSION", session.getId(),
@@ -246,13 +250,14 @@ public class AdminSecurityMonitorServiceImpl implements AdminSecurityMonitorServ
 
     @Override
     @Transactional
-    public void revokeAllSessions(Long adminUserId, Long userId) {
-        List<AuthSession> sessions = authSessionRepository.findAllByUser_IdAndRevokedAtIsNull(userId);
+    public void revokeAllSessions(Long adminUserId, UUID userId) {
+        UserAccount user = requireUser(userId);
+        List<AuthSession> sessions = authSessionRepository.findAllByUser_IdAndRevokedAtIsNull(user.getId());
         sessions.forEach(AuthSession::revoke);
         authSessionRepository.saveAll(sessions);
-        auditService.recordAdmin(adminUserId, "SECURITY_SESSION_REVOKED", "USER", userId,
+        auditService.recordAdmin(adminUserId, "SECURITY_SESSION_REVOKED", "USER", user.getId(),
                 "scope=all,count=" + sessions.size());
-        userNotificationService.create(userId, "All sessions signed out",
+        userNotificationService.create(user.getId(), "All sessions signed out",
                 "An administrator signed out all of your active sessions.", "SECURITY", "/account/security");
     }
 
@@ -267,8 +272,8 @@ public class AdminSecurityMonitorServiceImpl implements AdminSecurityMonitorServ
 
     @Override
     @Transactional
-    public void revokeApiKey(Long adminUserId, Long keyId) {
-        UserApiKey key = userApiKeyRepository.findById(keyId)
+    public void revokeApiKey(Long adminUserId, UUID keyId) {
+        UserApiKey key = userApiKeyRepository.findByPublicId(keyId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "API key not found"));
         key.revoke();
         Long userId = key.getUser().getId();
@@ -312,28 +317,38 @@ public class AdminSecurityMonitorServiceImpl implements AdminSecurityMonitorServ
 
     @Override
     @Transactional
-    public SecurityAlertResponse updateAlert(Long adminUserId, Long id, UpdateAlertRequest request) {
+    public SecurityAlertResponse updateAlert(Long adminUserId, UUID id, UpdateAlertRequest request) {
         AlertStatus status = parseEnum(request.status(), AlertStatus.class);
         if (status == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Unknown alert status");
         }
-        SecurityAlert alert = alertService.updateStatus(id, status, request.assignee(), request.note());
-        auditService.recordAdmin(adminUserId, "SECURITY_ALERT_UPDATED", "SECURITY_ALERT", id,
+        SecurityAlert existing = securityAlertRepository.findByPublicId(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Alert not found"));
+        SecurityAlert alert = alertService.updateStatus(existing.getId(), status, request.assignee(), request.note());
+        auditService.recordAdmin(adminUserId, "SECURITY_ALERT_UPDATED", "SECURITY_ALERT", alert.getId(),
                 "status=" + status + ",rule=" + alert.getRuleCode());
         return SecurityAlertResponse.from(alert);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public List<SecurityEventResponse> securityEvents(String type, String severity, String ip, Long userId,
+    public List<SecurityEventResponse> securityEvents(String type, String severity, String ip, UUID userId,
             Instant from, Instant to, Integer limit) {
         SecurityEventType parsedType = parseEnum(type, SecurityEventType.class);
         SecuritySeverity parsedSeverity = parseEnum(severity, SecuritySeverity.class);
+        Long internalUserId = null;
+        if (userId != null) {
+            UserAccount user = userAccountRepository.findByPublicId(userId).orElse(null);
+            if (user == null) {
+                return List.of();
+            }
+            internalUserId = user.getId();
+        }
         var spec = SecurityEventSpecifications.searchEvents(
                 parsedType,
                 parsedSeverity,
                 ip == null || ip.isBlank() ? null : ip.trim(),
-                userId,
+                internalUserId,
                 from,
                 to);
         return securityEventRepository.findAll(
@@ -427,11 +442,11 @@ public class AdminSecurityMonitorServiceImpl implements AdminSecurityMonitorServ
 
     @Override
     @Transactional(readOnly = true)
-    public SecurityUserRiskResponse userRisk(Long userId, Integer limit) {
-        UserAccount user = userAccountRepository.findById(userId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+    public SecurityUserRiskResponse userRisk(UUID userId, Integer limit) {
+        UserAccount user = requireUser(userId);
+        Long internalUserId = user.getId();
         Instant since = Instant.now().minus(Duration.ofHours(24));
-        var spec = SecurityEventSpecifications.searchEvents(null, null, null, userId, null, null);
+        var spec = SecurityEventSpecifications.searchEvents(null, null, null, internalUserId, null, null);
         List<SecurityEventResponse> recent = securityEventRepository.findAll(
                         spec,
                         PageRequest.of(0, clamp(limit, 50, 200), Sort.by(Sort.Direction.DESC, "occurredAt")))
@@ -440,11 +455,11 @@ public class AdminSecurityMonitorServiceImpl implements AdminSecurityMonitorServ
                 .toList();
         long events24h = recent.stream().filter(event -> event.occurredAt().isAfter(since)).count();
         return new SecurityUserRiskResponse(
-                user.getId(),
+                user.getPublicId(),
                 user.getName(),
                 user.getEmail(),
                 user.getRole() == null ? null : user.getRole().name(),
-                Math.round(riskScoringService.userRisk(userId)),
+                Math.round(riskScoringService.userRisk(internalUserId)),
                 user.getFailedLoginAttempts(),
                 user.isLocked(),
                 user.isTwoFactorEnabled(),
@@ -458,21 +473,23 @@ public class AdminSecurityMonitorServiceImpl implements AdminSecurityMonitorServ
 
     @Override
     @Transactional
-    public SecurityUserRiskResponse freezeWallet(Long adminUserId, Long userId, FreezeWalletRequest request) {
+    public SecurityUserRiskResponse freezeWallet(Long adminUserId, UUID userId, FreezeWalletRequest request) {
+        UserAccount user = requireUser(userId);
         String reason = request == null || request.reason() == null || request.reason().isBlank()
                 ? "Manual freeze by admin" : request.reason();
-        walletFreezeService.freeze(userId, reason, adminUserId);
+        walletFreezeService.freeze(user.getId(), reason, adminUserId);
         alertService.raise("AUTH-13", SecuritySeverity.HIGH, "Wallet frozen", AlertSubjectType.USER,
-                String.valueOf(userId), "reason=" + reason + ";actorAdminUserId=" + adminUserId);
+                String.valueOf(user.getId()), "reason=" + reason + ";actorAdminUserId=" + adminUserId);
         return userRisk(userId, null);
     }
 
     @Override
     @Transactional
-    public SecurityUserRiskResponse unfreezeWallet(Long adminUserId, Long userId, FreezeWalletRequest request) {
+    public SecurityUserRiskResponse unfreezeWallet(Long adminUserId, UUID userId, FreezeWalletRequest request) {
+        UserAccount user = requireUser(userId);
         String reason = request == null || request.reason() == null || request.reason().isBlank()
                 ? "Manual unfreeze by admin" : request.reason();
-        walletFreezeService.unfreeze(userId, reason, adminUserId);
+        walletFreezeService.unfreeze(user.getId(), reason, adminUserId);
         return userRisk(userId, null);
     }
 
@@ -504,15 +521,28 @@ public class AdminSecurityMonitorServiceImpl implements AdminSecurityMonitorServ
 
     @Override
     @Transactional
-    public void unbanIp(Long adminUserId, Long id) {
-        ipBanService.unban(id, adminUserId);
-        auditService.recordAdmin(adminUserId, "SECURITY_IP_UNBANNED", "IP_BAN", id, null);
+    public void unbanIp(Long adminUserId, UUID id) {
+        IpBan ban = ipBanRepository.findByPublicId(id).orElse(null);
+        if (ban != null) {
+            ipBanService.unban(ban.getId(), adminUserId);
+        }
+        auditService.recordAdmin(adminUserId, "SECURITY_IP_UNBANNED", "IP_BAN", ban == null ? null : ban.getId(), null);
     }
 
     @Override
     @Transactional(readOnly = true)
     public AuditIntegrityService.IntegrityReport auditIntegrity() {
         return auditIntegrityService.verify();
+    }
+
+    private UserAccount requireUser(UUID publicId) {
+        return userAccountRepository.findByPublicId(publicId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+    }
+
+    private UserAccount requireUserForUpdate(UUID publicId) {
+        return userAccountRepository.findByPublicIdForUpdate(publicId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
     }
 
     private int clamp(Integer value, int fallback, int max) {

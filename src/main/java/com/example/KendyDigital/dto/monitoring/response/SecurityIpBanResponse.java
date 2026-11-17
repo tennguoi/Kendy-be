@@ -2,9 +2,10 @@ package com.example.KendyDigital.dto.monitoring.response;
 
 import com.example.KendyDigital.model.security.IpBan;
 import java.time.Instant;
+import java.util.UUID;
 
 public record SecurityIpBanResponse(
-        Long id,
+        UUID id,
         String ipOrCidr,
         String reason,
         String source,
@@ -16,7 +17,7 @@ public record SecurityIpBanResponse(
         boolean active) {
     public static SecurityIpBanResponse from(IpBan ban) {
         return new SecurityIpBanResponse(
-                ban.getId(),
+                ban.getPublicId(),
                 ban.getIpOrCidr(),
                 ban.getReason(),
                 ban.getSource() == null ? null : ban.getSource().name(),

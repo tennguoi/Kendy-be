@@ -11,6 +11,7 @@ import com.example.KendyDigital.repository.ServiceItemRepository;
 import com.example.KendyDigital.service.audit.AuditService;
 import java.util.List;
 import java.util.Locale;
+import java.util.UUID;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.cache.annotation.CacheEvict;
@@ -61,8 +62,8 @@ public class ServiceCategoryServiceImpl  implements ServiceCategoryService{
     }
 
     @Transactional(readOnly = true)
-    public ServiceCategoryResponse getById(Long id) {
-        return ServiceCategoryResponse.from(requireCategory(id));
+    public ServiceCategoryResponse getById(UUID publicId) {
+        return ServiceCategoryResponse.from(requireCategoryByPublicId(publicId));
     }
 
     @Transactional(readOnly = true)
@@ -82,7 +83,7 @@ public class ServiceCategoryServiceImpl  implements ServiceCategoryService{
 
         ServiceCategory parent = null;
         if (request.parentId() != null) {
-            parent = requireCategory(request.parentId());
+            parent = requireCategoryByPublicId(request.parentId());
         }
 
         ServiceCategory category = new ServiceCategory(
@@ -108,8 +109,8 @@ public class ServiceCategoryServiceImpl  implements ServiceCategoryService{
 
     @Transactional
     @CacheEvict(cacheNames = {"serviceCategories", "publicServices", "publicPricing"}, allEntries = true)
-    public ServiceCategoryResponse update(Long adminUserId, Long id, UpdateServiceCategoryRequest request) {
-        ServiceCategory category = requireCategory(id);
+    public ServiceCategoryResponse update(Long adminUserId, UUID publicId, UpdateServiceCategoryRequest request) {
+        ServiceCategory category = requireCategoryByPublicId(publicId);
 
         if (request.version() != null && !request.version().equals(category.getVersion())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "CONCURRENT_ADMIN_CONFLICT");
@@ -150,10 +151,10 @@ public class ServiceCategoryServiceImpl  implements ServiceCategoryService{
             category.setCta(request.cta());
         }
         if (request.parentId() != null) {
-            if (request.parentId().equals(category.getId())) {
+            if (request.parentId().equals(category.getPublicId())) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Category cannot be its own parent");
             }
-            ServiceCategory parent = requireCategory(request.parentId());
+            ServiceCategory parent = requireCategoryByPublicId(request.parentId());
             ensureNotDescendant(category, parent);
             category.setParent(parent);
         } else if (request.parentId() == null && category.getParent() != null) {
@@ -167,21 +168,26 @@ public class ServiceCategoryServiceImpl  implements ServiceCategoryService{
 
     @Transactional
     @CacheEvict(cacheNames = {"serviceCategories", "publicServices", "publicPricing"}, allEntries = true)
-    public void delete(Long adminUserId, Long id) {
-        ServiceCategory category = requireCategory(id);
-        if (serviceCategoryRepository.existsByParent_Id(id)) {
+    public void delete(Long adminUserId, UUID publicId) {
+        ServiceCategory category = requireCategoryByPublicId(publicId);
+        if (serviceCategoryRepository.existsByParent_Id(category.getId())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Category still has child categories");
         }
-        if (serviceItemRepository.existsByCategory_Id(id)) {
+        if (serviceItemRepository.existsByCategory_Id(category.getId())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Category is still used by services");
         }
         serviceCategoryRepository.delete(category);
-        auditService.recordAdmin(adminUserId, "SERVICE_CATEGORY_DELETED", "SERVICE_CATEGORY", id,
+        auditService.recordAdmin(adminUserId, "SERVICE_CATEGORY_DELETED", "SERVICE_CATEGORY", category.getId(),
                 "slug=" + category.getSlug());
     }
 
     private ServiceCategory requireCategory(Long id) {
         return serviceCategoryRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Category not found"));
+    }
+
+    private ServiceCategory requireCategoryByPublicId(UUID publicId) {
+        return serviceCategoryRepository.findByPublicId(publicId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Category not found"));
     }
 

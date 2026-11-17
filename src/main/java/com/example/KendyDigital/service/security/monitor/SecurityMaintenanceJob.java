@@ -4,8 +4,10 @@ import com.example.KendyDigital.dto.finance.response.BalanceIntegrityIssueRespon
 import com.example.KendyDigital.model.security.AlertStatus;
 import com.example.KendyDigital.model.security.SecurityEventType;
 import com.example.KendyDigital.model.security.SecuritySeverity;
+import com.example.KendyDigital.model.user.UserAccount;
 import com.example.KendyDigital.repository.SecurityAlertRepository;
 import com.example.KendyDigital.repository.SecurityEventRepository;
+import com.example.KendyDigital.repository.UserAccountRepository;
 import com.example.KendyDigital.service.analytics_finance.BalanceIntegrityService;
 import java.time.Duration;
 import java.time.Instant;
@@ -31,11 +33,12 @@ public class SecurityMaintenanceJob {
     private final AuditIntegrityService auditIntegrityService;
     private final SecuritySignalService securitySignalService;
     private final AlertNotifier alertNotifier;
+    private final UserAccountRepository userAccountRepository;
 
     public SecurityMaintenanceJob(SecurityCounters counters, SecurityEventRepository securityEventRepository,
             SecurityAlertRepository securityAlertRepository, BalanceIntegrityService balanceIntegrityService,
             AuditIntegrityService auditIntegrityService, SecuritySignalService securitySignalService,
-            AlertNotifier alertNotifier) {
+            AlertNotifier alertNotifier, UserAccountRepository userAccountRepository) {
         this.counters = counters;
         this.securityEventRepository = securityEventRepository;
         this.securityAlertRepository = securityAlertRepository;
@@ -43,6 +46,7 @@ public class SecurityMaintenanceJob {
         this.auditIntegrityService = auditIntegrityService;
         this.securitySignalService = securitySignalService;
         this.alertNotifier = alertNotifier;
+        this.userAccountRepository = userAccountRepository;
     }
 
     @Scheduled(fixedDelay = 60_000)
@@ -62,9 +66,12 @@ public class SecurityMaintenanceJob {
                 return;
             }
             BalanceIntegrityIssueResponse first = issues.get(0);
+            Long firstUserId = userAccountRepository.findByPublicId(first.userId())
+                    .map(UserAccount::getId)
+                    .orElse(null);
             securitySignalService.record(SecuritySignal
                     .of(SecurityEventType.BALANCE_MISMATCH, SecuritySeverity.CRITICAL, null)
-                    .user(first.userId())
+                    .user(firstUserId)
                     .metadata("issueCount=" + issues.size() + ";firstUserId=" + first.userId()
                             + ";difference=" + first.difference())
                     .risk(0)

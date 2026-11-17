@@ -21,6 +21,7 @@ import com.example.KendyDigital.service.customer_service.helper.TicketNotificati
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 import java.util.Map;
 import java.util.stream.Collectors;
 import org.springframework.data.domain.PageRequest;
@@ -52,9 +53,9 @@ public class AdminTicketManagerServiceImpl implements AdminTicketManagerService 
 
     @Override
     @Transactional(readOnly = true)
-    public List<TicketResponse> listForAdmin(TicketStatus status, Long userId, Integer limit) {
+    public List<TicketResponse> listForAdmin(TicketStatus status, UUID userId, Integer limit) {
         List<Ticket> tickets = userId != null
-                ? ticketRepository.findAllByUser_IdOrderByCreatedAtDesc(userId, page(limit))
+                ? ticketRepository.findAllByUser_PublicIdOrderByCreatedAtDesc(userId, page(limit))
                 : status == null
                         ? ticketRepository.findAllByOrderByCreatedAtDesc(page(limit))
                         : ticketRepository.findAllByStatusOrderByCreatedAtDesc(status, page(limit));
@@ -64,7 +65,7 @@ public class AdminTicketManagerServiceImpl implements AdminTicketManagerService 
     @Override
     @Transactional(readOnly = true)
     public List<TicketResponse> searchForAdmin(String query, TicketStatus status, TicketCategory category,
-            TicketPriority priority, Long userId, Integer limit) {
+            TicketPriority priority, UUID userId, Integer limit) {
         String normalizedQuery = normalizeQuery(query);
         List<Ticket> tickets = ticketRepository.findAll(
                 com.example.KendyDigital.repository.specification.TicketSpecifications.searchAdmin(

@@ -3,6 +3,7 @@ package com.example.KendyDigital.service.security.monitor;
 import com.example.KendyDigital.config.SecurityMonitorProperties;
 import com.example.KendyDigital.model.security.SecuritySeverity;
 import com.example.KendyDigital.repository.UserAccountRepository;
+import com.example.KendyDigital.service.notification.DiscordBotService;
 import com.example.KendyDigital.service.notification.EmailNotificationService;
 import java.net.URI;
 import java.net.URLEncoder;
@@ -17,7 +18,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 /**
- * Delivers security alerts through the configured channels (Telegram and email). Never includes
+ * Delivers security alerts through the configured channels (Discord, Telegram, and email). Never includes
  * secrets/credentials in outbound messages.
  */
 @Component
@@ -27,15 +28,18 @@ public class AlertNotifier {
     private final SecurityMonitorProperties properties;
     private final EmailNotificationService emailNotificationService;
     private final UserAccountRepository userAccountRepository;
+    private final DiscordBotService discordBotService;
     private final HttpClient httpClient = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(5))
             .build();
 
     public AlertNotifier(SecurityMonitorProperties properties, EmailNotificationService emailNotificationService,
-            UserAccountRepository userAccountRepository) {
+            UserAccountRepository userAccountRepository,
+            @org.springframework.context.annotation.Lazy DiscordBotService discordBotService) {
         this.properties = properties;
         this.emailNotificationService = emailNotificationService;
         this.userAccountRepository = userAccountRepository;
+        this.discordBotService = discordBotService;
     }
 
     /** Send a plain operational digest by email regardless of severity. */
@@ -58,6 +62,9 @@ public class AlertNotifier {
         }
         String message = "[" + severity + "] " + ruleCode + " — " + title + "\n" + (detail == null ? "" : detail);
         dispatchTelegram(message);
+        if (discordBotService != null) {
+            discordBotService.sendSecurityAlert(severity.name(), ruleCode, title, detail);
+        }
         if (severity == SecuritySeverity.CRITICAL) {
             dispatchEmail(severity, ruleCode, title, detail);
         }

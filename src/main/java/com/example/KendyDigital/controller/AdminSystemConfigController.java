@@ -13,6 +13,7 @@ import jakarta.validation.Valid;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -84,7 +85,7 @@ public class AdminSystemConfigController {
     }
 
     @PostMapping("/api/admin/notifications/{id}/read")
-    public AdminNotificationResponse markNotificationRead(Authentication authentication, @PathVariable Long id) {
+    public AdminNotificationResponse markNotificationRead(Authentication authentication, @PathVariable UUID id) {
         return systemConfigService.markNotificationRead(CurrentUser.require(authentication).userId(), id);
     }
 

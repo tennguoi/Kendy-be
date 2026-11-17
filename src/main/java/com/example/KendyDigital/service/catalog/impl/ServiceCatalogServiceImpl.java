@@ -25,6 +25,7 @@ import java.math.RoundingMode;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
+import java.util.UUID;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
@@ -96,7 +97,7 @@ public class ServiceCatalogServiceImpl implements ServiceCatalogService {
             service.updateSortOrder(request.sortOrder());
         }
         if (request.categoryId() != null) {
-            ServiceCategory category = serviceCategoryRepository.findById(request.categoryId())
+            ServiceCategory category = serviceCategoryRepository.findByPublicId(request.categoryId())
                     .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Category not found"));
             service.updateCategory(category);
         }
@@ -113,13 +114,13 @@ public class ServiceCatalogServiceImpl implements ServiceCatalogService {
     }
 
     @Transactional(readOnly = true)
-    public List<ServiceResponse> searchActive(String query, Long categoryId, Integer limit) {
+    public List<ServiceResponse> searchActive(String query, UUID categoryId, Integer limit) {
         return searchActive(query, categoryId, null, null, limit);
     }
 
     @Transactional(readOnly = true)
     @Cacheable(cacheNames = "publicServices", key = "{#query, #categoryId, #categorySlug, #sort, #limit}")
-    public List<ServiceResponse> searchActive(String query, Long categoryId, String categorySlug, String sort,
+    public List<ServiceResponse> searchActive(String query, UUID categoryId, String categorySlug, String sort,
             Integer limit) {
         String normalizedQuery = query == null || query.isBlank() ? null : query.trim();
         int normalizedLimit = normalizedLimit(limit);
@@ -156,7 +157,7 @@ public class ServiceCatalogServiceImpl implements ServiceCatalogService {
     }
 
     @Transactional(readOnly = true)
-    public List<ServiceResponse> searchForAdmin(String query, ServiceStatus status, Long categoryId,
+    public List<ServiceResponse> searchForAdmin(String query, ServiceStatus status, UUID categoryId,
             String categorySlug, Boolean featured, String sort, Integer limit) {
         String normalizedQuery = query == null || query.isBlank() ? null : query.trim();
         int normalizedLimit = normalizedLimit(limit);
@@ -178,7 +179,7 @@ public class ServiceCatalogServiceImpl implements ServiceCatalogService {
 
     @Transactional(readOnly = true)
     @Cacheable(cacheNames = "publicPricing", key = "{#query, #categoryId, #categorySlug, #featured, #sort, #limit}")
-    public List<ServicePricingResponse> searchPricing(String query, Long categoryId, String categorySlug,
+    public List<ServicePricingResponse> searchPricing(String query, UUID categoryId, String categorySlug,
             Boolean featured, String sort, Integer limit) {
         String normalizedQuery = query == null || query.isBlank() ? null : query.trim();
         int normalizedLimit = normalizedLimit(limit);
@@ -201,7 +202,7 @@ public class ServiceCatalogServiceImpl implements ServiceCatalogService {
     }
 
     @Transactional(readOnly = true)
-    public List<ServicePricingResponse> searchPricingForAdmin(String query, ServiceStatus status, Long categoryId,
+    public List<ServicePricingResponse> searchPricingForAdmin(String query, ServiceStatus status, UUID categoryId,
             String categorySlug, Boolean featured, String sort, Integer limit) {
         String normalizedQuery = query == null || query.isBlank() ? null : query.trim();
         int normalizedLimit = normalizedLimit(limit);
@@ -232,8 +233,8 @@ public class ServiceCatalogServiceImpl implements ServiceCatalogService {
 
     @Transactional
     @CacheEvict(cacheNames = { "publicServices", "publicPricing" }, allEntries = true)
-    public ServiceResponse update(Long id, Long adminUserId, UpdateServiceRequest request) {
-        ServiceItem service = serviceItemRepository.findById(id)
+    public ServiceResponse update(UUID publicId, Long adminUserId, UpdateServiceRequest request) {
+        ServiceItem service = serviceItemRepository.findByPublicId(publicId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Service not found"));
 
         if (request.version() != null && !request.version().equals(service.getVersion())) {
@@ -310,7 +311,7 @@ public class ServiceCatalogServiceImpl implements ServiceCatalogService {
             service.updateSortOrder(request.sortOrder());
         }
         if (request.categoryId() != null) {
-            ServiceCategory category = serviceCategoryRepository.findById(request.categoryId())
+            ServiceCategory category = serviceCategoryRepository.findByPublicId(request.categoryId())
                     .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Category not found"));
             service.updateCategory(category);
         } else if (Boolean.TRUE.equals(request.clearCategory()) && service.getCategory() != null) {
@@ -330,8 +331,8 @@ public class ServiceCatalogServiceImpl implements ServiceCatalogService {
 
     @Transactional
     @CacheEvict(cacheNames = { "publicServices", "publicPricing" }, allEntries = true)
-    public ServiceResponse updateStatus(Long id, Long adminUserId, ServiceStatusUpdateRequest request) {
-        ServiceItem service = serviceItemRepository.findById(id)
+    public ServiceResponse updateStatus(UUID publicId, Long adminUserId, ServiceStatusUpdateRequest request) {
+        ServiceItem service = serviceItemRepository.findByPublicId(publicId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Service not found"));
         service.changeStatus(request.status());
         auditService.recordAdmin(
@@ -345,8 +346,8 @@ public class ServiceCatalogServiceImpl implements ServiceCatalogService {
 
     @Transactional
     @CacheEvict(cacheNames = { "publicServices", "publicPricing" }, allEntries = true)
-    public ServiceResponse delete(Long id, Long adminUserId) {
-        ServiceItem service = serviceItemRepository.findById(id)
+    public ServiceResponse delete(UUID publicId, Long adminUserId) {
+        ServiceItem service = serviceItemRepository.findByPublicId(publicId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Service not found"));
         service.deactivate();
         auditService.recordAdmin(adminUserId, "SERVICE_DEACTIVATED", "SERVICE", service.getId(),
@@ -355,8 +356,8 @@ public class ServiceCatalogServiceImpl implements ServiceCatalogService {
     }
 
     @Transactional(readOnly = true)
-    public List<com.example.KendyDigital.dto.catalog.response.ServiceCategoryResponse> getCategories(Long id) {
-        ServiceItem service = serviceItemRepository.findById(id)
+    public List<com.example.KendyDigital.dto.catalog.response.ServiceCategoryResponse> getCategories(UUID publicId) {
+        ServiceItem service = serviceItemRepository.findByPublicId(publicId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Service not found"));
         if (service.getCategory() == null) {
             return List.of();
@@ -366,22 +367,21 @@ public class ServiceCatalogServiceImpl implements ServiceCatalogService {
     }
 
     @Transactional(readOnly = true)
-    public List<OrderResponse> listOrders(Long id, Integer limit) {
-        if (!serviceItemRepository.existsById(id)) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Service not found");
-        }
-        return orderRepository.findAllByService_IdOrderByCreatedAtDesc(id, page(limit))
+    public List<OrderResponse> listOrders(UUID publicId, Integer limit) {
+        ServiceItem service = serviceItemRepository.findByPublicId(publicId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Service not found"));
+        return orderRepository.findAllByService_IdOrderByCreatedAtDesc(service.getId(), page(limit))
                 .stream()
                 .map(OrderResponse::from)
                 .toList();
     }
 
     @Transactional
-    public List<ServiceResponse> bulkStatus(Long adminUserId, List<Long> ids, ServiceStatus status, String reason) {
-        List<ServiceItem> services = serviceItemRepository.findAllById(ids);
+    public List<ServiceResponse> bulkStatus(Long adminUserId, List<UUID> ids, ServiceStatus status, String reason) {
+        List<ServiceItem> services = serviceItemRepository.findAllByPublicIdIn(ids);
         if (services.size() != ids.size()) {
-            List<Long> found = services.stream().map(ServiceItem::getId).toList();
-            Long missing = ids.stream().filter(id -> !found.contains(id)).findFirst().orElse(null);
+            List<UUID> found = services.stream().map(ServiceItem::getPublicId).toList();
+            UUID missing = ids.stream().filter(id -> !found.contains(id)).findFirst().orElse(null);
             throw new ResponseStatusException(HttpStatus.NOT_FOUND,
                     "Service not found: " + missing);
         }

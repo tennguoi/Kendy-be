@@ -43,6 +43,7 @@ import java.time.format.DateTimeParseException;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 import java.util.List;
+import java.util.UUID;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -102,24 +103,24 @@ public class AdminFinanceController {
     }
 
     @GetMapping("/api/admin/users/{userId}")
-    public AdminUserDetailResponse getUserDetail(@PathVariable Long userId) {
+    public AdminUserDetailResponse getUserDetail(@PathVariable UUID userId) {
         return userManagerService.getUserDetail(userId);
     }
 
     @PatchMapping("/api/admin/users/{userId}/status")
-    public AdminUserResponse updateUserStatus(Authentication authentication, @PathVariable Long userId,
+    public AdminUserResponse updateUserStatus(Authentication authentication, @PathVariable UUID userId,
             @Valid @RequestBody AdminUserStatusUpdateRequest request) {
         return userManagerService.updateUserStatus(CurrentUser.require(authentication).userId(), userId, request);
     }
 
     @PatchMapping("/api/admin/users/{userId}/role")
-    public AdminUserResponse updateUserRole(Authentication authentication, @PathVariable Long userId,
+    public AdminUserResponse updateUserRole(Authentication authentication, @PathVariable UUID userId,
             @Valid @RequestBody AdminUserRoleUpdateRequest request) {
         return userManagerService.updateUserRole(CurrentUser.require(authentication).userId(), userId, request);
     }
 
     @PostMapping("/api/admin/users/{userId}/wallet-adjustments")
-    public WalletTransactionResponse adjustWallet(Authentication authentication, @PathVariable Long userId,
+    public WalletTransactionResponse adjustWallet(Authentication authentication, @PathVariable UUID userId,
             @Valid @RequestBody AdminWalletAdjustmentRequest request) {
         Long adminUserId = CurrentUser.require(authentication).userId();
         return walletManagerService.adjustWallet(adminUserId, userId, request);
@@ -127,7 +128,7 @@ public class AdminFinanceController {
 
     @GetMapping("/api/admin/deposit-requests")
     public List<DepositResponse> listDeposits(@RequestParam(required = false) DepositStatus status,
-            @RequestParam(required = false) Long userId,
+            @RequestParam(required = false) UUID userId,
             @RequestParam(required = false) String fromDate,
             @RequestParam(required = false) String toDate,
             @RequestParam(defaultValue = "0") int page,
@@ -138,7 +139,7 @@ public class AdminFinanceController {
     @GetMapping("/api/admin/deposit-requests/search")
     public List<DepositResponse> searchDeposits(@RequestParam(required = false) String query,
             @RequestParam(required = false) DepositStatus status,
-            @RequestParam(required = false) Long userId,
+            @RequestParam(required = false) UUID userId,
             @RequestParam(required = false) String fromDate,
             @RequestParam(required = false) String toDate,
             @RequestParam(defaultValue = "0") int page,
@@ -201,7 +202,7 @@ public class AdminFinanceController {
     }
 
     @GetMapping("/api/admin/bank-transactions/{id}")
-    public AdminBankTransactionResponse getBankTransaction(@PathVariable Long id) {
+    public AdminBankTransactionResponse getBankTransaction(@PathVariable UUID id) {
         return bankTxManagerService.getBankTransaction(id);
     }
 
@@ -224,7 +225,7 @@ public class AdminFinanceController {
     }
 
     @PostMapping("/api/admin/bank-transactions/{id}/manual-credit")
-    public AdminBankTransactionResponse manualCreditBankTransaction(Authentication authentication, @PathVariable Long id,
+    public AdminBankTransactionResponse manualCreditBankTransaction(Authentication authentication, @PathVariable UUID id,
             @Valid @RequestBody ManualCreditBankTransactionRequest request) {
         Long adminUserId = CurrentUser.require(authentication).userId();
         return bankTxManagerService.manualCreditBankTransaction(adminUserId, id, request);
@@ -237,28 +238,28 @@ public class AdminFinanceController {
     }
 
     @PostMapping("/api/admin/bank-transactions/{id}/match")
-    public AdminBankTransactionResponse matchBankTransaction(Authentication authentication, @PathVariable Long id,
+    public AdminBankTransactionResponse matchBankTransaction(Authentication authentication, @PathVariable UUID id,
             @Valid @RequestBody MatchBankTransactionRequest request) {
         Long adminUserId = CurrentUser.require(authentication).userId();
         return bankTxManagerService.matchBankTransaction(adminUserId, id, request);
     }
 
     @PostMapping("/api/admin/bank-transactions/{id}/reprocess")
-    public AdminBankTransactionResponse reprocessBankTransaction(Authentication authentication, @PathVariable Long id,
+    public AdminBankTransactionResponse reprocessBankTransaction(Authentication authentication, @PathVariable UUID id,
             @Valid @RequestBody ReprocessBankTransactionRequest request) {
         Long adminUserId = CurrentUser.require(authentication).userId();
         return bankTxManagerService.reprocessBankTransaction(adminUserId, id, request);
     }
 
     @PostMapping("/api/admin/bank-transactions/{id}/ignore")
-    public AdminBankTransactionResponse ignoreBankTransaction(Authentication authentication, @PathVariable Long id,
+    public AdminBankTransactionResponse ignoreBankTransaction(Authentication authentication, @PathVariable UUID id,
             @Valid @RequestBody IgnoreBankTransactionRequest request) {
         Long adminUserId = CurrentUser.require(authentication).userId();
         return bankTxManagerService.ignoreBankTransaction(adminUserId, id, request);
     }
 
     @GetMapping("/api/admin/wallet-transactions")
-    public List<WalletTransactionResponse> listWalletTransactions(@RequestParam(required = false) Long userId,
+    public List<WalletTransactionResponse> listWalletTransactions(@RequestParam(required = false) UUID userId,
             @RequestParam(required = false) String fromDate,
             @RequestParam(required = false) String toDate,
             @RequestParam(defaultValue = "0") int page,
@@ -268,7 +269,7 @@ public class AdminFinanceController {
 
     @GetMapping("/api/admin/wallet-transactions/search")
     public List<WalletTransactionResponse> searchWalletTransactions(@RequestParam(required = false) String query,
-            @RequestParam(required = false) Long userId,
+            @RequestParam(required = false) UUID userId,
             @RequestParam(required = false) WalletTransactionType type,
             @RequestParam(required = false) WalletTransactionDirection direction,
             @RequestParam(required = false) String fromDate,
@@ -279,7 +280,7 @@ public class AdminFinanceController {
     }
 
     @GetMapping("/api/admin/wallet-transactions/{id}/details")
-    public WalletTransactionResponse getWalletTransaction(@PathVariable Long id) {
+    public WalletTransactionResponse getWalletTransaction(@PathVariable UUID id) {
         return walletManagerService.getWalletTransaction(id);
     }
 
@@ -300,7 +301,7 @@ public class AdminFinanceController {
 
     @GetMapping("/api/admin/orders")
     public List<OrderResponse> listOrders(@RequestParam(required = false) com.example.KendyDigital.model.order.OrderStatus status,
-            @RequestParam(required = false) Long userId,
+            @RequestParam(required = false) UUID userId,
             @RequestParam(required = false) String fromDate,
             @RequestParam(required = false) String toDate,
             @RequestParam(defaultValue = "0") int page,
@@ -311,7 +312,7 @@ public class AdminFinanceController {
     @GetMapping("/api/admin/orders/search")
     public List<OrderResponse> searchOrders(@RequestParam(required = false) String query,
             @RequestParam(required = false) com.example.KendyDigital.model.order.OrderStatus status,
-            @RequestParam(required = false) Long userId,
+            @RequestParam(required = false) UUID userId,
             @RequestParam(required = false) String fromDate,
             @RequestParam(required = false) String toDate,
             @RequestParam(defaultValue = "0") int page,

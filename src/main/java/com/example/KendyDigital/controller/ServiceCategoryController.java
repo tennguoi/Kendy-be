@@ -7,6 +7,7 @@ import com.example.KendyDigital.security.CurrentUser;
 import com.example.KendyDigital.service.catalog.ServiceCategoryService;
 import jakarta.validation.Valid;
 import java.util.List;
+import java.util.UUID;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -43,7 +44,7 @@ public class ServiceCategoryController {
     }
 
     @GetMapping("/api/service-categories/{id}")
-    public ServiceCategoryResponse getPublicCategory(@PathVariable Long id) {
+    public ServiceCategoryResponse getPublicCategory(@PathVariable UUID id) {
         return serviceCategoryService.getById(id);
     }
 
@@ -53,7 +54,7 @@ public class ServiceCategoryController {
     }
 
     @GetMapping("/api/admin/service-categories/{id}")
-    public ServiceCategoryResponse getCategory(@PathVariable Long id) {
+    public ServiceCategoryResponse getCategory(@PathVariable UUID id) {
         return serviceCategoryService.getById(id);
     }
 
@@ -64,13 +65,13 @@ public class ServiceCategoryController {
     }
 
     @PutMapping("/api/admin/service-categories/{id}")
-    public ServiceCategoryResponse updateCategory(Authentication authentication, @PathVariable Long id,
+    public ServiceCategoryResponse updateCategory(Authentication authentication, @PathVariable UUID id,
             @Valid @RequestBody UpdateServiceCategoryRequest request) {
         return serviceCategoryService.update(CurrentUser.require(authentication).userId(), id, request);
     }
 
     @DeleteMapping("/api/admin/service-categories/{id}")
-    public void deleteCategory(Authentication authentication, @PathVariable Long id) {
+    public void deleteCategory(Authentication authentication, @PathVariable UUID id) {
         serviceCategoryService.delete(CurrentUser.require(authentication).userId(), id);
     }
 }

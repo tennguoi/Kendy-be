@@ -20,6 +20,7 @@ import com.example.KendyDigital.model.user.UserAccount;
 import com.example.KendyDigital.security.ResolvedApiKey;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 public interface UserSecurityService {
     SecurityTokenResponse forgotPassword(AuthForgotPasswordRequest request);
@@ -30,8 +31,8 @@ public interface UserSecurityService {
     AuthUserResponse verifyEmail(AuthVerifyEmailRequest request);
     AuthTokenResponse refresh(String token);
     UserSecurityOverviewResponse overview(Long userId);
-    List<com.example.KendyDigital.dto.auth.response.AuthSessionResponse> sessions(Long userId, int page, int size);
-    void revokeSession(Long userId, Long sessionId);
+    List<AuthSessionResponse> sessions(Long userId, int page, int size);
+    void revokeSession(Long userId, UUID sessionId);
     void revokeAllSessions(Long userId);
     TotpSetupResponse setupTwoFactor(Long userId);
     AuthUserResponse enableTwoFactor(Long userId, TwoFactorVerifyRequest request);
@@ -42,7 +43,7 @@ public interface UserSecurityService {
     TotpSetupResponse regenerateBackupCodes(Long userId, TwoFactorDisableRequest request);
     List<UserApiKeyResponse> apiKeys(Long userId, int page, int size);
     UserApiKeyCreatedResponse createApiKey(Long userId, UserApiKeyCreateRequest request);
-    void revokeApiKey(Long userId, Long keyId);
+    void revokeApiKey(Long userId, UUID keyId);
     SecurityTokenResponse sendTwoFactorEmailCode(UserAccount user);
     SecurityTokenResponse issueOAuthTwoFactorChallenge(UserAccount user);
     AuthTokenResponse verifyOAuthTwoFactor(String challengeToken, String code);

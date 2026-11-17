@@ -6,10 +6,12 @@ import com.example.KendyDigital.model.security.SecurityAlert;
 import com.example.KendyDigital.model.security.SecuritySeverity;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface SecurityAlertRepository extends JpaRepository<SecurityAlert, Long> {
+    Optional<SecurityAlert> findByPublicId(UUID publicId);
 
     List<SecurityAlert> findAllByOrderByLastSeenDesc(Pageable pageable);
 

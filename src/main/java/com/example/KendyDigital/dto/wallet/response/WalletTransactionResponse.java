@@ -5,9 +5,10 @@ import com.example.KendyDigital.model.wallet.WalletTransactionDirection;
 import com.example.KendyDigital.model.wallet.WalletTransactionType;
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.UUID;
 
 public record WalletTransactionResponse(
-        Long id,
+        UUID id,
         String transactionCode,
         WalletTransactionType type,
         WalletTransactionDirection direction,
@@ -20,7 +21,7 @@ public record WalletTransactionResponse(
         Instant createdAt) {
     public static WalletTransactionResponse from(WalletTransaction transaction) {
         return new WalletTransactionResponse(
-                transaction.getId(),
+                transaction.getPublicId(),
                 transaction.getTransactionCode(),
                 transaction.getType(),
                 transaction.getDirection(),

@@ -23,6 +23,7 @@ import com.example.KendyDigital.service.security.monitor.GeoIpDatabaseUpdater;
 import jakarta.validation.Valid;
 import java.time.Instant;
 import java.util.List;
+import java.util.UUID;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
@@ -68,7 +69,7 @@ public class AdminSecurityMonitorController {
 
     @PostMapping("/api/admin/security/users/{id}/unlock")
     @PreAuthorize("hasRole('SUPER_ADMIN')")
-    public SecurityRiskyAccountResponse unlock(Authentication authentication, @PathVariable Long id) {
+    public SecurityRiskyAccountResponse unlock(Authentication authentication, @PathVariable UUID id) {
         return monitorService.unlockAccount(CurrentUser.require(authentication).userId(), id);
     }
 
@@ -80,13 +81,13 @@ public class AdminSecurityMonitorController {
 
     @DeleteMapping("/api/admin/security/sessions/{sessionId}")
     @PreAuthorize("hasRole('SUPER_ADMIN')")
-    public void revokeSession(Authentication authentication, @PathVariable Long sessionId) {
+    public void revokeSession(Authentication authentication, @PathVariable UUID sessionId) {
         monitorService.revokeSession(CurrentUser.require(authentication).userId(), sessionId);
     }
 
     @PostMapping("/api/admin/security/users/{id}/revoke-all-sessions")
     @PreAuthorize("hasRole('SUPER_ADMIN')")
-    public void revokeAllSessions(Authentication authentication, @PathVariable Long id) {
+    public void revokeAllSessions(Authentication authentication, @PathVariable UUID id) {
         monitorService.revokeAllSessions(CurrentUser.require(authentication).userId(), id);
     }
 
@@ -98,7 +99,7 @@ public class AdminSecurityMonitorController {
 
     @DeleteMapping("/api/admin/security/api-keys/{keyId}")
     @PreAuthorize("hasRole('SUPER_ADMIN')")
-    public void revokeApiKey(Authentication authentication, @PathVariable Long keyId) {
+    public void revokeApiKey(Authentication authentication, @PathVariable UUID keyId) {
         monitorService.revokeApiKey(CurrentUser.require(authentication).userId(), keyId);
     }
 
@@ -116,7 +117,7 @@ public class AdminSecurityMonitorController {
     }
 
     @PatchMapping("/api/admin/security/alerts/{id}")
-    public SecurityAlertResponse updateAlert(Authentication authentication, @PathVariable Long id,
+    public SecurityAlertResponse updateAlert(Authentication authentication, @PathVariable UUID id,
             @Valid @RequestBody UpdateAlertRequest request) {
         return monitorService.updateAlert(CurrentUser.require(authentication).userId(), id, request);
     }
@@ -125,7 +126,7 @@ public class AdminSecurityMonitorController {
     public List<SecurityEventResponse> securityEvents(@RequestParam(required = false) String type,
             @RequestParam(required = false) String severity,
             @RequestParam(required = false) String ip,
-            @RequestParam(required = false) Long userId,
+            @RequestParam(required = false) UUID userId,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant from,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant to,
             @RequestParam(required = false) Integer limit) {
@@ -151,21 +152,21 @@ public class AdminSecurityMonitorController {
     }
 
     @GetMapping("/api/admin/security/users/{id}/risk")
-    public SecurityUserRiskResponse userRisk(@PathVariable Long id,
+    public SecurityUserRiskResponse userRisk(@PathVariable UUID id,
             @RequestParam(required = false) Integer limit) {
         return monitorService.userRisk(id, limit);
     }
 
     @PostMapping("/api/admin/security/users/{id}/freeze-wallet")
     @PreAuthorize("hasRole('SUPER_ADMIN')")
-    public SecurityUserRiskResponse freezeWallet(Authentication authentication, @PathVariable Long id,
+    public SecurityUserRiskResponse freezeWallet(Authentication authentication, @PathVariable UUID id,
             @RequestBody(required = false) FreezeWalletRequest request) {
         return monitorService.freezeWallet(CurrentUser.require(authentication).userId(), id, request);
     }
 
     @PostMapping("/api/admin/security/users/{id}/unfreeze-wallet")
     @PreAuthorize("hasRole('SUPER_ADMIN')")
-    public SecurityUserRiskResponse unfreezeWallet(Authentication authentication, @PathVariable Long id,
+    public SecurityUserRiskResponse unfreezeWallet(Authentication authentication, @PathVariable UUID id,
             @RequestBody(required = false) FreezeWalletRequest request) {
         return monitorService.unfreezeWallet(CurrentUser.require(authentication).userId(), id, request);
     }
@@ -183,7 +184,7 @@ public class AdminSecurityMonitorController {
 
     @DeleteMapping("/api/admin/security/ip-bans/{id}")
     @PreAuthorize("hasRole('SUPER_ADMIN')")
-    public void unbanIp(Authentication authentication, @PathVariable Long id) {
+    public void unbanIp(Authentication authentication, @PathVariable UUID id) {
         monitorService.unbanIp(CurrentUser.require(authentication).userId(), id);
     }
 

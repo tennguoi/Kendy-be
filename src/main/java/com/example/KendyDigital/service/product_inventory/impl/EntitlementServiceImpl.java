@@ -25,6 +25,7 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Locale;
+import java.util.UUID;
 import org.springframework.context.MessageSource;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
@@ -131,8 +132,8 @@ public class EntitlementServiceImpl implements EntitlementService {
 
     @Override
     @Transactional
-    public UserEntitlementResponse requestRenewal(Long userId, Long entitlementId) {
-        UserEntitlement entitlement = entitlementRepository.findByIdForUserUpdate(entitlementId, userId)
+    public UserEntitlementResponse requestRenewal(Long userId, UUID entitlementId) {
+        UserEntitlement entitlement = entitlementRepository.findByPublicIdForUserUpdate(entitlementId, userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Entitlement not found"));
         if (entitlement.getStatus() == EntitlementStatus.REVOKED
                 || entitlement.getStatus() == EntitlementStatus.FAILED) {
@@ -157,9 +158,9 @@ public class EntitlementServiceImpl implements EntitlementService {
 
     @Override
     @Transactional
-    public UserEntitlementResponse updateByAdmin(Long adminUserId, Long entitlementId,
+    public UserEntitlementResponse updateByAdmin(Long adminUserId, UUID entitlementId,
             AdminEntitlementUpdateRequest request) {
-        UserEntitlement entitlement = entitlementRepository.findByIdForUpdate(entitlementId)
+        UserEntitlement entitlement = entitlementRepository.findByPublicIdForUpdate(entitlementId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Entitlement not found"));
         entitlement.updateProviderReference(
                 request.accessIdentifier(), request.externalResourceId(), request.providerMetadata());

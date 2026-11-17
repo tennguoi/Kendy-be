@@ -6,15 +6,16 @@ import com.example.KendyDigital.dto.role.response.AdminPermissionResponse;
 import com.example.KendyDigital.dto.role.response.AdminRoleResponse;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 public interface AdminRoleService {
     List<AdminRoleResponse> listRoles(Integer limit);
-    AdminRoleResponse getRole(Long id);
+    AdminRoleResponse getRole(UUID id);
     AdminRoleResponse createRole(Long adminUserId, CreateAdminRoleRequest request);
-    AdminRoleResponse updateRole(Long adminUserId, Long id, UpdateAdminRoleRequest request);
-    void deleteRole(Long adminUserId, Long id);
+    AdminRoleResponse updateRole(Long adminUserId, UUID id, UpdateAdminRoleRequest request);
+    void deleteRole(Long adminUserId, UUID id);
     List<AdminPermissionResponse> listPermissions();
-    Map<String, Object> getUserRoles(Long userId);
-    Map<String, Object> setUserRoles(Long adminUserId, Long userId, List<Long> roleIds);
+    Map<String, Object> getUserRoles(UUID userId);
+    Map<String, Object> setUserRoles(Long adminUserId, UUID userId, List<UUID> roleIds);
     List<String> getUserEffectivePermissions(Long userId);
 }

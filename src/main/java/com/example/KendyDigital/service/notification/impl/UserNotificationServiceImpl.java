@@ -13,6 +13,7 @@ import com.example.KendyDigital.repository.UserNotificationRepository;
 import com.example.KendyDigital.repository.UserNotificationSettingsRepository;
 import java.util.List;
 import java.util.Locale;
+import java.util.UUID;
 import org.springframework.context.MessageSource;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
@@ -59,16 +60,17 @@ public class UserNotificationServiceImpl  implements UserNotificationService{
     }
 
     @Transactional
-    public UserNotificationResponse markRead(Long userId, Long id) {
-        UserNotification notification = userNotificationRepository.findByIdAndUser_Id(id, userId)
+    public UserNotificationResponse markRead(Long userId, UUID id) {
+        UserNotification notification = userNotificationRepository.findByPublicId(id)
+                .filter(n -> n.getUser().getId().equals(userId))
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Notification not found"));
         notification.markRead();
         return UserNotificationResponse.from(notification);
     }
 
     @Transactional
-    public List<UserNotificationResponse> bulkRead(Long userId, List<Long> ids) {
-        List<UserNotification> notifications = userNotificationRepository.findAllById(ids);
+    public List<UserNotificationResponse> bulkRead(Long userId, List<UUID> ids) {
+        List<UserNotification> notifications = userNotificationRepository.findAllByPublicIdIn(ids);
         return notifications.stream()
                 .peek(n -> {
                     if (!n.getUser().getId().equals(userId)) {

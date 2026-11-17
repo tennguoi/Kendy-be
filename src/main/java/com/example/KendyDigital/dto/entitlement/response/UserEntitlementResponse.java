@@ -5,13 +5,14 @@ import com.example.KendyDigital.model.entitlement.EntitlementStatus;
 import com.example.KendyDigital.model.entitlement.UserEntitlement;
 import com.example.KendyDigital.model.inventory.AccountCredential;
 import java.time.Instant;
+import java.util.UUID;
 
 public record UserEntitlementResponse(
-        Long id,
-        Long userId,
+        UUID id,
+        UUID userId,
         String userName,
         String userEmail,
-        Long serviceId,
+        UUID serviceId,
         String serviceName,
         String orderCode,
         AccessStrategy accessStrategy,
@@ -22,7 +23,7 @@ public record UserEntitlementResponse(
         Instant expiresAt,
         Instant renewalRequestedAt,
         String lastError,
-        Long credentialId,
+        UUID credentialId,
         String loginIdentifier,
         String passwordSecret,
         String recoveryInfo,
@@ -36,11 +37,11 @@ public record UserEntitlementResponse(
                 && (entitlement.getStatus() == EntitlementStatus.ACTIVE
                     || entitlement.getStatus() == EntitlementStatus.EXPIRING);
         return new UserEntitlementResponse(
-                entitlement.getId(),
-                entitlement.getUser().getId(),
+                entitlement.getPublicId(),
+                entitlement.getUser().getPublicId(),
                 entitlement.getUser().getName(),
                 entitlement.getUser().getEmail(),
-                entitlement.getService().getId(),
+                entitlement.getService().getPublicId(),
                 entitlement.getService().getName(),
                 entitlement.getSourceOrder().getOrderCode(),
                 entitlement.getAccessStrategy(),
@@ -51,7 +52,7 @@ public record UserEntitlementResponse(
                 entitlement.getExpiresAt(),
                 entitlement.getRenewalRequestedAt(),
                 entitlement.getLastError(),
-                credential == null ? null : credential.getId(),
+                credential == null ? null : credential.getPublicId(),
                 revealCredential && credential != null ? credential.getLoginIdentifier() : null,
                 revealCredential && credential != null ? credential.getPasswordSecret() : null,
                 revealCredential && credential != null ? credential.getRecoveryInfo() : null,

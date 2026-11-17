@@ -49,6 +49,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -218,7 +219,7 @@ public class UserSecurityServiceImpl  implements UserSecurityService{
     public UserSecurityOverviewResponse overview(Long userId) {
         UserAccount user = requireUser(userId);
         return new UserSecurityOverviewResponse(
-                user.getId(),
+                user.getPublicId(),
                 user.getEmailVerifiedAt() != null,
                 user.getEmailVerifiedAt(),
                 user.isTwoFactorEnabled(),
@@ -230,12 +231,12 @@ public class UserSecurityServiceImpl  implements UserSecurityService{
     }
 
     @Transactional(readOnly = true)
-    public List<com.example.KendyDigital.dto.auth.response.AuthSessionResponse> sessions(Long userId, int page, int size) {
+    public List<AuthSessionResponse> sessions(Long userId, int page, int size) {
         return userSessionService.sessions(userId, page, size);
     }
 
     @Transactional
-    public void revokeSession(Long userId, Long sessionId) {
+    public void revokeSession(Long userId, UUID sessionId) {
         userSessionService.revokeSession(userId, sessionId);
     }
 
@@ -364,7 +365,7 @@ public class UserSecurityServiceImpl  implements UserSecurityService{
     }
 
     @Transactional
-    public void revokeApiKey(Long userId, Long keyId) {
+    public void revokeApiKey(Long userId, UUID keyId) {
         userApiKeyService.revokeApiKey(userId, keyId);
     }
 
