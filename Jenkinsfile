@@ -177,12 +177,29 @@ Deploy folder: ${env.APP_DIR}
               sh '''
                 set -eu
 
-                printf '%s' "$REGISTRY_PASSWORD" |
-                  docker login "$REGISTRY" \
-                    --username "$REGISTRY_USER" \
-                    --password-stdin
+                echo "Dang dang nhap Docker Hub..."
+                retry_count=0
+                until printf '%s' "$REGISTRY_PASSWORD" | docker login "$REGISTRY" --username "$REGISTRY_USER" --password-stdin; do
+                  retry_count=$((retry_count + 1))
+                  if [ "$retry_count" -ge 3 ]; then
+                    echo "Dang nhap Docker Hub that bai sau 3 lan thu do timeout mang."
+                    exit 1
+                  fi
+                  echo "Loi ket noi Docker Hub, dang thu lai sau 5 giay (lan $retry_count/3)..."
+                  sleep 5
+                done
 
-                docker push "$BACKEND_IMAGE"
+                echo "Dang push image $BACKEND_IMAGE..."
+                retry_count=0
+                until docker push "$BACKEND_IMAGE"; do
+                  retry_count=$((retry_count + 1))
+                  if [ "$retry_count" -ge 3 ]; then
+                    echo "Push image that bai sau 3 lan thu do timeout mang."
+                    exit 1
+                  fi
+                  echo "Loi push image, dang thu lai sau 5 giay (lan $retry_count/3)..."
+                  sleep 5
+                done
               '''
             } else {
               bat '''
