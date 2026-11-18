@@ -9,7 +9,7 @@ pipeline {
 
   environment {
     REGISTRY = 'docker.io'
-    IMAGE_NAME = 'tennguoi2/kendy-backend'
+    IMAGE_NAME = 'tennguoi/kendy-backend'
 
     DOCKERHUB_CREDENTIALS = 'docker'
 
