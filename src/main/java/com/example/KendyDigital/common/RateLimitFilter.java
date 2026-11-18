@@ -194,8 +194,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
     private void reject(HttpServletRequest request, HttpServletResponse response, int limit) throws IOException {
         Locale locale = request.getLocale();
         String ip = clientIpResolver.resolve(request);
-        String endpoint = request.getMethod() + " " + request.getRequestURI();
-        recordViolation(ip, endpoint, limit);
+        recordViolation(ip, request.getMethod(), request.getRequestURI(), limit);
         String message = messageSource.getMessage(ErrorCode.TOO_MANY_REQUESTS.getMessageKey(), null, locale);
         ApiError apiError = ApiError.of(
                 HttpStatus.TOO_MANY_REQUESTS.value(),
@@ -208,11 +207,12 @@ public class RateLimitFilter extends OncePerRequestFilter {
         response.getWriter().write(objectMapper.writeValueAsString(apiError));
     }
 
-    private void recordViolation(String ip, String endpoint, int limit) {
+    private void recordViolation(String ip, String method, String path, int limit) {
+        String endpoint = method + " " + path;
         try {
             securitySignalService.record(SecuritySignal
                     .of(SecurityEventType.RATE_LIMITED, SecuritySeverity.LOW, ip)
-                    .request(endpoint, endpoint)
+                    .request(method, path)
                     .metadata("endpoint=" + endpoint + ";limit=" + limit)
                     .risk(20)
                     .build());

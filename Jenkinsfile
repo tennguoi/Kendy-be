@@ -11,7 +11,7 @@ pipeline {
     REGISTRY = 'docker.io'
     IMAGE_NAME = 'tennguoi2/kendy-backend'
 
-    DOCKERHUB_CREDENTIALS = 'dockerhub'
+    DOCKERHUB_CREDENTIALS = 'docker'
 
     APP_DIR_LINUX = '/opt/kendy'
     APP_DIR_WIN = 'C:/Kendy-deploy'
