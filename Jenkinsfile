@@ -181,24 +181,24 @@ Deploy folder: ${env.APP_DIR}
                 retry_count=0
                 until printf '%s' "$REGISTRY_PASSWORD" | docker login "$REGISTRY" --username "$REGISTRY_USER" --password-stdin; do
                   retry_count=$((retry_count + 1))
-                  if [ "$retry_count" -ge 3 ]; then
-                    echo "Dang nhap Docker Hub that bai sau 3 lan thu do timeout mang."
+                  if [ "$retry_count" -ge 5 ]; then
+                    echo "Dang nhap Docker Hub that bai sau 5 lan thu do timeout mang."
                     exit 1
                   fi
-                  echo "Loi ket noi Docker Hub, dang thu lai sau 5 giay (lan $retry_count/3)..."
-                  sleep 5
+                  echo "Loi ket noi Docker Hub, dang thu lai sau 10 giay (lan $retry_count/5)..."
+                  sleep 10
                 done
 
                 echo "Dang push image $BACKEND_IMAGE..."
                 retry_count=0
                 until docker push "$BACKEND_IMAGE"; do
                   retry_count=$((retry_count + 1))
-                  if [ "$retry_count" -ge 3 ]; then
-                    echo "Push image that bai sau 3 lan thu do timeout mang."
+                  if [ "$retry_count" -ge 5 ]; then
+                    echo "Push image that bai sau 5 lan thu do timeout mang."
                     exit 1
                   fi
-                  echo "Loi push image, dang thu lai sau 5 giay (lan $retry_count/3)..."
-                  sleep 5
+                  echo "Loi push image, dang thu lai sau 10 giay (lan $retry_count/5)..."
+                  sleep 10
                 done
               '''
             } else {
@@ -236,14 +236,36 @@ Deploy folder: ${env.APP_DIR}
         script {
           if (isUnix()) {
             sh '''
-              if [ ! -f "$APP_DIR/deploy.sh" ]; then
-                echo "Không tìm thấy $APP_DIR/deploy.sh"
+              set -eu
+
+              if [ ! -d "$APP_DIR" ]; then
+                echo "Lỗi: Không tìm thấy thư mục deploy: $APP_DIR"
                 exit 1
               fi
 
+              DEPLOY_FILE="$APP_DIR/deploy.sh"
+              if [ ! -f "$DEPLOY_FILE" ]; then
+                echo "Lỗi: Không tìm thấy file: $DEPLOY_FILE"
+                exit 1
+              fi
+
+              # Đảm bảo quyền thực thi deploy.sh và quyền đọc cho .env
+              chmod +x "$DEPLOY_FILE" 2>/dev/null || true
+              if [ -f "$APP_DIR/.env" ]; then
+                chmod 664 "$APP_DIR/.env" 2>/dev/null || chmod +r "$APP_DIR/.env" 2>/dev/null || true
+                if [ ! -r "$APP_DIR/.env" ]; then
+                  echo "Lỗi: Không có quyền đọc file $APP_DIR/.env (Permission denied)."
+                  echo "Vui lòng chạy trên máy chủ: chmod 664 $APP_DIR/.env"
+                  exit 1
+                fi
+              fi
+
+              echo "Deploy backend image: $BACKEND_IMAGE"
+              echo "Deploy folder: $APP_DIR"
+
               BACKEND_IMAGE="$BACKEND_IMAGE" \
               APP_DIR="$APP_DIR" \
-              sh "$APP_DIR/deploy.sh"
+              sh "$DEPLOY_FILE"
             '''
           } else {
             powershell '''
